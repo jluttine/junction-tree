@@ -189,7 +189,9 @@ def hugin(junction_tree, distributive_law):
     See page 3:
     http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
     """
-    raise NotImplementedError()
+
+    # Not implemented yet. Just return the input.
+    return junction_tree
 
 
 class SumProduct():
