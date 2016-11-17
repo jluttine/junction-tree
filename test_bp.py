@@ -78,9 +78,7 @@ def assert_sum_product(tree):
 def test_hugin():
     """ Test hugin sum-product """
 
-    #
     # One scalar node
-    #
     assert_sum_product(
         [
             np.random.randn(),
@@ -88,9 +86,7 @@ def test_hugin():
         ]
     )
 
-    #
     # One matrix node
-    #
     assert_sum_product(
         [
             np.random.randn(2, 3),
@@ -98,9 +94,7 @@ def test_hugin():
         ]
     )
 
-    #
     # One child node with all variables shared
-    #
     assert_sum_product(
         [
             np.random.randn(2, 3),
@@ -116,9 +110,7 @@ def test_hugin():
         ]
     )
 
-    #
     # One child node with one common variable
-    #
     assert_sum_product(
         [
             np.random.randn(2, 3),
@@ -134,9 +126,7 @@ def test_hugin():
         ]
     )
 
-    #
     # One child node with no common variable
-    #
     assert_sum_product(
         [
             np.random.randn(2),
@@ -152,9 +142,7 @@ def test_hugin():
         ]
     )
 
-    #
     # One grand child node (not sharing with grand parent)
-    #
     assert_sum_product(
         [
             np.random.randn(2, 3),
@@ -178,9 +166,7 @@ def test_hugin():
         ]
     )
 
-    #
     # One grand child node (sharing with grand parent)
-    #
     assert_sum_product(
         [
             np.random.randn(2, 3),
@@ -204,9 +190,7 @@ def test_hugin():
         ]
     )
 
-    #
     # Two children (not sharing)
-    #
     assert_sum_product(
         [
             np.random.randn(2, 3),
@@ -230,9 +214,7 @@ def test_hugin():
         ]
     )
 
-    #
     # Two children (sharing)
-    #
     assert_sum_product(
         [
             np.random.randn(2, 3),
@@ -249,7 +231,31 @@ def test_hugin():
                 np.ones((3,)),
                 [5],
                 [
-                    np.random.randn(3, 5),
+                    np.random.randn(3),
+                    [5]
+                ]
+            )
+        ]
+    )
+
+    # Two children (with 3-D tensors)
+    assert_sum_product(
+        [
+            np.random.randn(2, 3, 4),
+            [3, 5, 7],
+            (
+                np.ones((3, 4)),
+                [5, 7],
+                [
+                    np.random.randn(3, 4, 5),
+                    [5, 7, 9],
+                ]
+            ),
+            (
+                np.ones((3,)),
+                [5],
+                [
+                    np.random.randn(3, 6),
                     [5, 1]
                 ]
             )
