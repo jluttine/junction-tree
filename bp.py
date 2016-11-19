@@ -4,19 +4,60 @@ Everything in this file is just rough sketching and ideas at the moment.
 Probably many things will change when implementing and learning.
 
 
-Starting point:
+Factor graphs:
+--------------
 
-Graphs are given as factor graphs. A factor graph is given as a list of
-factors, where each factor is a tuple of the shape of the array and keys that
-tell which variable each axis of the array corresponds to.
+A factor graph is given as a list of keys that tell which variables are in the
+factor. (A key corresponds to a variable.)
 
-[(shape1, axis_keys1), ..., (shapeN, axis_keysN)]
+[keys1, ..., keysN]  # a list of N factors
 
-Here, shape is the shape of the array that will be inputted later.
+The index in the list can be used as an ID for the factor, that is, the first
+factor in the list has ID 0 and the last factor has ID N-1.
 
-len(shape) == len(axis_keys)
+Also, the size of each of the M variables can be given as a dictionary:
 
-Thus, no moralization function should be needed.
+{
+    key1: size1,
+    ...
+    keyM: sizeM
+}
+
+Here, size is an integer telling the size of the variable. It is the same as
+the length of the corresponding axis in the array later.
+
+No moralization function should be needed.
+
+
+Generic trees (recursive definition):
+-------------------------------------
+
+[index, keys, child_tree1, ..., child_treeN]
+
+The index can, for instance, refer to the index of the factor?
+
+
+Junction trees:
+---------------
+
+
+[index, keys, (separator1_keys, child_tree1), ..., (separatorN_keys, child_treeN)]
+
+
+Junction trees:
+
+[
+    index, keys,
+    (
+        separator1_index, separator1_keys,
+        child_tree1
+    ),
+    ...,
+    (
+        separatorN_keys,
+        child_treeN
+    )
+]
 
 
 Idea:
@@ -59,18 +100,65 @@ General guidelines:
 import numpy as np
 
 
-def triangulate(factor_graph):
+def find_triangulation(factor_graph, sizes):
+    """Triangulate given factor graph.
+
+    TODO: Provide different algorithms.
+
+    Inputs:
+    -------
+
+    Factor graph syntax is a list of factor where each factor is given as a
+    list of variable keys the factor contains:
+
+    [keys1, ..., keysN]
+
+    Also, give the sizes of the variables as a dictionary:
+
+    {
+        key1: size1,
+        ...
+        keyM: sizeM
+    }
+
+    Output:
+    -------
+
+    A list of maximal cliques where each maximal clique is a tuple/list of
+    factor indices it contains:
+
+    [clique1, ..., cliqueK]
+
+    That is, if there are N factors, each clique contains some subset of
+    numbers from {0, ..., N-1} as a tuple/list.
+
+    Notes
+    -----
+    A clique may contain multiple factors.
+
+    See:
+    http://www.stat.washington.edu/courses/stat535/fall11/Handouts/l5-decomposable.pdf
+
     """
-    Triangulate given factor graph.
+    raise NotImplementedError()
 
-    Input:
 
-    Factor graph syntax is a list of tuples (shape, keys):
-    [(shape1, keys1), ..., (shapeN, keysN)]
+def triangulate(triangulation, arrays):
+    """
+    Apply pre-computed triangulation
 
-    Output: ???
+    Inputs:
+    -------
 
-    NOTE: A clique may contain multiple factors.
+    Triangulation returned by find_triangulation.
+
+    List of arrays for the factors
+
+    Output:
+    -------
+
+    List of arrays for the cliques.
+
     """
     raise NotImplementedError()
 
