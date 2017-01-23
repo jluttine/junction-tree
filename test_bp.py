@@ -1,6 +1,8 @@
 import numpy as np
 
 import bp
+from bp import get_clique
+import unittest
 
 
 # Tests here using pytest
@@ -263,3 +265,96 @@ def test_hugin():
     )
 
     pass
+
+class TestHUGINFunctionality(unittest.TestCase):
+    '''
+    examples taken from here:
+    https://www.cs.ru.nl/~peterl/BN/examplesproofs.pdf
+    http://www.inf.ed.ac.uk/teaching/courses/pmr/docs/jta_ex.pdf
+    background here:
+    http://web4.cs.ucl.ac.uk/staff/D.Barber/textbook/171216.pdf
+    comparison between HUGIN and Shafer-Shenoy
+    https://arxiv.org/pdf/1302.1553.pdf
+    some python code for junction tree algorithm
+    http://leo.ugr.es/pgm2012/proceedings/eproceedings/evers_a_framework.pdf
+    https://github.com/eBay/bayesian-belief-networks
+
+    var -> key_id:
+    V1 -> 0
+    V2 -> 1
+    V3 -> 2
+
+    factor -> factor_id:
+    f(V2) -> 0 [f(1)]
+    f(V1,V2) -> 1 [f(0,1)]
+    f(V3,V2) -> 2 [f(2,1)]
+
+    clique -> clique_id:
+    (V1,V2) -> 0
+    (V2) -> 1
+    (V2,V3) -> 2
+
+    [0, [0,1], (1, [1], [2, [1,2]]),]
+
+
+    which potentials need to be represented????
+
+    '''
+    def test_can_locate_clique_containing_variable(self):
+        tree = [0, [0,1], (1, [1], [2, [1,2]])]
+        clique = get_clique(tree, 2)
+        assert clique == 2
+
+    def test_marginalize_variable(self):
+        '''
+            given consistent clique potentials, calculate the marginal probability of
+            a variable in the clique
+            use example from Huang and Darwiche (H&D)
+
+             a   b   d  |  phi_ABD(abd)
+            --------------------------
+            on  on  on  |   0.225
+            on  on  off |   0.025
+            on  off on  |   0.125
+            on  off off |   0.125
+            off on  on  |   0.180
+            off on  off |   0.020
+            off off on  |   0.150
+            off off off |   0.150
+
+            >>> ABD = np.ndarray(shape=(2,2,2))
+            >>> ABD[1,1,1] = 0.225
+            >>> ABD[1,1,0] = 0.025
+            >>> ABD[1,0,1] = 0.125
+            >>> ABD[1,0,0] = 0.125
+            >>> ABD[0,1,1] = 0.180
+            >>> ABD[0,1,0] = 0.020
+            >>> ABD[0,0,1] = 0.150
+            >>> ABD[0,0,0] = 0.150
+        '''
+
+        phiABD=np.array([
+                            [
+                                [ 0.15 ,  0.15 ],
+                                [ 0.02 ,  0.18 ]
+                            ],
+                            [
+                                [ 0.125,  0.125],
+                                [ 0.025,  0.225]
+                            ]
+                        ])
+        # marginal probability of A, P(A)
+        assert compute_marginal(0) == np.array([0.500, 0.500])
+        # marginal probability of D, P(D)
+        assert compute_marginal(2) == np.array([0.680, 0.320])
+
+    def test_collect_messages(self):
+        pass
+
+    def test_distribute_messages(self):
+        pass
+
+    def test_consistency(self):
+        # consistency: summing the potential of a cluster X over variables in the cluster not included in
+        # sepset S, is equal to potential of S
+        pass

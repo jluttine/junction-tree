@@ -47,17 +47,25 @@ Junction trees:
 Junction trees:
 
 [
-    index, keys,
+    index, keys
     (
-        separator1_index, separator1_keys,
+        separator1_index, separator1_keys
         child_tree1
     ),
     ...,
     (
-        separatorN_keys,
+        separatorN_index, separatorN_keys
         child_treeN
     )
 ]
+
+Potentials in (junction) trees:
+-------------------------------
+
+A list/dictionary of arrays. The node IDs in the tree graphs map
+to the arrays in this data structure in order to get the numeric
+arrays in the execution phase. The numeric arrays are not needed
+in the compilation phase.
 
 
 Idea:
@@ -69,6 +77,7 @@ use the result for varying values in the factors (but with the same graph
 structure, obviously). That is, the junction tree construction depends only on
 the factor graph structure and the array shapes, but not the values in the
 arrays.
+
 
 One junction tree algorithm reference:
 http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
@@ -96,6 +105,10 @@ General guidelines:
 
 """
 
+"""
+According to Hugin reference (Section 3.1, p. 1083) Jensen (Junction Trees and Decomposable
+Hypergraphs - 1988) proved that a junction tree can be constructed by a maximal spanning tree algorithm
+"""
 
 import numpy as np
 
@@ -281,6 +294,23 @@ def hugin(junction_tree, distributive_law):
     # Not implemented yet. Just return the input.
     return junction_tree
 
+def get_clique(tree, var_label):
+    idx, keys = tree[0:2]
+    separators = tree[2:]
+    if var_label in keys:
+        return idx
+    if separators == (): # base case reached (leaf)
+        return None
+
+    for separator in separators:
+        separator_idx, separator_keys, c_tree = separator
+        if var_label in separator_keys:
+            return separator_idx
+        clique_idx = get_clique(c_tree, var_label)
+        if clique_idx:
+            return clique_idx
+
+    return None
 
 class SumProduct():
     """ Sum-product distributive law """
@@ -320,3 +350,17 @@ class SumProduct():
 
 # Sum-product distributive law for NumPy
 sum_product = SumProduct(np.einsum)
+
+'''class JunctionTree(object):
+    def __init__(self):
+        pass
+
+    def find_var(self, var_label):
+        pass
+
+    def get_clique(self, var_label):
+        for seperator in self.
+        pass'''
+
+'''class PotentialTable(object):
+    pass'''
