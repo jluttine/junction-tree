@@ -1,7 +1,7 @@
 import numpy as np
 
 import bp
-from bp import get_clique
+from bp import get_clique, compute_marginal
 import unittest
 
 
@@ -343,10 +343,11 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 [ 0.025,  0.225]
                             ]
                         ])
+        # https://obilaniu6266h16.wordpress.com/2016/02/04/einstein-summation-in-numpy/
         # marginal probability of A, P(A)
-        assert compute_marginal(0) == np.array([0.500, 0.500])
+        assert np.allclose(compute_marginal(phiABD, 0), np.array([0.500, 0.500])) == True
         # marginal probability of D, P(D)
-        assert compute_marginal(2) == np.array([0.680, 0.320])
+        assert np.allclose(compute_marginal(phiABD, 2), np.array([0.320, 0.680])) == True
 
     def test_collect_messages(self):
         pass
