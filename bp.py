@@ -319,7 +319,7 @@ def project(arr, _vars):
     return compute_marginal(arr, _vars)
 
 def absorb(phiC, phiSo, phiSn):
-    return phiC*(phiSo/phiSn)
+    return phiC*(phiSn/phiSo)
 
 class SumProduct():
     """ Sum-product distributive law """

@@ -349,6 +349,12 @@ class TestHUGINFunctionality(unittest.TestCase):
         # marginal probability of D, P(D)
         assert np.allclose(np.array([0.32,0.68]), np.array([0.320, 0.680])) == True
 
+    def test_initialize_potentials(self):
+        # this initialization is important to get proper messages passed
+        # discussed on page 111 of Bayesian Reasoning and Machine Learnging
+        # discussed on page 723 of Machine Learning: A Probabilistic Perspective
+        pass
+
     def test_pass_message(self):
         '''
             Example taken from here: https://www.cs.ru.nl/~peterl/BN/examplesproofs.pdf
@@ -375,6 +381,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                             [0.4, 0.8],
                             [0.6, 0.2]
                         ])
+        # during message passing we initialize
         phi2 = np.array([0.1, 0.9])
         phi23 = np.array([
                             [0.3, 0.7],
@@ -384,10 +391,12 @@ class TestHUGINFunctionality(unittest.TestCase):
         phi2n = project(phi12, [1])
         np.allclose(phi2n, np.array([1,1])) == True
         phi23 = absorb(phi23, phi2, phi2n)
+        print(phi23)
         np.allclose(phi23, np.array([
-                                        [0.03,0.63],
-                                        [0.05,0.45]
+                                        [0.03,0.07],
+                                        [0.45,0.45]
                                     ])) == True
+        self.fail()
 
     def test_collect_messages(self):
         pass
