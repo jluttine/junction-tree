@@ -312,8 +312,14 @@ def get_clique(tree, var_label):
 
     return None
 
-def compute_marginal(arr, var_id):
-    return np.einsum(arr, range(arr.ndim), [var_id])
+def compute_marginal(arr, _vars):
+    return np.einsum(arr, range(arr.ndim), _vars)
+
+def project(arr, _vars):
+    return compute_marginal(arr, _vars)
+
+def absorb(phiC, phiSo, phiSn):
+    return phiC*(phiSo/phiSn)
 
 class SumProduct():
     """ Sum-product distributive law """

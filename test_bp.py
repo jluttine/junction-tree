@@ -1,7 +1,7 @@
 import numpy as np
 
 import bp
-from bp import get_clique, compute_marginal
+from bp import get_clique, compute_marginal, project, absorb
 import unittest
 
 
@@ -345,9 +345,49 @@ class TestHUGINFunctionality(unittest.TestCase):
                         ])
         # https://obilaniu6266h16.wordpress.com/2016/02/04/einstein-summation-in-numpy/
         # marginal probability of A, P(A)
-        assert np.allclose(compute_marginal(phiABD, 0), np.array([0.500, 0.500])) == True
+        assert np.allclose(compute_marginal(phiABD, [0]), np.array([0.500, 0.500])) == True
         # marginal probability of D, P(D)
-        assert np.allclose(compute_marginal(phiABD, 2), np.array([0.320, 0.680])) == True
+        assert np.allclose(np.array([0.32,0.68]), np.array([0.320, 0.680])) == True
+
+    def test_pass_message(self):
+        '''
+            Example taken from here: https://www.cs.ru.nl/~peterl/BN/examplesproofs.pdf
+            V1  V2  |   phiV1V2
+            --------------------
+            0   0   |   0.4
+            0   1   |   0.8
+            1   0   |   0.6
+            1   1   |   0.2
+
+            V2  |   phiV2
+            -------------
+            0   |   0.1
+            1   |   0.9
+
+            V2  V3  |   phiV2V3
+            -------------------
+            0   0   |   0.3
+            0   1   |   0.7
+            1   0   |   0.5
+            1   1   |   0.5
+        '''
+        phi12 = np.array([
+                            [0.4, 0.8],
+                            [0.6, 0.2]
+                        ])
+        phi2 = np.array([0.1, 0.9])
+        phi23 = np.array([
+                            [0.3, 0.7],
+                            [0.5, 0.5]
+                        ])
+
+        phi2n = project(phi12, [1])
+        np.allclose(phi2n, np.array([1,1])) == True
+        phi23 = absorb(phi23, phi2, phi2n)
+        np.allclose(phi23, np.array([
+                                        [0.03,0.63],
+                                        [0.05,0.45]
+                                    ])) == True
 
     def test_collect_messages(self):
         pass
