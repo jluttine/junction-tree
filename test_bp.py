@@ -349,54 +349,90 @@ class TestHUGINFunctionality(unittest.TestCase):
         # marginal probability of D, P(D)
         assert np.allclose(np.array([0.32,0.68]), np.array([0.320, 0.680])) == True
 
-    def test_initialize_potentials(self):
-        # this initialization is important to get proper messages passed
-        # discussed on page 111 of Bayesian Reasoning and Machine Learnging
-        # discussed on page 723 of Machine Learning: A Probabilistic Perspective
-        pass
 
     def test_pass_message(self):
         '''
             Example taken from here: https://www.cs.ru.nl/~peterl/BN/examplesproofs.pdf
-            V1  V2  |   phiV1V2
-            --------------------
+            Example will be processed under the assumption that potentials have been
+            properly initialized outside of this test
+
+            Variables: V1, V2, V3
+            \pi_{V1} = [V2] # parents of V1
+            \pi_{V2} = [] # parents of V2
+            \pi_{V3} = [V2] # parents of V3
+            F_{V1} = [V1, V2]
+            F_{V2} = [V2]
+            F_{V3} = [V2, V3]
+
+            P(v1|v2) = 0.2
+            P(v1|~v2) = 0.6
+            P(~v1|v2) = 0.8
+            P(~v1|~v2) = 0.4
+            P(v3|v2) = 0.5
+            P(v3|~v2) = 0.7
+            P(~v3|v2) = 0.5
+            P(~v3|~v2) = 0.3
+            P(v2) = 0.9
+            P(~v2) = 0.1
+
+
+            V1  V2  |   \phi_{V1V2} (P(V1|V2))
+            ------------------------
             0   0   |   0.4
             0   1   |   0.8
             1   0   |   0.6
             1   1   |   0.2
 
-            V2  |   phiV2
-            -------------
-            0   |   0.1
-            1   |   0.9
 
-            V2  V3  |   phiV2V3
-            -------------------
-            0   0   |   0.3
-            0   1   |   0.7
-            1   0   |   0.5
-            1   1   |   0.5
+            V2  |   \phi_{V2} (1)
+            -----------------
+            0   |   1
+            1   |   1
+
+            V2  V3  |   \phi_{V2V3} (P(V3|V2)P(V2))
+            -------------------------
+            0   0   |   0.3 * 0.1 = 0.03
+            0   1   |   0.7 * 0.1 = 0.07
+            1   0   |   0.5 * 0.9 = 0.45
+            1   1   |   0.5 * 0.9 = 0.45
+
         '''
+
         phi12 = np.array([
                             [0.4, 0.8],
                             [0.6, 0.2]
                         ])
-        # during message passing we initialize
-        phi2 = np.array([0.1, 0.9])
+
+        phi2 = np.array([1, 1])
         phi23 = np.array([
-                            [0.3, 0.7],
-                            [0.5, 0.5]
+                            [0.03, 0.07],
+                            [0.45, 0.45]
                         ])
 
         phi2n = project(phi12, [1])
         np.allclose(phi2n, np.array([1,1])) == True
         phi23 = absorb(phi23, phi2, phi2n)
-        print(phi23)
         np.allclose(phi23, np.array([
                                         [0.03,0.07],
                                         [0.45,0.45]
                                     ])) == True
-        self.fail()
+
+        phi2nn = project(phi23, [0])
+        np.allclose(phi2nn, np.array([0.9, 0.1])) == True
+        phi12 = absorb(phi12, phi2n, phi2nn)
+        np.allclose(phi12, np.array([
+                                        [0.04,0.72],
+                                        [0.06,0.18]
+                                    ]))
+
+    def test_assign_var_to_cluster(self):
+        pass
+
+    def test_initialize_potentials(self):
+        # this initialization is important to get proper messages passed
+        # discussed on page 111 of Bayesian Reasoning and Machine Learnging
+        # discussed on page 723 of Machine Learning: A Probabilistic Perspective
+        pass
 
     def test_collect_messages(self):
         pass
