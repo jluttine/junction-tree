@@ -300,10 +300,6 @@ class TestHUGINFunctionality(unittest.TestCase):
     which potentials need to be represented????
 
     '''
-    def test_can_locate_clique_containing_variable(self):
-        tree = [0, [0,1], (1, [1], [2, [1,2]])]
-        clique = get_clique(tree, 2)
-        assert clique == 2
 
     def test_marginalize_variable(self):
         '''
@@ -425,16 +421,35 @@ class TestHUGINFunctionality(unittest.TestCase):
                                         [0.06,0.18]
                                     ]))
 
-    def test_assign_var_to_cluster(self):
-        pass
-
-    def test_initialize_potentials(self):
-        # this initialization is important to get proper messages passed
-        # discussed on page 111 of Bayesian Reasoning and Machine Learnging
-        # discussed on page 723 of Machine Learning: A Probabilistic Perspective
-        pass
 
     def test_collect_messages(self):
+        '''
+            Potentials to be used based on assignments in:
+            http://www.inf.ed.ac.uk/teaching/courses/pmr/docs/jta_ex.pdf
+
+            peace = 1
+            war = 0
+            yes = 1
+            no = 0
+            stay = 0
+            run = 1
+            decrease = 0
+            no change = 1
+            increase = 2
+
+            P(L=1) = 0.4
+            P(Q=1) = 0.6
+            P(S=1|L=1) = 0.8
+            P(S=0|L=1) = 0.2
+            P(S=1|L=0) = 0.3
+            P(S=0|L=0) = 0.7
+
+
+            S   L   |   \phi_{SL} (P(L)P(S|L))
+            ----------------------------------
+            0   0   |   0.6 x 0.7 = 0.42
+            0   1   |   0.4 x
+        '''
         pass
 
     def test_distribute_messages(self):
@@ -443,4 +458,20 @@ class TestHUGINFunctionality(unittest.TestCase):
     def test_consistency(self):
         # consistency: summing the potential of a cluster X over variables in the cluster not included in
         # sepset S, is equal to potential of S
+        pass
+
+
+class TestJunctionTreeConstruction(self):
+    def test_can_locate_clique_containing_variable(self):
+        tree = [0, [0,1], (1, [1], [2, [1,2]])]
+        clique = get_clique(tree, 2)
+        assert clique == 2
+
+    def test_assign_var_to_cluster(self):
+        pass
+
+    def test_initialize_potentials(self):
+        # this initialization is important to get proper messages passed
+        # discussed on page 111 of Bayesian Reasoning and Machine Learnging
+        # discussed on page 723 of Machine Learning: A Probabilistic Perspective
         pass
