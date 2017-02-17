@@ -1,7 +1,6 @@
 import numpy as np
 
 import bp
-from bp import get_clique, compute_marginal, project, absorb
 import unittest
 
 
@@ -73,6 +72,60 @@ def assert_sum_product(tree):
     assert_junction_tree_equal(
         brute_force_sum_product(tree),
         bp.hugin(tree, bp.sum_product)
+    )
+    pass
+
+def assert_potentials_equal(p1, p2):
+    """Test equality of two potentials
+
+    """
+
+    print(p1)
+    print(p2)
+
+    # Same number of potentials
+    assert len(p1) == len(p2)
+
+    if len(p1):
+        # Check equality of arrays
+        np.testing.assert_allclose(p1[0], p2[0])
+        # recursively check remaining potentials
+        assert_potentials_equal(p1[1:], p2[1:])
+
+def get_arrays_and_keys2(tree, potentials):
+    """Get all arrays and their keys as a flat list
+
+    Output: [array1, keys1, ..., arrayN, keysN]
+
+    """
+    return list([potentials[tree[0]],tree[1]]) + sum(
+        [
+            get_arrays_and_keys2(child_tree, potentials)
+            for child_tree in tree[2:]
+        ],
+        []
+    )
+
+def brute_force_sum_product2(junction_tree, potentials):
+    """Compute brute force sum-product with einsum """
+
+    # Function to compute the sum-product with brute force einsum
+    arrays_keys = get_arrays_and_keys2(junction_tree, potentials)
+    f = lambda output_keys: np.einsum(*(arrays_keys + [output_keys]))
+
+    def __run(tree, p, f, res=[]):
+        res.append(f(tree[1]))
+        for child_tree in tree[2:]:
+            __run(child_tree, p, f, res)
+        return res
+
+    return __run(junction_tree, potentials, f)
+
+def assert_sum_product2(tree, potentials):
+    """ Test hugin vs brute force sum-product """
+    assert_potentials_equal(
+        brute_force_sum_product2(tree, potentials),
+        bp.hugin2(tree, potentials, bp.sum_product)
     )
     pass
 
@@ -266,6 +319,182 @@ def test_hugin():
 
     pass
 
+    # One matrix node
+    assert_sum_product(
+        [
+            np.random.randn(2, 3),
+            [3, 5]
+        ]
+    )
+
+    # One child node with all variables shared
+    assert_sum_product(
+        [
+            np.random.randn(2, 3),
+            [3, 5],
+            (
+                np.ones((3, 2)),
+                [5, 3],
+                [
+                    np.random.randn(3, 2),
+                    [5, 3],
+                ]
+            )
+        ]
+    )
+
+    # One child node with one common variable
+    assert_sum_product(
+        [
+            np.random.randn(2, 3),
+            [3, 5],
+            (
+                np.ones((3,)),
+                [5],
+                [
+                    np.random.randn(3, 4),
+                    [5, 9]
+                ]
+            )
+        ]
+    )
+
+    # One child node with no common variable
+    assert_sum_product(
+        [
+            np.random.randn(2),
+            [3],
+            (
+                np.ones(()),
+                [],
+                [
+                    np.random.randn(3),
+                    [9]
+                ]
+            )
+        ]
+    )
+
+    # One grand child node (not sharing with grand parent)
+    assert_sum_product(
+        [
+            np.random.randn(2, 3),
+            [3, 5],
+            (
+                np.ones((3,)),
+                [5],
+                [
+                    np.random.randn(3, 4),
+                    [5, 9],
+                    (
+                        np.ones((4,)),
+                        [9],
+                        [
+                            np.random.randn(4, 5),
+                            [9, 1]
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    # One grand child node (sharing with grand parent)
+    assert_sum_product(
+        [
+            np.random.randn(2, 3),
+            [3, 5],
+            (
+                np.ones((3,)),
+                [5],
+                [
+                    np.random.randn(3, 4),
+                    [5, 9],
+                    (
+                        np.ones((3,)),
+                        [5],
+                        [
+                            np.random.randn(6, 3),
+                            [1, 5]
+                        ]
+                    )
+                ]
+            )
+        ]
+    )
+
+    # Two children (not sharing)
+    assert_sum_product(
+        [
+            np.random.randn(2, 3),
+            [3, 5],
+            (
+                np.ones((3,)),
+                [5],
+                [
+                    np.random.randn(3, 4),
+                    [5, 9],
+                ]
+            ),
+            (
+                np.ones((2,)),
+                [3],
+                [
+                    np.random.randn(2, 5),
+                    [3, 1]
+                ]
+            )
+        ]
+    )
+
+    # Two children (sharing)
+    assert_sum_product(
+        [
+            np.random.randn(2, 3),
+            [3, 5],
+            (
+                np.ones((3,)),
+                [5],
+                [
+                    np.random.randn(3, 4),
+                    [5, 9],
+                ]
+            ),
+            (
+                np.ones((3,)),
+                [5],
+                [
+                    np.random.randn(3),
+                    [5]
+                ]
+            )
+        ]
+    )
+
+    # Two children (with 3-D tensors)
+    assert_sum_product(
+        [
+            np.random.randn(2, 3, 4),
+            [3, 5, 7],
+            (
+                np.ones((3, 4)),
+                [5, 7],
+                [
+                    np.random.randn(3, 4, 5),
+                    [5, 7, 9],
+                ]
+            ),
+            (
+                np.ones((3,)),
+                [5],
+                [
+                    np.random.randn(3, 6),
+                    [5, 1]
+                ]
+            )
+        ]
+    )
+
 class TestHUGINFunctionality(unittest.TestCase):
     '''
     examples taken from here:
@@ -300,6 +529,215 @@ class TestHUGINFunctionality(unittest.TestCase):
     which potentials need to be represented????
 
     '''
+
+    def test_one_scalar_node(self):
+        assert_sum_product2(
+            [
+                0, []
+            ],
+            [
+                np.random.randn(),
+            ]
+        )
+
+    def test_one_matrix_node(self):
+        assert_sum_product2(
+            [
+                0, [3, 5]
+            ],
+            [
+                np.random.randn(2, 3),
+            ]
+        )
+
+    def test_one_child_node_with_all_variables_shared(self):
+        # is it possible to have two cliques with the exact same set of variables
+        potentials =             [
+                        np.random.randn(2, 3),
+                        np.ones((3, 2)),
+                        np.random.randn(3, 2),
+                    ]
+        print(potentials)
+        assert_sum_product2(
+            [
+                0, [3, 5],
+                (
+                    1, [5, 3],
+                    [
+                        2, [5, 3],
+                    ]
+                )
+            ],
+            potentials
+        )
+
+    def test_one_child_node_with_one_common_variable(self):
+        assert_sum_product2(
+            [
+                0, [3, 5],
+                (
+                    1, [5],
+                    [
+                        2, [5, 9]
+                    ]
+                )
+            ],
+            [
+                np.random.randn(2, 3),
+                np.ones((3,)),
+                np.random.randn(3, 4),
+            ]
+        )
+
+    def test_one_child_node_with_no_common_variable(self):
+        assert_sum_product2(
+            [
+                0, [3],
+                (
+                    1, [],
+                    [
+                        2, [9]
+                    ]
+                )
+            ],
+            [
+                np.random.randn(2),
+                np.ones(()),
+                np.random.randn(3),
+            ]
+        )
+
+    def test_one_grand_child_node_with_no_variable_shared_with_grand_parent(self):
+        assert_sum_product2(
+            [
+                0, [3, 5],
+                (
+                    1, [5],
+                    [
+                        2, [5, 9],
+                        (
+                            3, [9],
+                            [
+                                4, [9, 1]
+                            ]
+                        )
+                    ]
+                )
+            ],
+            [
+                np.random.randn(2, 3),
+                np.ones((3,)),
+                np.random.randn(3, 4),
+                np.ones((4,)),
+                np.random.randn(4, 5),
+            ]
+        )
+
+    def test_one_grand_child_node_with_variable_shared_with_grand_parent(self):
+        assert_sum_product2(
+            [
+                0, [3, 5],
+                (
+                    1, [5],
+                    [
+                        2, [5, 9],
+                        (
+                            3, [5],
+                            [
+                                4, [1, 5]
+                            ]
+                        )
+                    ]
+                )
+            ],
+            [
+                np.random.randn(2, 3),
+                np.ones((3,)),
+                np.random.randn(3, 4),
+                np.ones((3,)),
+                np.random.randn(6, 3),
+            ]
+        )
+
+    def test_two_children_with_no_variable_shared(self):
+        assert_sum_product2(
+            [
+                0, [3, 5],
+                (
+                    1, [5],
+                    [
+                        2, [5, 9],
+                    ]
+                ),
+                (
+                    3, [3],
+                    [
+                        4, [3, 1]
+                    ]
+                )
+            ],
+            [
+                np.random.randn(2, 3),
+                np.ones((3,)),
+                np.random.randn(3, 4),
+                np.ones((2,)),
+                np.random.randn(2, 5),
+            ]
+        )
+
+    def test_two_child_with_shared_variable(self):
+        assert_sum_product2(
+            [
+                0, [3, 5],
+                (
+                    1, [5],
+                    [
+                        2, [5, 9],
+                    ]
+                ),
+                (
+                    3, [5],
+                    [
+                        4, [5]
+                    ]
+                )
+            ],
+            [
+                np.random.randn(2, 3),
+                np.ones((3,)),
+                np.random.randn(3, 4),
+                np.ones((3,)),
+                np.random.randn(3),
+
+            ]
+        )
+
+    def test_two_children_with_3D_tensors(self):
+        assert_sum_product2(
+            [
+                0, [3, 5, 7],
+                (
+                    1, [5, 7],
+                    [
+                        2, [5, 7, 9],
+                    ]
+                ),
+                (
+                    3, [5],
+                    [
+                        4, [5, 1]
+                    ]
+                )
+            ],
+            [
+                np.random.randn(2, 3, 4),
+                np.ones((3, 4)),
+                np.random.randn(3, 4, 5),
+                np.ones((3,)),
+                np.random.randn(3, 6),
+            ]
+        )
+
 
     def test_marginalize_variable(self):
         '''
@@ -341,7 +779,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                         ])
         # https://obilaniu6266h16.wordpress.com/2016/02/04/einstein-summation-in-numpy/
         # marginal probability of A, P(A)
-        assert np.allclose(compute_marginal(phiABD, [0]), np.array([0.500, 0.500])) == True
+        assert np.allclose(bp.compute_marginal(phiABD, [0]), np.array([0.500, 0.500])) == True
         # marginal probability of D, P(D)
         assert np.allclose(np.array([0.32,0.68]), np.array([0.320, 0.680])) == True
 
@@ -405,24 +843,86 @@ class TestHUGINFunctionality(unittest.TestCase):
                             [0.45, 0.45]
                         ])
 
-        phi2n = project(phi12, [1])
+        phi2n = bp.project(phi12, [1])
         np.allclose(phi2n, np.array([1,1])) == True
-        phi23 = absorb(phi23, phi2, phi2n)
+        phi23 = bp.absorb(phi23, phi2, phi2n)
         np.allclose(phi23, np.array([
                                         [0.03,0.07],
                                         [0.45,0.45]
                                     ])) == True
 
-        phi2nn = project(phi23, [0])
+        phi2nn = bp.project(phi23, [0])
         np.allclose(phi2nn, np.array([0.9, 0.1])) == True
-        phi12 = absorb(phi12, phi2n, phi2nn)
+        phi12 = bp.absorb(phi12, phi2n, phi2nn)
         np.allclose(phi12, np.array([
                                         [0.04,0.72],
                                         [0.06,0.18]
                                     ]))
 
 
-    def test_collect_messages(self):
+    def test_collect_messages_with_3_vars(self):
+        phi = {}
+        phi[("V1", "V2")] = np.array([
+                            [0.4, 0.8],
+                            [0.6, 0.2]
+                        ])
+
+        phi[("V2")] = np.array([1, 1])
+        phi[("V2","V3")] = np.array([
+                            [0.03, 0.07],
+                            [0.45, 0.45]
+                        ])
+        # constructor for junction tree taking a list based definition
+        # will have a function that can convert factor graph into JT
+        jt = JunctionTree([
+                0, ["V1","V2"],
+                (
+                    1, ["V2"],
+                    [
+                        2, ["V2", "V3"]
+                    ]
+                )
+
+            ])
+        # jt.collect_messages(POTENTIALS, CLIQUE_INDEX=0)
+        phiN = bp.collect(jt, phi, 2)
+        np.allclose(phiN["V2,V3"], np.array([
+                                        [0.03,0.07],
+                                        [0.45,0.45]
+                                    ])) == True
+
+
+    def test_distribute_messages_with_3_vars(self):
+        phi = {}
+        phi[("V1", "V2")] = np.array([
+                            [0.4, 0.8],
+                            [0.6, 0.2]
+                        ])
+
+        phi[("V2")] = np.array([1, 1])
+        phi[("V2","V3")] = np.array([
+                            [0.03, 0.07],
+                            [0.45, 0.45]
+                        ])
+
+        jt = JunctionTree([
+                0, ["V1","V2"],
+                (
+                    1, ["V2"],
+                    [
+                        2, ["V2", "V3"]
+                    ]
+                )
+            ])
+        # jt.distribute_messages(POTENTIALS, CLIQUE_INDEX=0)
+        phiN = jt.distribute_messages(phi, 2)
+        np.allclose(phiN[("V1,V2")], np.array([
+                                        [0.04,0.72],
+                                        [0.06,0.18]
+                                    ]))
+
+
+    def test_marginalize_variable_with_evidence(self):
         '''
             Potentials to be used based on assignments in:
             http://www.inf.ed.ac.uk/teaching/courses/pmr/docs/jta_ex.pdf
@@ -488,6 +988,9 @@ class TestHUGINFunctionality(unittest.TestCase):
             P(I=1|G=2,H=0) = 1
             P(I=1|G=2,H=0) = 0
 
+                                    {F Q B H}
+                                        |
+            {S L} --- {L Q B G} --- {H B Q G} --- {I G H}
 
             S   L   |   \phi_{SL} (P(L)P(S|L))
             ----------------------------------
@@ -584,22 +1087,162 @@ class TestHUGINFunctionality(unittest.TestCase):
             1   2   0   |   1
             1   2   1   |   0
 
-
-
-
-
-
-
-
-
-
-
-
         '''
-        pass
 
-    def test_distribute_messages(self):
-        pass
+        phi = {}
+
+        phi[("S","L")] = np.array([
+                            [0.42,0.08],
+                            [0.18,0.32]
+                        ])
+
+        phi[("L","B","Q","G")] = np.array([
+                                [
+                                    [
+                                        [0,0,0],
+                                        [0.6,0.2,0.2],
+                                    ],
+                                    [
+                                        [0,0,0],
+                                        [0.7,0.2,0.1],
+                                    ]
+                                ],
+                                [
+                                    [
+                                        [0,0,0],
+                                        [0.1,0.1,0.8],
+                                    ],
+                                    [
+                                        [0.08,0.48,0.32],
+                                        [0.02,0.12,0.06],
+                                    ]
+                                ]
+                            ])
+
+        phi[("F","Q","B","H")] = np.array([
+                                [
+                                    [
+                                        [0.45,0.45],
+                                        [0.45,0.45],
+                                    ],
+                                    [
+                                        [0.10,0.10],
+                                        [0,0.2],
+                                    ]
+                                ],
+                                [
+                                    [
+                                        [0.09,0.01],
+                                        [0.06,0.04],
+                                    ],
+                                    [
+                                        [0.72,0.08],
+                                        [0.48,0.32],
+                                    ]
+                                ]
+
+                        ])
+
+        phi[("H","B","Q","G")] = np.array([
+                                [
+                                    [
+                                        [0.4,0.4,0.4],
+                                        [0.6,0.6,0.6],
+                                    ],
+                                    [
+                                        [0.4,0.4,0.4],
+                                        [0.6,0.6,0.6],
+                                    ]
+                                ],
+                                [
+                                    [
+                                        [0.4,0.4,0.4],
+                                        [0.6,0.6,0.6],
+                                    ],
+                                    [
+                                        [0.4,0.4,0.4],
+                                        [0.6,0.6,0.6],
+                                    ]
+                                ]
+
+                        ])
+
+        phi[("I","G","H")] = np.array([
+                            [
+                                [0.9,1],
+                                [0.7,1],
+                                [0,1],
+                            ],
+                            [
+
+                                [0.1,0],
+                                [0.3,0],
+                                [1,0],
+                            ]
+
+                        ])
+
+        phi[("L")] = np.array([1,1])
+        phi[("B","H","Q")] = np.array([
+                            [
+                                [1,1],
+                                [1,1],
+                            ],
+                            [
+                                [1,1],
+                                [1,1],
+                            ]
+                        ])
+
+        phi[("Q","B","G")] = np.array([
+                            [
+                                [1,1,1],
+                                [1,1,1],
+                            ],
+                            [
+                                [1,1,1],
+                                [1,1,1],
+                            ]
+                        ])
+
+        phi[("G","H")] = np.array([
+                                [1,1],
+                                [1,1],
+                        ])
+
+        jt = [
+                0, ["H", "B", "Q", "G"],
+                (
+                    1, ["B", "H", "Q"],
+                    [
+                        2, ["F", "Q", "B", "H"],
+                    ]
+                ),
+                (
+                    3, ["G", "H"],
+                    [
+                        4, ["I", "G", "H"]
+                    ]
+
+                ),
+                (
+                    5, ["Q","B","G"],
+                    [
+                        6, ["L", "Q", "B", "G"],
+                        (
+                            7, ["L"],
+                            [
+                                8, ["S", "L"]
+                            ]
+                        )
+                    ]
+                )
+            ]
+
+        phiN = bp.collect(jt, phi)
+        # need to set evidence here: Q=0, G=0, F=1
+        np.allclose(marginalize(jt, "H"), np.array([0.4, 0.6])) == True
+
 
     def test_consistency(self):
         # consistency: summing the potential of a cluster X over variables in the cluster not included in
@@ -607,10 +1250,10 @@ class TestHUGINFunctionality(unittest.TestCase):
         pass
 
 
-class TestJunctionTreeConstruction(self):
+class TestJunctionTreeConstruction(unittest.TestCase):
     def test_can_locate_clique_containing_variable(self):
         tree = [0, [0,1], (1, [1], [2, [1,2]])]
-        clique = get_clique(tree, 2)
+        clique = bp.get_clique(tree, 2)
         assert clique == 2
 
     def test_assign_var_to_cluster(self):
@@ -620,4 +1263,7 @@ class TestJunctionTreeConstruction(self):
         # this initialization is important to get proper messages passed
         # discussed on page 111 of Bayesian Reasoning and Machine Learnging
         # discussed on page 723 of Machine Learning: A Probabilistic Perspective
+        pass
+
+    def test_convert_factor_graph_to_junction_tree(self):
         pass

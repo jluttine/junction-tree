@@ -268,7 +268,7 @@ def initialize(tree):
     raise NotImplementedError()
 
 
-def collect(tree):
+def collect(tree, potentials, root_index=0):
     """ Used by Hugin algorithm to collect messages """
     raise NotImplementedError()
 
@@ -293,6 +293,22 @@ def hugin(junction_tree, distributive_law):
 
     # Not implemented yet. Just return the input.
     return junction_tree
+
+def hugin2(junction_tree, potentials, distributive_law):
+    """Run hugin algorithm by using the given distributive law.
+
+    Input tree format:
+
+    [array, keys, (separator1_array, separator1_keys, child_tree1), ... (separatorN_array, separatorN_keys, child_treeN)]
+
+    Output tree format is the same?
+
+    See page 3:
+    http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
+    """
+
+    # Not implemented yet. Just return the potentials.
+    return potentials
 
 def get_clique(tree, var_label):
     idx, keys = tree[0:2]
@@ -320,6 +336,7 @@ def project(arr, _vars):
 
 def absorb(phiC, phiSo, phiSn):
     return phiC*(phiSn/phiSo)
+
 
 class SumProduct():
     """ Sum-product distributive law """
