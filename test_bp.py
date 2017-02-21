@@ -80,9 +80,6 @@ def assert_potentials_equal(p1, p2):
 
     """
 
-    print(p1)
-    print(p2)
-
     # Same number of potentials
     assert len(p1) == len(p2)
 
@@ -530,6 +527,206 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     '''
 
+    def test_marginalize_variable(self):
+        '''
+            given consistent clique potentials, calculate the marginal probability of
+            a variable in the clique
+            use example from Huang and Darwiche (H&D)
+
+             a   b   d  |  phi_ABD(abd)
+            --------------------------
+            on  on  on  |   0.225
+            on  on  off |   0.025
+            on  off on  |   0.125
+            on  off off |   0.125
+            off on  on  |   0.180
+            off on  off |   0.020
+            off off on  |   0.150
+            off off off |   0.150
+
+            >>> ABD = np.ndarray(shape=(2,2,2))
+            >>> ABD[1,1,1] = 0.225
+            >>> ABD[1,1,0] = 0.025
+            >>> ABD[1,0,1] = 0.125
+            >>> ABD[1,0,0] = 0.125
+            >>> ABD[0,1,1] = 0.180
+            >>> ABD[0,1,0] = 0.020
+            >>> ABD[0,0,1] = 0.150
+            >>> ABD[0,0,0] = 0.150
+        '''
+
+        phiABD=np.array([
+                            [
+                                [ 0.15 ,  0.15 ],
+                                [ 0.02 ,  0.18 ]
+                            ],
+                            [
+                                [ 0.125,  0.125],
+                                [ 0.025,  0.225]
+                            ]
+                        ])
+        # https://obilaniu6266h16.wordpress.com/2016/02/04/einstein-summation-in-numpy/
+        # marginal probability of A, P(A)
+        assert np.allclose(bp.compute_marginal(phiABD, [0]), np.array([0.500, 0.500])) == True
+        # marginal probability of D, P(D)
+        assert np.allclose(np.array([0.32,0.68]), np.array([0.320, 0.680])) == True
+
+
+    def test_pass_message(self):
+        '''
+            Example taken from here: https://www.cs.ru.nl/~peterl/BN/examplesproofs.pdf
+            Example will be processed under the assumption that potentials have been
+            properly initialized outside of this test
+
+            Variables: V1, V2, V3
+            \pi_{V1} = [V2] # parents of V1
+            \pi_{V2} = [] # parents of V2
+            \pi_{V3} = [V2] # parents of V3
+            F_{V1} = [V1, V2]
+            F_{V2} = [V2]
+            F_{V3} = [V2, V3]
+
+            P(v1|v2) = 0.2
+            P(v1|~v2) = 0.6
+            P(~v1|v2) = 0.8
+            P(~v1|~v2) = 0.4
+            P(v3|v2) = 0.5
+            P(v3|~v2) = 0.7
+            P(~v3|v2) = 0.5
+            P(~v3|~v2) = 0.3
+            P(v2) = 0.9
+            P(~v2) = 0.1
+
+
+            V1  V2  |   \phi_{V1V2} (P(V1|V2))
+            ------------------------
+            0   0   |   0.4
+            0   1   |   0.8
+            1   0   |   0.6
+            1   1   |   0.2
+
+
+            V2  |   \phi_{V2} (1)
+            -----------------
+            0   |   1
+            1   |   1
+
+            V2  V3  |   \phi_{V2V3} (P(V3|V2)P(V2))
+            -------------------------
+            0   0   |   0.3 * 0.1 = 0.03
+            0   1   |   0.7 * 0.1 = 0.07
+            1   0   |   0.5 * 0.9 = 0.45
+            1   1   |   0.5 * 0.9 = 0.45
+
+        '''
+
+        phi12 = np.array([
+                            [0.4, 0.8],
+                            [0.6, 0.2]
+                        ])
+
+        phi2 = np.array([1, 1])
+        phi23 = np.array([
+                            [0.03, 0.07],
+                            [0.45, 0.45]
+                        ])
+
+        phi2n = bp.project(phi12, [1])
+        np.allclose(phi2n, np.array([1,1])) == True
+        phi23 = bp.absorb(phi23, phi2, phi2n)
+        np.allclose(phi23, np.array([
+                                        [0.03,0.07],
+                                        [0.45,0.45]
+                                    ])) == True
+
+        phi2nn = bp.project(phi23, [0])
+        np.allclose(phi2nn, np.array([0.9, 0.1])) == True
+        phi12 = bp.absorb(phi12, phi2n, phi2nn)
+        np.allclose(phi12, np.array([
+                                        [0.04,0.72],
+                                        [0.06,0.18]
+                                    ]))
+
+
+    def test_collect_messages(self):
+        # constructor for junction tree taking a list based definition
+        # will have a function that can convert factor graph into JT
+        jt = [
+                0, ["V1","V2"],
+                (
+                    1, ["V2"],
+                    [
+                        2, ["V2", "V3"]
+                    ]
+                )
+
+            ]
+
+        phi = []
+        phi.append(
+                    np.array(
+                                [
+                                    [0.4, 0.8],
+                                    [0.6, 0.2]
+                                ]
+                            )
+                    )
+
+        phi.append(np.array([1, 1]))
+        phi.append(
+                    np.array(
+                                [
+                                    [0.03, 0.07],
+                                    [0.45, 0.45]
+                                ]
+                            )
+                    )
+        # jt.collect_messages(POTENTIALS, CLIQUE_INDEX=0)
+        phiN = bp.collect(jt, phi, 2)
+        np.allclose(phiN[2], np.array([
+                                        [0.03,0.07],
+                                        [0.45,0.45]
+                                    ])) == True
+
+
+    def test_distribute_messages(self):
+        jt = [
+                0, ["V1","V2"],
+                (
+                    1, ["V2"],
+                    [
+                        2, ["V2", "V3"]
+                    ]
+                )
+            ]
+        phi.append(
+                    np.array(
+                                [
+                                    [0.4, 0.8],
+                                    [0.6, 0.2]
+                                ]
+                            )
+                    )
+
+        phi.append(np.array([1, 1]))
+        phi.append(
+                    np.array(
+                                [
+                                    [0.03, 0.07],
+                                    [0.45, 0.45]
+                                ]
+                            )
+                    )
+
+
+        # jt.distribute_messages(POTENTIALS, CLIQUE_INDEX=0)
+        phiN = bp.distribute(jt, phi, 2)
+        np.allclose(phiN[2], np.array([
+                                        [0.04,0.72],
+                                        [0.06,0.18]
+                                    ]))
+
+
     def test_one_scalar_node(self):
         assert_sum_product2(
             [
@@ -552,12 +749,14 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     def test_one_child_node_with_all_variables_shared(self):
         # is it possible to have two cliques with the exact same set of variables
+
+
         potentials =             [
                         np.random.randn(2, 3),
                         np.ones((3, 2)),
                         np.random.randn(3, 2),
                     ]
-        print(potentials)
+
         assert_sum_product2(
             [
                 0, [3, 5],
@@ -568,7 +767,11 @@ class TestHUGINFunctionality(unittest.TestCase):
                     ]
                 )
             ],
-            potentials
+            [
+                np.random.randn(2, 3),
+                np.ones((3, 2)),
+                np.random.randn(3, 2),
+            ]
         )
 
     def test_one_child_node_with_one_common_variable(self):
@@ -738,188 +941,6 @@ class TestHUGINFunctionality(unittest.TestCase):
             ]
         )
 
-
-    def test_marginalize_variable(self):
-        '''
-            given consistent clique potentials, calculate the marginal probability of
-            a variable in the clique
-            use example from Huang and Darwiche (H&D)
-
-             a   b   d  |  phi_ABD(abd)
-            --------------------------
-            on  on  on  |   0.225
-            on  on  off |   0.025
-            on  off on  |   0.125
-            on  off off |   0.125
-            off on  on  |   0.180
-            off on  off |   0.020
-            off off on  |   0.150
-            off off off |   0.150
-
-            >>> ABD = np.ndarray(shape=(2,2,2))
-            >>> ABD[1,1,1] = 0.225
-            >>> ABD[1,1,0] = 0.025
-            >>> ABD[1,0,1] = 0.125
-            >>> ABD[1,0,0] = 0.125
-            >>> ABD[0,1,1] = 0.180
-            >>> ABD[0,1,0] = 0.020
-            >>> ABD[0,0,1] = 0.150
-            >>> ABD[0,0,0] = 0.150
-        '''
-
-        phiABD=np.array([
-                            [
-                                [ 0.15 ,  0.15 ],
-                                [ 0.02 ,  0.18 ]
-                            ],
-                            [
-                                [ 0.125,  0.125],
-                                [ 0.025,  0.225]
-                            ]
-                        ])
-        # https://obilaniu6266h16.wordpress.com/2016/02/04/einstein-summation-in-numpy/
-        # marginal probability of A, P(A)
-        assert np.allclose(bp.compute_marginal(phiABD, [0]), np.array([0.500, 0.500])) == True
-        # marginal probability of D, P(D)
-        assert np.allclose(np.array([0.32,0.68]), np.array([0.320, 0.680])) == True
-
-
-    def test_pass_message(self):
-        '''
-            Example taken from here: https://www.cs.ru.nl/~peterl/BN/examplesproofs.pdf
-            Example will be processed under the assumption that potentials have been
-            properly initialized outside of this test
-
-            Variables: V1, V2, V3
-            \pi_{V1} = [V2] # parents of V1
-            \pi_{V2} = [] # parents of V2
-            \pi_{V3} = [V2] # parents of V3
-            F_{V1} = [V1, V2]
-            F_{V2} = [V2]
-            F_{V3} = [V2, V3]
-
-            P(v1|v2) = 0.2
-            P(v1|~v2) = 0.6
-            P(~v1|v2) = 0.8
-            P(~v1|~v2) = 0.4
-            P(v3|v2) = 0.5
-            P(v3|~v2) = 0.7
-            P(~v3|v2) = 0.5
-            P(~v3|~v2) = 0.3
-            P(v2) = 0.9
-            P(~v2) = 0.1
-
-
-            V1  V2  |   \phi_{V1V2} (P(V1|V2))
-            ------------------------
-            0   0   |   0.4
-            0   1   |   0.8
-            1   0   |   0.6
-            1   1   |   0.2
-
-
-            V2  |   \phi_{V2} (1)
-            -----------------
-            0   |   1
-            1   |   1
-
-            V2  V3  |   \phi_{V2V3} (P(V3|V2)P(V2))
-            -------------------------
-            0   0   |   0.3 * 0.1 = 0.03
-            0   1   |   0.7 * 0.1 = 0.07
-            1   0   |   0.5 * 0.9 = 0.45
-            1   1   |   0.5 * 0.9 = 0.45
-
-        '''
-
-        phi12 = np.array([
-                            [0.4, 0.8],
-                            [0.6, 0.2]
-                        ])
-
-        phi2 = np.array([1, 1])
-        phi23 = np.array([
-                            [0.03, 0.07],
-                            [0.45, 0.45]
-                        ])
-
-        phi2n = bp.project(phi12, [1])
-        np.allclose(phi2n, np.array([1,1])) == True
-        phi23 = bp.absorb(phi23, phi2, phi2n)
-        np.allclose(phi23, np.array([
-                                        [0.03,0.07],
-                                        [0.45,0.45]
-                                    ])) == True
-
-        phi2nn = bp.project(phi23, [0])
-        np.allclose(phi2nn, np.array([0.9, 0.1])) == True
-        phi12 = bp.absorb(phi12, phi2n, phi2nn)
-        np.allclose(phi12, np.array([
-                                        [0.04,0.72],
-                                        [0.06,0.18]
-                                    ]))
-
-
-    def test_collect_messages_with_3_vars(self):
-        phi = {}
-        phi[("V1", "V2")] = np.array([
-                            [0.4, 0.8],
-                            [0.6, 0.2]
-                        ])
-
-        phi[("V2")] = np.array([1, 1])
-        phi[("V2","V3")] = np.array([
-                            [0.03, 0.07],
-                            [0.45, 0.45]
-                        ])
-        # constructor for junction tree taking a list based definition
-        # will have a function that can convert factor graph into JT
-        jt = JunctionTree([
-                0, ["V1","V2"],
-                (
-                    1, ["V2"],
-                    [
-                        2, ["V2", "V3"]
-                    ]
-                )
-
-            ])
-        # jt.collect_messages(POTENTIALS, CLIQUE_INDEX=0)
-        phiN = bp.collect(jt, phi, 2)
-        np.allclose(phiN["V2,V3"], np.array([
-                                        [0.03,0.07],
-                                        [0.45,0.45]
-                                    ])) == True
-
-
-    def test_distribute_messages_with_3_vars(self):
-        phi = {}
-        phi[("V1", "V2")] = np.array([
-                            [0.4, 0.8],
-                            [0.6, 0.2]
-                        ])
-
-        phi[("V2")] = np.array([1, 1])
-        phi[("V2","V3")] = np.array([
-                            [0.03, 0.07],
-                            [0.45, 0.45]
-                        ])
-
-        jt = JunctionTree([
-                0, ["V1","V2"],
-                (
-                    1, ["V2"],
-                    [
-                        2, ["V2", "V3"]
-                    ]
-                )
-            ])
-        # jt.distribute_messages(POTENTIALS, CLIQUE_INDEX=0)
-        phiN = jt.distribute_messages(phi, 2)
-        np.allclose(phiN[("V1,V2")], np.array([
-                                        [0.04,0.72],
-                                        [0.06,0.18]
-                                    ]))
 
 
     def test_marginalize_variable_with_evidence(self):
