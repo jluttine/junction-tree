@@ -268,13 +268,25 @@ def initialize(tree):
     raise NotImplementedError()
 
 
-def collect(tree, potentials, root_index=0):
+def collect(tree, potentials, visited, clique_index=0):
     """ Used by Hugin algorithm to collect messages """
+    # set clique_index in visited to 1
+
+    # loop over neighbors of clique
+        # call collect on neighbor if not marked as visited
+    # return messages from neighbors (in what form? setting a new value for the potential?)
     raise NotImplementedError()
 
 
-def distribute():
+def distribute(tree, potentials, visited, clique_index=0):
     """ Used by Hugin algorithm to distribute messages """
+    # set clique_index in visited to 1
+
+    # loop over neighbors of clique_index
+        # if neighbor unmarked
+            # pass a message (in what form? update to clique's potential) to neighbor if not marked
+            # call distribute on neighbor
+
     raise NotImplementedError()
 
 
@@ -294,7 +306,7 @@ def hugin(junction_tree, distributive_law):
     # Not implemented yet. Just return the input.
     return junction_tree
 
-def hugin2(junction_tree, potentials, distributive_law):
+def hugin2(junction_tree, potentials, distributive_law, root_index=0):
     """Run hugin algorithm by using the given distributive law.
 
     Input tree format:
@@ -306,6 +318,15 @@ def hugin2(junction_tree, potentials, distributive_law):
     See page 3:
     http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
     """
+    # initialize visited array which has the same number of elements as potentials array
+    #visited = [0]*len(potentials)
+
+    # call collect on root_index storing the result in new_potentials
+
+    # initialize visited array again
+    #visited = [0]*len(potentials)
+
+    # return the result of a call to distribute on root index
 
     # Not implemented yet. Just return the potentials.
     return potentials
@@ -335,6 +356,8 @@ def project(arr, _vars):
     return compute_marginal(arr, _vars)
 
 def absorb(phiC, phiSo, phiSn):
+    if not np.count_nonzero(phiSo):
+        return np.zeros_like(phiSo)
     return phiC*(phiSn/phiSo)
 
 

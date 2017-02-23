@@ -682,7 +682,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                             )
                     )
         # jt.collect_messages(POTENTIALS, CLIQUE_INDEX=0)
-        phiN = bp.collect(jt, phi, 2)
+        phiN = bp.collect(jt, phi, [0]*len(phi), 2)
         np.allclose(phiN[2], np.array([
                                         [0.03,0.07],
                                         [0.45,0.45]
@@ -720,7 +720,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
 
         # jt.distribute_messages(POTENTIALS, CLIQUE_INDEX=0)
-        phiN = bp.distribute(jt, phi, 2)
+        phiN = bp.distribute(jt, phi, [0]*len(phi), 2)
         np.allclose(phiN[2], np.array([
                                         [0.04,0.72],
                                         [0.06,0.18]
@@ -941,7 +941,66 @@ class TestHUGINFunctionality(unittest.TestCase):
             ]
         )
 
+    def test_can_observe_evidence_from_one_trial(self):
+        jt = [
+                0, [0,2,4],
+                (
+                    1, [0,2],
+                    [
+                        2, [0,1,2]
+                    ]
+                ),
+                (
+                    3, [4],
+                    [
+                        4, [3,4],
+                        (
+                            5, [3],
+                            [
+                                6, [1,2,3]
+                            ]
+                        )
+                    ]
+                )
+            ]
+        data = [{0: 1, 2: 3, 4: 0}]
+        likelihood = observe(jt, phi, data)
+        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
+        np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
+        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
+        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
+        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
 
+        # define arbitrary join tree potentials
+        # test that the potentials are altered properly after observing data
+
+    def test_can_observe_dynamic_evidence(self):
+        jt = [
+                0, [0,2,4],
+                (
+                    1, [0,2],
+                    [
+                        2, [0,1,2]
+                    ]
+                ),
+                (
+                    3, [4],
+                    [
+                        4, [3,4],
+                        (
+                            5, [3],
+                            [
+                                6, [1,2,3]
+                            ]
+                        )
+                    ]
+                )
+            ]
+        data = [{0: 1, 2: 3, 4: 0}, {1:2, 3:1, 4:1}]
+        likelihood = observe(jt, phi, data)
+
+        # define arbitrary join tree potentials
+        # test that the potentials are altered properly after observing data
 
     def test_marginalize_variable_with_evidence(self):
         '''
@@ -1110,14 +1169,22 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         '''
 
-        phi = {}
+        phi = []
+        _vars = sorted("L","Q","S","F","G","B","I","H")
 
-        phi[("S","L")] = np.array([
+        #("S","L") -> 0
+
+        phi.append(
+                    np.array([
                             [0.42,0.08],
                             [0.18,0.32]
                         ])
 
-        phi[("L","B","Q","G")] = np.array([
+                    )
+
+        #("L","B","Q","G") -> 1
+        phi.append(
+                    np.array([
                                 [
                                     [
                                         [0,0,0],
@@ -1139,8 +1206,11 @@ class TestHUGINFunctionality(unittest.TestCase):
                                     ]
                                 ]
                             ])
+                        )
 
-        phi[("F","Q","B","H")] = np.array([
+        #("F","Q","B","H") -> 2
+        phi.append(
+                    np.array([
                                 [
                                     [
                                         [0.45,0.45],
@@ -1163,8 +1233,11 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 ]
 
                         ])
+                    )
 
-        phi[("H","B","Q","G")] = np.array([
+        #("H","B","Q","G") -> 3
+        phi.append(
+                    np.array([
                                 [
                                     [
                                         [0.4,0.4,0.4],
@@ -1187,8 +1260,11 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 ]
 
                         ])
+                    )
 
-        phi[("I","G","H")] = np.array([
+        #("I","G","H") -> 4
+        phi.append(
+                    np.array([
                             [
                                 [0.9,1],
                                 [0.7,1],
@@ -1202,9 +1278,14 @@ class TestHUGINFunctionality(unittest.TestCase):
                             ]
 
                         ])
+                    )
 
-        phi[("L")] = np.array([1,1])
-        phi[("B","H","Q")] = np.array([
+        #("L") -> 5
+        phi.append(np.array([1,1]))
+
+        #("B","H","Q") -> 6
+        phi.append(
+                    np.array([
                             [
                                 [1,1],
                                 [1,1],
@@ -1214,8 +1295,11 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 [1,1],
                             ]
                         ])
+                    )
 
-        phi[("Q","B","G")] = np.array([
+        #("Q", "B", "G") -> 7
+        phi.append(
+                    np.array([
                             [
                                 [1,1,1],
                                 [1,1,1],
@@ -1225,50 +1309,51 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 [1,1,1],
                             ]
                         ])
+                    )
 
-        phi[("G","H")] = np.array([
+        #("G", "H") -> 8
+        phi.append(
+                    np.array([
                                 [1,1],
                                 [1,1],
                         ])
+                    )
+
+        # TODO: Need to think about internal mapping of variable names to variable index
 
         jt = [
-                0, ["H", "B", "Q", "G"],
+                0, [_vars.index("H"), _vars.index("B"), _vars.index("Q"), _vars.index("G")],
                 (
-                    1, ["B", "H", "Q"],
+                    1, [_vars.index("B"), _vars.index("H"), _vars.index("Q")],
                     [
-                        2, ["F", "Q", "B", "H"],
+                        2, [_vars.index("F"), _vars.index("Q"), _vas.index("B"), _vars.index("H")],
                     ]
                 ),
                 (
-                    3, ["G", "H"],
+                    3, [_vars.index("G"), _vars.index("H")],
                     [
-                        4, ["I", "G", "H"]
+                        4, [_vars.index("I"), _vars.index("G"), _vars.index("H")]
                     ]
 
                 ),
                 (
-                    5, ["Q","B","G"],
+                    5, [_vars.index("Q"),_vars.index("B"),_vars.index("G")],
                     [
-                        6, ["L", "Q", "B", "G"],
+                        6, [_vars.index("L"), _vars.index("Q"), _vars.index("B"), _vars.index("G")],
                         (
-                            7, ["L"],
+                            7, [_vars.index("L")],
                             [
-                                8, ["S", "L"]
+                                8, [_vars.index("S"), _vars.index("L")]
                             ]
                         )
                     ]
                 )
             ]
 
-        phiN = bp.collect(jt, phi)
+        phiN = bp.collect(jt, phi, []*len(phi))
         # need to set evidence here: Q=0, G=0, F=1
         np.allclose(marginalize(jt, "H"), np.array([0.4, 0.6])) == True
 
-
-    def test_consistency(self):
-        # consistency: summing the potential of a cluster X over variables in the cluster not included in
-        # sepset S, is equal to potential of S
-        pass
 
 
 class TestJunctionTreeConstruction(unittest.TestCase):
