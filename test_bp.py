@@ -989,8 +989,9 @@ class TestHUGINFunctionality(unittest.TestCase):
         # for now just find one but for now just check the first clique containing the variable)
 
         for var, val in data.items():
-            clique, _vars = get_clique(jt, var)
+            clique, _vars = bp.get_clique(jt, var)
             pot = phiN[clique]
+            assert pot.shape == phi[clique].shape
             var_idx = _vars.index(var)
             # check that potential properly updated
             mask = [val == dim for dim in range(pot.shape[var_idx])]
@@ -1002,7 +1003,24 @@ class TestHUGINFunctionality(unittest.TestCase):
                                             np.compress(mask, phi[clique], axis=var_idx)
                                         )
 
-        # test that no change made to potential values for unobserved variables (TODO)
+        # test that no change made to potential values for unobserved variables
+        for var in bp.get_vars(tree):
+            if var not in data.keys():
+                # we have not observed a value for this var
+                for clique, _vars in bp.get_cliques(tree, var).iteritems():
+
+                    # get the vals for the observed axes and set unobserved to -1
+                    test_arr = np.array([data[v] if v in data else -1 for v in _vars])
+                    # retain indices in array which all observed axes set to observed val
+                    # if none observed this should just evaluate to all indices of the potential
+                    test_indices = np.array([a_idx for a_idx in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_idx)) == (test_arr > -1).sum()]).transpose()
+                    flat_indices = np.ravel_multi_index(test_indices, pot.shape)
+                    # elements at these indices should not have changed by observations
+                    np.testing.assert_array_equal(
+                                                    np.take(pot, flat_indices),
+                                                    np.take(phi[clique], flat_indices)
+                                                )
+
 
     def test_can_observe_dynamic_evidence(self):
         jt = [
@@ -1389,7 +1407,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 class TestJunctionTreeConstruction(unittest.TestCase):
     def test_can_locate_clique_containing_variable(self):
         tree = [0, [0,1], (1, [1], [2, [1,2]])]
-        clique = bp.get_clique(tree, 2)
+        clique, _vars = bp.get_clique(tree, 2)
         assert clique == 2
 
     def test_assign_var_to_cluster(self):
