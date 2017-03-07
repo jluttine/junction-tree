@@ -522,10 +522,9 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     [0, [0,1], (1, [1], [2, [1,2]]),]
 
-
-    which potentials need to be represented????
-
     '''
+
+    #ensure that likelihoods can be used in inference with and without evidence
 
     def test_marginalize_variable(self):
         '''
@@ -942,6 +941,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         )
 
     def test_can_observe_evidence_from_one_trial(self):
+        # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
         jt = [
                 0, [0,2,4],
                 (
@@ -963,7 +963,20 @@ class TestHUGINFunctionality(unittest.TestCase):
                     ]
                 )
             ]
+
+        # define arbitrary join tree potentials
+        phi = [
+                np.random.randn(4, 5, 6),
+                np.random.randn(4,5),
+                np.random.randn(4,8,5),
+                np.random.randn(6),
+                np.random.randn(3, 6),
+                np.random.randn(3),
+                np.random.randn(8,5,3)
+        ]
+
         data = [{0: 1, 2: 3, 4: 0}]
+
         likelihood = observe(jt, phi, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
@@ -971,8 +984,25 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
 
-        # define arbitrary join tree potentials
-        # test that the potentials are altered properly after observing data
+        # test that a potential containing observed variable is altered properly after observing data
+        # (Eventually this will be based on familial content of clique or a more optimal clique but
+        # for now just find one but for now just check the first clique containing the variable)
+
+        for var, val in data.items():
+            clique, _vars = get_clique(jt, var)
+            pot = phiN[clique]
+            var_idx = _vars.index(var)
+            # check that potential properly updated
+            mask = [val == dim for dim in range(pot.shape[var_idx])]
+            # values along var axis not equal to val will have a 0 value
+            assert np.all(np.compress(np.invert(mask), pot, axis=var_idx)) == 0
+            # ensure that var axis equal to val is equivalent in both original and new potentials
+            np.testing.assert_array_equal(
+                                            np.compress(mask, pot, axis=var_idx),
+                                            np.compress(mask, phi[clique], axis=var_idx)
+                                        )
+
+        # test that no change made to potential values for unobserved variables (TODO)
 
     def test_can_observe_dynamic_evidence(self):
         jt = [
