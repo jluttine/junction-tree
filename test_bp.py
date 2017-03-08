@@ -975,14 +975,15 @@ class TestHUGINFunctionality(unittest.TestCase):
                 np.random.randn(8,5,3)
         ]
 
-        data = [{0: 1, 2: 3, 4: 0}]
+        data = {0: 1, 2: 3, 4: 0}
 
-        likelihood = observe(jt, phi, data)
+        likelihood, phiN = bp.observe(jt, phi, None, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+        assert_consistent(jt, phiN)
 
         # test that a potential containing observed variable is altered properly after observing data
         # (Eventually this will be based on familial content of clique or a more optimal clique but
@@ -1022,7 +1023,8 @@ class TestHUGINFunctionality(unittest.TestCase):
                                                 )
 
 
-    def test_can_observe_dynamic_evidence(self):
+    def test_can_observe_dynamic_evidence_using_global_update_single_variable(self):
+        # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
         jt = [
                 0, [0,2,4],
                 (
@@ -1044,11 +1046,255 @@ class TestHUGINFunctionality(unittest.TestCase):
                     ]
                 )
             ]
-        data = [{0: 1, 2: 3, 4: 0}, {1:2, 3:1, 4:1}]
-        likelihood = observe(jt, phi, data)
 
         # define arbitrary join tree potentials
-        # test that the potentials are altered properly after observing data
+        phi = [
+                np.random.randn(4, 5, 6),
+                np.random.randn(4,5),
+                np.random.randn(4,8,5),
+                np.random.randn(6),
+                np.random.randn(3, 6),
+                np.random.randn(3),
+                np.random.randn(8,5,3)
+        ]
+
+        data = {0: 1, 1: 2, 2: 3, 4: 0}
+
+        likelihood = {
+                        np.array([0,1,0,0]),
+                        np.array([1,1,1,1,1,1,1,1]),
+                        np.array([0,0,0,1,0]),
+                        np.array([1,1,1]),
+                        np.array([1,0,0,0,0,0])
+                    }
+
+        likelihood, phiN = bp.observe(jt, phi, data, likelihood, "update")
+        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
+        np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
+        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
+        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
+        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+        assert_consistent(jt, phiN)
+
+        # test that a potential containing observed variable is altered properly after observing data
+        # (Eventually this will be based on familial content of clique or a more optimal clique but
+        # for now just find one but for now just check the first clique containing the variable)
+
+        for var, val in data.items():
+            clique, _vars = bp.get_clique(jt, var)
+            pot = phiN[clique]
+            assert pot.shape == phi[clique].shape
+            var_idx = _vars.index(var)
+            # check that potential properly updated
+            mask = [val == dim for dim in range(pot.shape[var_idx])]
+            # values along var axis not equal to val will have a 0 value
+            assert np.all(np.compress(np.invert(mask), pot, axis=var_idx)) == 0
+            # ensure that var axis equal to val is equivalent in both original and new potentials
+            np.testing.assert_array_equal(
+                                            np.compress(mask, pot, axis=var_idx),
+                                            np.compress(mask, phi[clique], axis=var_idx)
+                                        )
+
+        # test that no change made to potential values for unobserved variables
+        for var in bp.get_vars(tree):
+            if var not in data.keys():
+                # we have not observed a value for this var
+                for clique, _vars in bp.get_cliques(tree, var).iteritems():
+
+                    # get the vals for the observed axes and set unobserved to -1
+                    test_arr = np.array([data[v] if v in data else -1 for v in _vars])
+                    # retain indices in array which all observed axes set to observed val
+                    # if none observed this should just evaluate to all indices of the potential
+                    test_indices = np.array([a_idx for a_idx in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_idx)) == (test_arr > -1).sum()]).transpose()
+                    flat_indices = np.ravel_multi_index(test_indices, pot.shape)
+                    # elements at these indices should not have changed by observations
+                    np.testing.assert_array_equal(
+                                                    np.take(pot, flat_indices),
+                                                    np.take(phi[clique], flat_indices)
+                                                )
+
+    def test_can_observe_dynamic_evidence_using_global_update_multi_variable(self):
+        # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
+        jt = [
+                0, [0,2,4],
+                (
+                    1, [0,2],
+                    [
+                        2, [0,1,2]
+                    ]
+                ),
+                (
+                    3, [4],
+                    [
+                        4, [3,4],
+                        (
+                            5, [3],
+                            [
+                                6, [1,2,3]
+                            ]
+                        )
+                    ]
+                )
+            ]
+
+        # define arbitrary join tree potentials
+        phi = [
+                np.random.randn(4, 5, 6),
+                np.random.randn(4,5),
+                np.random.randn(4,8,5),
+                np.random.randn(6),
+                np.random.randn(3, 6),
+                np.random.randn(3),
+                np.random.randn(8,5,3)
+        ]
+
+        data = {0: 1, 1: 2, 2: 3, 3: 2, 4: 0}
+
+        likelihood = {
+                        np.array([0,1,0,0]),
+                        np.array([1,1,1,1,1,1,1,1]),
+                        np.array([0,0,0,1,0]),
+                        np.array([1,1,1]),
+                        np.array([1,0,0,0,0,0])
+                    }
+
+
+        likelihood, phiN = bp.observe(jt, phi, likelihood, data, "update")
+        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
+        np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
+        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
+        np.testing.assert_array_equal(likelihood[3], np.array([0,0,1])
+        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+        assert_consistent(jt, phiN)
+
+        # test that a potential containing observed variable is altered properly after observing data
+        # (Eventually this will be based on familial content of clique or a more optimal clique but
+        # for now just find one but for now just check the first clique containing the variable)
+
+        for var, val in data.items():
+            clique, _vars = bp.get_clique(jt, var)
+            pot = phiN[clique]
+            assert pot.shape == phi[clique].shape
+            var_idx = _vars.index(var)
+            # check that potential properly updated
+            mask = [val == dim for dim in range(pot.shape[var_idx])]
+            # values along var axis not equal to val will have a 0 value
+            assert np.all(np.compress(np.invert(mask), pot, axis=var_idx)) == 0
+            # ensure that var axis equal to val is equivalent in both original and new potentials
+            np.testing.assert_array_equal(
+                                            np.compress(mask, pot, axis=var_idx),
+                                            np.compress(mask, phi[clique], axis=var_idx)
+                                        )
+
+        # test that no change made to potential values for unobserved variables
+        for var in bp.get_vars(tree):
+            if var not in data.keys():
+                # we have not observed a value for this var
+                for clique, _vars in bp.get_cliques(tree, var).iteritems():
+
+                    # get the vals for the observed axes and set unobserved to -1
+                    test_arr = np.array([data[v] if v in data else -1 for v in _vars])
+                    # retain indices in array which all observed axes set to observed val
+                    # if none observed this should just evaluate to all indices of the potential
+                    test_indices = np.array([a_idx for a_idx in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_idx)) == (test_arr > -1).sum()]).transpose()
+                    flat_indices = np.ravel_multi_index(test_indices, pot.shape)
+                    # elements at these indices should not have changed by observations
+                    np.testing.assert_array_equal(
+                                                    np.take(pot, flat_indices),
+                                                    np.take(phi[clique], flat_indices)
+                                                )
+
+    def test_can_observe_dynamic_evidence_using_global_retraction(self):
+        # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
+        jt = [
+                0, [0,2,4],
+                (
+                    1, [0,2],
+                    [
+                        2, [0,1,2]
+                    ]
+                ),
+                (
+                    3, [4],
+                    [
+                        4, [3,4],
+                        (
+                            5, [3],
+                            [
+                                6, [1,2,3]
+                            ]
+                        )
+                    ]
+                )
+            ]
+
+        # define arbitrary join tree potentials
+        phi = [
+                np.random.randn(4, 5, 6),
+                np.random.randn(4,5),
+                np.random.randn(4,8,5),
+                np.random.randn(6),
+                np.random.randn(3, 6),
+                np.random.randn(3),
+                np.random.randn(8,5,3)
+        ]
+
+        data = {0: 2, 2: 3, 4: 0}
+
+        likelihood = {
+                        np.array([0,1,0,0]),
+                        np.array([1,1,1,1,1,1,1,1]),
+                        np.array([0,0,0,1,0]),
+                        np.array([1,1,1]),
+                        np.array([1,0,0,0,0,0])
+                    }
+
+        likelihood, phiN = bp.observe(jt, phi, data, likelihood, "retract")
+        np.testing.assert_array_equal(likelihood[0], np.array([0,0,1,0]))
+        np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
+        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
+        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
+        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+        assert_consistent(jt, phiN)
+
+        # test that a potential containing observed variable is altered properly after observing data
+        # (Eventually this will be based on familial content of clique or a more optimal clique but
+        # for now just find one but for now just check the first clique containing the variable)
+
+        for var, val in data.items():
+            clique, _vars = bp.get_clique(jt, var)
+            pot = phiN[clique]
+            assert pot.shape == phi[clique].shape
+            var_idx = _vars.index(var)
+            # check that potential properly updated
+            mask = [val == dim for dim in range(pot.shape[var_idx])]
+            # values along var axis not equal to val will have a 0 value
+            assert np.all(np.compress(np.invert(mask), pot, axis=var_idx)) == 0
+            # ensure that var axis equal to val is equivalent in both original and new potentials
+            np.testing.assert_array_equal(
+                                            np.compress(mask, pot, axis=var_idx),
+                                            np.compress(mask, phi[clique], axis=var_idx)
+                                        )
+
+        # test that no change made to potential values for unobserved variables
+        for var in bp.get_vars(tree):
+            if var not in data.keys():
+                # we have not observed a value for this var
+                for clique, _vars in bp.get_cliques(tree, var).iteritems():
+
+                    # get the vals for the observed axes and set unobserved to -1
+                    test_arr = np.array([data[v] if v in data else -1 for v in _vars])
+                    # retain indices in array which all observed axes set to observed val
+                    # if none observed this should just evaluate to all indices of the potential
+                    test_indices = np.array([a_idx for a_idx in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_idx)) == (test_arr > -1).sum()]).transpose()
+                    flat_indices = np.ravel_multi_index(test_indices, pot.shape)
+                    # elements at these indices should not have changed by observations
+                    np.testing.assert_array_equal(
+                                                    np.take(pot, flat_indices),
+                                                    np.take(phi[clique], flat_indices)
+                                                )
+
+
 
     def test_marginalize_variable_with_evidence(self):
         '''
