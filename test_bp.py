@@ -1058,17 +1058,19 @@ class TestHUGINFunctionality(unittest.TestCase):
                 np.random.randn(8,5,3)
         ]
 
+        data0 = {0: 1, 2: 3, 4: 0}
+
+        likelihood, phi0 = bp.observe(jt, phi, None, data0)
+        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
+        np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
+        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
+        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
+        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+        assert_consistent(jt, phi0)
+
         data = {0: 1, 1: 2, 2: 3, 4: 0}
 
-        likelihood = {
-                        np.array([0,1,0,0]),
-                        np.array([1,1,1,1,1,1,1,1]),
-                        np.array([0,0,0,1,0]),
-                        np.array([1,1,1]),
-                        np.array([1,0,0,0,0,0])
-                    }
-
-        likelihood, phiN = bp.observe(jt, phi, data, likelihood, "update")
+        likelihood, phiN = bp.observe(jt, phi0, data, likelihood, "update")
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1148,18 +1150,20 @@ class TestHUGINFunctionality(unittest.TestCase):
                 np.random.randn(8,5,3)
         ]
 
+        data0 = {0: 1, 2: 3, 4: 0}
+
+        likelihood, phi0 = bp.observe(jt, phi, None, data0)
+        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
+        np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
+        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
+        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
+        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+        assert_consistent(jt, phi0)
+
         data = {0: 1, 1: 2, 2: 3, 3: 2, 4: 0}
 
-        likelihood = {
-                        np.array([0,1,0,0]),
-                        np.array([1,1,1,1,1,1,1,1]),
-                        np.array([0,0,0,1,0]),
-                        np.array([1,1,1]),
-                        np.array([1,0,0,0,0,0])
-                    }
 
-
-        likelihood, phiN = bp.observe(jt, phi, likelihood, data, "update")
+        likelihood, phiN = bp.observe(jt, phi0, likelihood, data, "update")
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1238,18 +1242,19 @@ class TestHUGINFunctionality(unittest.TestCase):
                 np.random.randn(3),
                 np.random.randn(8,5,3)
         ]
+        data0 = {0: 1, 2: 3, 4: 0}
+
+        likelihood, phi0 = bp.observe(jt, phi, None, data0)
+        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
+        np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
+        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
+        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
+        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+        assert_consistent(jt, phi0)
 
         data = {0: 2, 2: 3, 4: 0}
 
-        likelihood = {
-                        np.array([0,1,0,0]),
-                        np.array([1,1,1,1,1,1,1,1]),
-                        np.array([0,0,0,1,0]),
-                        np.array([1,1,1]),
-                        np.array([1,0,0,0,0,0])
-                    }
-
-        likelihood, phiN = bp.observe(jt, phi, data, likelihood, "retract")
+        likelihood, phiN = bp.observe(jt, phi0, data, likelihood, "retract")
         np.testing.assert_array_equal(likelihood[0], np.array([0,0,1,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
