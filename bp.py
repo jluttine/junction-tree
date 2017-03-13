@@ -15,6 +15,11 @@ factor. (A key corresponds to a variable.)
 The index in the list can be used as an ID for the factor, that is, the first
 factor in the list has ID 0 and the last factor has ID N-1.
 
+A companion list (of numpy arrays) of the same length as the factor list is
+provided as a representation for the factor values
+
+[values1, ..., valuesN]
+
 Also, the size of each of the M variables can be given as a dictionary:
 
 {

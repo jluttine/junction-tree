@@ -31,6 +31,16 @@ def assert_junction_tree_equal(t1, t2):
 
     pass
 
+def assert_factor_graph_equal(fg1, fg2):
+    # assert that the variable maps are equal
+    assert fg1[0] == fg2[0]
+    # ensure that factor lists are the same
+    assert len(fg1[1]) == len(fg[1])
+    assert np.all([a1 == a2 for a1,a2 in zip(fg1[1],fg2[1])])
+    assert len(fg1[2]) == len(fg2[2])
+    assert np.all([np.testing.assert_allclose(a1, a2) for a1,a2 in zip(fg1[2],fg2[2])])
+
+
 
 def get_arrays_and_keys(tree):
     """Get all arrays and their keys as a flat list
@@ -124,6 +134,24 @@ def assert_sum_product2(tree, potentials):
         brute_force_sum_product2(tree, potentials),
         bp.hugin2(tree, potentials, bp.sum_product)
     )
+    pass
+
+def assert_junction_tree_consistent(tree, potentials):
+    '''
+        For each clique/sepset pair in tree, check consistency
+
+        Function checks that junction tree is consistent with respect to the
+        provided potentials
+    '''
+    assert all([assert_junction_tree_consistent(cp, sp) for cp, sp in bp.generate_potential_pairs(tree, potentials)])
+    pass
+
+def assert_pair_consistent(c_potential, s_potential):
+    '''
+        Ensure that summing over clique potentials for variables not present in
+        sepset generates a potential equal to sepset potential (definition of
+        consistent)
+    '''
     pass
 
 
@@ -983,7 +1011,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_consistent(jt, phiN)
+        assert_junction_tree_consistent(jt, phiN)
 
         # test that a potential containing observed variable is altered properly after observing data
         # (Eventually this will be based on familial content of clique or a more optimal clique but
@@ -1066,7 +1094,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_consistent(jt, phi0)
+        assert_junction_tree_consistent(jt, phi0)
 
         data = {0: 1, 1: 2, 2: 3, 4: 0}
 
@@ -1076,7 +1104,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_consistent(jt, phiN)
+        assert_junction_tree_consistent(jt, phiN)
 
         # test that a potential containing observed variable is altered properly after observing data
         # (Eventually this will be based on familial content of clique or a more optimal clique but
@@ -1158,7 +1186,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_consistent(jt, phi0)
+        assert_junction_tree_consistent(jt, phi0)
 
         data = {0: 1, 1: 2, 2: 3, 3: 2, 4: 0}
 
@@ -1169,7 +1197,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([0,0,1])
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_consistent(jt, phiN)
+        assert_junction_tree_consistent(jt, phiN)
 
         # test that a potential containing observed variable is altered properly after observing data
         # (Eventually this will be based on familial content of clique or a more optimal clique but
@@ -1250,7 +1278,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_consistent(jt, phi0)
+        assert_junction_tree_consistent(jt, phi0)
 
         data = {0: 2, 2: 3, 4: 0}
 
@@ -1260,7 +1288,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_consistent(jt, phiN)
+        assert_junction_tree_consistent(jt, phiN)
 
         # test that a potential containing observed variable is altered properly after observing data
         # (Eventually this will be based on familial content of clique or a more optimal clique but
@@ -1664,11 +1692,51 @@ class TestJunctionTreeConstruction(unittest.TestCase):
     def test_assign_var_to_cluster(self):
         pass
 
+    def test_generate_deep_copy_of_factor_graph_nodes(self):
+        _vars = {
+                    "A": 2,
+                    "B": 4,
+                    "C": 3,
+                    "D": 5
+                }
+        factors = [
+                    ["A"],
+                    ["A", "C"],
+                    ["B", "C", "D"],
+                    ["A", "D"]
+                ]
+        values = [
+                    np.random.randn(2),
+                    np.random.randn(2, 4),
+                    np.random.randn(4, 3, 5)
+                    np.random.randn(2, 5)
+                ]
+
+        fg = [_vars, factors, values]
+        fg2 = bp.copy_factor_graph(fg)
+        assert_factor_graph_equal(fg, fg2)
+
+
+
+    def test_triangulate_factor_graph(self):
+        fg = []
+        sizes = {}
+        arrays = [] ###???
+        tri = bp.find_triangulation(fg, sizes)
+        # what information should be in the triangulation structure?
+        tfg = bp.triangulate(tri, arrays)
+        assert_triangulated(tfg)
+        pass
+
+    def test_convert_factor_graph_to_junction_tree(self):
+        fg = []
+        tree = bp.convert(fg)
+        assert_junction_tree_property(tree)
+        assert_families_clustered(fg, tree)
+        pass
+
     def test_initialize_potentials(self):
         # this initialization is important to get proper messages passed
         # discussed on page 111 of Bayesian Reasoning and Machine Learnging
         # discussed on page 723 of Machine Learning: A Probabilistic Perspective
-        pass
-
-    def test_convert_factor_graph_to_junction_tree(self):
         pass
