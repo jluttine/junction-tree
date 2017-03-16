@@ -116,6 +116,7 @@ Hypergraphs - 1988) proved that a junction tree can be constructed by a maximal 
 """
 
 import numpy as np
+import heapq
 
 
 def find_triangulation(factor_graph, sizes):

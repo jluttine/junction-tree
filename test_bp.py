@@ -1689,9 +1689,6 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         clique, _vars = bp.get_clique(tree, 2)
         assert clique == 2
 
-    def test_assign_var_to_cluster(self):
-        pass
-
     def test_generate_deep_copy_of_factor_graph_nodes(self):
         _vars = {
                     "A": 2,
@@ -1716,12 +1713,95 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         fg2 = bp.copy_factor_graph(fg)
         assert_factor_graph_equal(fg, fg2)
 
+    def test_store_nodes_in_heap(self):
+        heap = []
+        # push some nodes onto heap (NUM_EDGES_ADDED, CLUSTER_WEIGHT, NODE_LABEL)
+        heapq.heappush(heap, (3, 4, "A"))
+        heapq.heappush(heap, (1, 3, "B"))
+        heapq.heappush(heap, (5, 3, "C"))
+        heapq.heappush(heap, (4, 6, "D"))
 
+        # check that heappop returns the element with the lowest value in the tuple
+        assert heapq.pop(heap) == (1, 3, "B")
+
+        # add value back to heap
+        heapq.heappush(heap, (1, 3, "B"))
+        # add two new tuples that have the same first value but smaller second
+        # value
+        heapq.heappush(heap, (1, 2, "E"))
+        heapq.heappush(heap, (1, 1, "F"))
+
+        # ensure that tie is broken by second element
+        assert heapq.pop(heap) == (1, 1, "F")
+        # ensure that updated heap returns second smalles element with tie-
+        # breaker
+        assert heapq.pop(heap) == (1, 2, "E")
+
+    def test_node_heap_construction(self):
+        _vars = {
+                    "A": 2,
+                    "B": 4,
+                    "C": 3,
+                    "D": 5
+                }
+
+        factors = [
+                    ["A"],
+                    ["A", "C"],
+                    ["B", "C", "D"],
+                    ["A", "D"]
+                ]
+        heap = bp.initialize_triangulation_heap(factors)
+        assert len(heap) == 4
+        '''
+            Entries:
+            N(N-1)/2 edges added for N nodes
+            (3, 2, "A") # A has 2 neighbors (3 nodes)
+            (3, 4, "B") # B has 2 neighbors (3 nodes)
+            (6, 3, "C") # C has 3 neighbors (4 nodes)
+            (6, 5, "D") # D has 3 neighbors (4 nodes)
+        '''
+        assert heap[0] = (3, 2, "A")
+        assert heap[1] = (3, 4, "B")
+        assert heap[2] = (6, 3, "C")
+        assert heap[3] = (6, 5, "D")
+
+    def test_heap_update_after_node_removal(self):
+        _vars = {
+                    "A": 2,
+                    "B": 4,
+                    "C": 3,
+                    "D": 5
+                }
+
+        factors = [
+                    ["A"],
+                    ["A", "C"],
+                    ["B", "C", "D"],
+                    ["A", "D"]
+                ]
+        heap = bp.initialize_triangulation_heap(factors)
 
     def test_triangulate_factor_graph(self):
-        fg = []
-        sizes = {}
-        arrays = [] ###???
+        _vars = {
+                    "A": 2,
+                    "B": 4,
+                    "C": 3,
+                    "D": 5
+                }
+        factors = [
+                    ["A"],
+                    ["A", "C"],
+                    ["B", "C", "D"],
+                    ["A", "D"]
+                ]
+        values = [
+                    np.random.randn(2),
+                    np.random.randn(2, 4),
+                    np.random.randn(4, 3, 5)
+                    np.random.randn(2, 5)
+                ]
+        fg = [_vars, factors, values]
         tri = bp.find_triangulation(fg, sizes)
         # what information should be in the triangulation structure?
         tfg = bp.triangulate(tri, arrays)
