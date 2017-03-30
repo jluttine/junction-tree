@@ -1684,6 +1684,18 @@ class TestHUGINFunctionality(unittest.TestCase):
 
 
 class TestJunctionTreeConstruction(unittest.TestCase):
+    # just view the factors with respect to the variables which are the inputs
+    # to the factor and proceed with algorithms from there
+    # Each factor sharing a variable will have an edge connecting the factors
+    # The shared variable will be on that edge
+    # The nodes in our factor graph are either factors (sets of variables) or
+    # variables (implicit in the fg formalization).
+
+    # The relevant material from Aji and McEliece seems to indicate
+    # that we should only need to construct the triangulation graph from the
+    # factor arguments (local domains). Each of the variables for the factor
+    # graph will be represented in the resulting junction tree.
+
     def test_can_locate_clique_containing_variable(self):
         tree = [0, [0,1], (1, [1], [2, [1,2]])]
         clique, _vars = bp.get_clique(tree, 2)
@@ -1715,27 +1727,27 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
     def test_store_nodes_in_heap(self):
         heap = []
-        # push some nodes onto heap (NUM_EDGES_ADDED, CLUSTER_WEIGHT, NODE_LABEL)
-        heapq.heappush(heap, (3, 4, "A"))
-        heapq.heappush(heap, (1, 3, "B"))
-        heapq.heappush(heap, (5, 3, "C"))
-        heapq.heappush(heap, (4, 6, "D"))
+        # push some nodes onto heap (NUM_EDGES_ADDED, CLUSTER_WEIGHT, FACTOR_ID)
+        heapq.heappush(heap, (3, 4, 0))
+        heapq.heappush(heap, (1, 3, 1))
+        heapq.heappush(heap, (5, 3, 2))
+        heapq.heappush(heap, (4, 6, 3))
 
         # check that heappop returns the element with the lowest value in the tuple
-        assert heapq.pop(heap) == (1, 3, "B")
+        assert heapq.pop(heap) == (1, 3, 1)
 
         # add value back to heap
-        heapq.heappush(heap, (1, 3, "B"))
+        heapq.heappush(heap, (1, 3, 1))
         # add two new tuples that have the same first value but smaller second
         # value
-        heapq.heappush(heap, (1, 2, "E"))
-        heapq.heappush(heap, (1, 1, "F"))
+        heapq.heappush(heap, (1, 2, 4))
+        heapq.heappush(heap, (1, 1, 5))
 
         # ensure that tie is broken by second element
-        assert heapq.pop(heap) == (1, 1, "F")
+        assert heapq.pop(heap) == (1, 1, 5)
         # ensure that updated heap returns second smalles element with tie-
         # breaker
-        assert heapq.pop(heap) == (1, 2, "E")
+        assert heapq.pop(heap) == (1, 2, 4)
 
     def test_node_heap_construction(self):
         _vars = {
@@ -1746,25 +1758,26 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 }
 
         factors = [
-                    ["A"],
-                    ["A", "C"],
-                    ["B", "C", "D"],
-                    ["A", "D"]
+                    ["A"], # weight: 2
+                    ["A", "C"], # weight: 6
+                    ["B", "C", "D"], # weight: 60
+                    ["A", "D"] # weight: 10
                 ]
         heap = bp.initialize_triangulation_heap(factors)
         assert len(heap) == 4
         '''
             Entries:
             N(N-1)/2 edges added for N nodes
-            (3, 2, "A") # A has 2 neighbors (3 nodes)
-            (3, 4, "B") # B has 2 neighbors (3 nodes)
-            (6, 3, "C") # C has 3 neighbors (4 nodes)
-            (6, 5, "D") # D has 3 neighbors (4 nodes)
+            (3, 120, 0) # factor 0 has 2 neighbors (3 nodes)
+            (6, 7200, 1) # factor 1 has 3 neighbors (4 nodes)
+            (3, 3600, 2) # factor 2 has 2 neighbors (3 nodes)
+            (6, 7200, 3) # factor 3 has 3 neighbors (4 nodes)
         '''
-        assert heap[0] = (3, 2, "A")
-        assert heap[1] = (3, 4, "B")
-        assert heap[2] = (6, 3, "C")
-        assert heap[3] = (6, 5, "D")
+        assert heap[0] == (3, 120, 0)
+        assert heap[1] == (3, 3600, 2)
+        assert heap[2] == (6, 7200, 1)
+        assert heap[3] == (6, 7200, 3)
+
 
     def test_heap_update_after_node_removal(self):
         _vars = {
@@ -1781,6 +1794,25 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["A", "D"]
                 ]
         heap = bp.initialize_triangulation_heap(factors)
+        item, heap = bp.remove_next(heap)
+        assert item == (3, 120, 0)
+
+        '''
+            factors_p = [
+                            ["A", "C"], # weight: 6
+                            ["B", "C", "D"], # weight: 60
+                            ["A", "D"] # weight: 10
+                    ]
+            Entries:
+            (3, 3600, 1) # factor 1 has 2 neighbors (3 nodes)
+            (3, 3600, 2) # factor 2 has 2 neighbors (3 nodes)
+            (3, 3600, 3) # factor 3 has 2 neighbors (3 nodes)
+        '''
+        assert len(heap) == 3
+        assert heap[0] = (3, 3600, 1)
+        assert heap[1] = (3, 3600, 2)
+        assert heap[2] = (3, 3600, 3)
+
 
     def test_triangulate_factor_graph(self):
         _vars = {
@@ -1804,9 +1836,18 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         fg = [_vars, factors, values]
         tri = bp.find_triangulation(fg, sizes)
         # what information should be in the triangulation structure?
-        tfg = bp.triangulate(tri, arrays)
-        assert_triangulated(tfg)
-        pass
+        # just a list of clusters
+
+        assert len(tri) == len(factors)
+
+        assert tri[0] == [0,1,3]
+        assert tri[1] == [1,2,3]
+        #assert tri[2] == ????
+        #assert tri[3] == ????
+        # is a seperate triangulation function needed here?
+        tg = bp.triangulate(tri, arrays)
+
+        assert_triangulated(tg)
 
     def test_convert_factor_graph_to_junction_tree(self):
         fg = []
@@ -1819,4 +1860,8 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         # this initialization is important to get proper messages passed
         # discussed on page 111 of Bayesian Reasoning and Machine Learnging
         # discussed on page 723 of Machine Learning: A Probabilistic Perspective
+        # when evaluating potentials based on factor values, we can ignore
+        # the additional values added by the junction tree conversion because
+        # factors only depend on the variable arguments (local domain) of the
+        # factor (Aji and McEliece)
         pass
