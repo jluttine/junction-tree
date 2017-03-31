@@ -29,7 +29,7 @@ def assert_junction_tree_equal(t1, t2):
     for (child_t1, child_t2) in zip(t1[2:], t2[2:]):
         assert_junction_tree_equal(child_t1, child_t2)
 
-    pass
+
 
 def assert_factor_graph_equal(fg1, fg2):
     # assert that the variable maps are equal
@@ -40,7 +40,8 @@ def assert_factor_graph_equal(fg1, fg2):
     assert len(fg1[2]) == len(fg2[2])
     assert np.all([np.testing.assert_allclose(a1, a2) for a1,a2 in zip(fg1[2],fg2[2])])
 
-
+def assert_triangulated(fg, tri):
+    pass
 
 def get_arrays_and_keys(tree):
     """Get all arrays and their keys as a flat list
@@ -1767,16 +1768,15 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert len(heap) == 4
         '''
             Entries:
-            N(N-1)/2 edges added for N nodes
-            (3, 120, 0) # factor 0 has 2 neighbors (3 nodes)
-            (6, 7200, 1) # factor 1 has 3 neighbors (4 nodes)
-            (3, 3600, 2) # factor 2 has 2 neighbors (3 nodes)
-            (6, 7200, 3) # factor 3 has 3 neighbors (4 nodes)
+            (0, 120, 0) # factor 0 has 2 neighbors (all nodes connected)
+            (1, 7200, 1) # factor 1 has 3 neighbors (0-2 edge added)
+            (0, 3600, 2) # factor 2 has 2 neighbors (all nodes connected)
+            (1, 7200, 3) # factor 3 has 3 neighbors (0-2 edge added)
         '''
-        assert heap[0] == (3, 120, 0)
-        assert heap[1] == (3, 3600, 2)
-        assert heap[2] == (6, 7200, 1)
-        assert heap[3] == (6, 7200, 3)
+        assert heap[0] == (0, 120, 0)
+        assert heap[1] == (0, 3600, 2)
+        assert heap[2] == (1, 7200, 1)
+        assert heap[3] == (1, 7200, 3)
 
 
     def test_heap_update_after_node_removal(self):
@@ -1795,7 +1795,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 ]
         heap = bp.initialize_triangulation_heap(factors)
         item, heap = bp.remove_next(heap)
-        assert item == (3, 120, 0)
+        assert item == (0, 120, 0)
 
         '''
             factors_p = [
@@ -1804,14 +1804,48 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                             ["A", "D"] # weight: 10
                     ]
             Entries:
-            (3, 3600, 1) # factor 1 has 2 neighbors (3 nodes)
-            (3, 3600, 2) # factor 2 has 2 neighbors (3 nodes)
-            (3, 3600, 3) # factor 3 has 2 neighbors (3 nodes)
+            (0, 3600, 1) # factor 1 has 2 neighbors (all nodes connected)
+            (0, 3600, 2) # factor 2 has 2 neighbors (all nodes connected)
+            (0, 3600, 3) # factor 3 has 2 neighbors (all nodes connected)
         '''
         assert len(heap) == 3
-        assert heap[0] = (3, 3600, 1)
-        assert heap[1] = (3, 3600, 2)
-        assert heap[2] = (3, 3600, 3)
+        assert heap[0] = (0, 3600, 1)
+        assert heap[1] = (0, 3600, 2)
+        assert heap[2] = (0, 3600, 3)
+
+        item, heap = bp.remove_next(heap)
+        assert item == (0, 3600, 1)
+        '''
+            factors_p = [
+                            ["B", "C", "D"], # weight: 60
+                            ["A", "D"] # weight: 10
+                    ]
+            Entries:
+            (0, 600, 2) # factor 2 has 1 neighbors (already connected)
+            (0, 600, 3) # factor 3 has 1 neighbors (already connected)
+        '''
+
+        assert len(heap) == 2
+        assert heap[0] = (0, 600, 2)
+        assert heap[1] = (0, 600, 3)
+
+        item, heap = bp.remove_next(heap)
+        assert item == (0, 600, 2)
+        '''
+            factors_p = [
+                            ["A", "D"] # weight: 10
+                    ]
+            Entries:
+            (0, 10, 3) # factor 3 has 0 neighbors (no connections possible)
+        '''
+
+        assert len(heap) == 1
+        assert heap[0] = (0, 10, 3)
+
+
+        item, heap = bp.remove_next(heap)
+        assert item == (0, 10, 3)
+
 
 
     def test_triangulate_factor_graph(self):
@@ -1842,12 +1876,12 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         assert tri[0] == [0,1,3]
         assert tri[1] == [1,2,3]
-        #assert tri[2] == ????
-        #assert tri[3] == ????
+        assert tri[2] == [2,3]
+        assert tri[3] == [3]
         # is a seperate triangulation function needed here?
         tg = bp.triangulate(tri, arrays)
 
-        assert_triangulated(tg)
+        assert_triangulated(fg, tg)
 
     def test_convert_factor_graph_to_junction_tree(self):
         fg = []
