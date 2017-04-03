@@ -2,6 +2,7 @@ import numpy as np
 
 import bp
 import unittest
+import networkx as nx
 
 
 # Tests here using pytest
@@ -40,8 +41,32 @@ def assert_factor_graph_equal(fg1, fg2):
     assert len(fg1[2]) == len(fg2[2])
     assert np.all([np.testing.assert_allclose(a1, a2) for a1,a2 in zip(fg1[2],fg2[2])])
 
-def assert_triangulated(fg, tri):
-    pass
+def assert_triangulated(factors, triangulation):
+    '''
+        An undirected graph is triangulated iff every cycle of length four or
+        greater contains an edge that connects two nonadjacent nodes in the
+        cycle. (Huang and Darwiche, 1996)
+    '''
+    def __find_cycles(factors, num):
+        G=nx.Graph()
+        G.add_nodes_from(list(range(len(factors))))
+
+        for i in range(len(factors)):
+            for j in range(i,len(factors)):
+                # add edge to graph if any vars shared
+                if not set(factors[i]).isdisjoint(factors[j]):
+                    G.add_edge(i,j)
+        cb = nx.cycle_basis(G)
+        edges = G.edges()
+        # generate a list of all cycles greater than or equal to num:
+        # http://dspace.mit.edu/bitstream/handle/1721.1/68106/FTL_R_1982_07.pdf
+
+
+    cycles = __find_cycles(factors, 4)
+    f_sets = [set(f) for f in factors]
+    for cycle in cycles:
+        s = set(cycle)
+        assert any([s == f_set for f_set in sets if len(s) == len(f_set)])
 
 def get_arrays_and_keys(tree):
     """Get all arrays and their keys as a flat list
@@ -1847,6 +1872,24 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert item == (0, 10, 3)
 
 
+    def test_assert_triangulated(self):
+        '''
+            f0----f1
+            |      |
+            |      |
+            f2----f3
+        '''
+        factors = [
+                    ["A", "B"],
+                    ["B"],
+                    ["B", "C"],
+                    ["A", "C"]
+                ]
+        tri0 = []
+        self.assertRaises(AssertionError, assert_triangulated(factors, tri0))
+
+        tri1 = [[0,1,2,3]]
+        assert_triangulated(factors, tri1)
 
     def test_triangulate_factor_graph(self):
         _vars = {
@@ -1878,10 +1921,8 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert tri[1] == [1,2,3]
         assert tri[2] == [2,3]
         assert tri[3] == [3]
-        # is a seperate triangulation function needed here?
-        tg = bp.triangulate(tri, arrays)
 
-        assert_triangulated(fg, tg)
+        assert_triangulated(fg[1], tri)
 
     def test_convert_factor_graph_to_junction_tree(self):
         fg = []
