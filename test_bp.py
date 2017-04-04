@@ -57,9 +57,45 @@ def assert_triangulated(factors, triangulation):
                 if not set(factors[i]).isdisjoint(factors[j]):
                     G.add_edge(i,j)
         cb = nx.cycle_basis(G)
-        edges = G.edges()
-        # generate a list of all cycles greater than or equal to num:
+        cb_edges = [zip(nodes,(nodes[1:]+nodes[:1])) for nodes in cb]
+        graph_edges = [set(edge) for edge in G.edges()]
+        # generate a list of all cycles greater than or equal to num
         # http://dspace.mit.edu/bitstream/handle/1721.1/68106/FTL_R_1982_07.pdf
+        bit_seqs = np.zeros((len(cb_edges), len(graph_edges)), dtype=np.bool)
+        # populate edge membership arrays for each cycle basis
+        for i in range(0,len(cb_edges)):
+            edge_list = [set(edge) for edge in cb_edges[i]]
+            for j in range(0,len(graph_edges)):
+                if graph_edges[j] in edge_list:
+                    bit_seqs[i][j] = 1
+
+        cycles = [cycle for cycle in __gibbs_elem_cycles(graph_edges, bit_seqs) if len(cycle) >= num]
+        return cycles
+
+    def __gibbs_elem_cycles(edges, fcs):
+        '''
+            Norman E. Gibbs. 1969. A Cycle Generation Algorithm for Finite
+                Undirected Linear Graphs. J. ACM 16, 4 (October 1969), 564-568.
+                DOI=http://dx.doi.org/10.1145/321541.321545
+        '''
+        s = [fcs[0]]
+        q = [fcs[0]]
+        r = []
+        r_star = []
+        i = 1
+        while i <= bits.shape[0]:
+            for t in q:
+                if np.any(np.logical_and(t, fcs[i])):
+                    # append t ring_sum fcs[0] to r
+                    pass
+                else:
+                    # append t ring_sum fcs[0] to r_star
+                    pass
+
+        return s
+
+
+
 
 
     cycles = __find_cycles(factors, 4)
