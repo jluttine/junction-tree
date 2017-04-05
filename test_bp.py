@@ -47,62 +47,73 @@ def assert_triangulated(factors, triangulation):
         greater contains an edge that connects two nonadjacent nodes in the
         cycle. (Huang and Darwiche, 1996)
     '''
-    def __find_cycles(factors, num):
-        G=nx.Graph()
-        G.add_nodes_from(list(range(len(factors))))
-
-        for i in range(len(factors)):
-            for j in range(i,len(factors)):
-                # add edge to graph if any vars shared
-                if not set(factors[i]).isdisjoint(factors[j]):
-                    G.add_edge(i,j)
-        cb = nx.cycle_basis(G)
-        cb_edges = [zip(nodes,(nodes[1:]+nodes[:1])) for nodes in cb]
-        graph_edges = [set(edge) for edge in G.edges()]
-        # generate a list of all cycles greater than or equal to num
-        # http://dspace.mit.edu/bitstream/handle/1721.1/68106/FTL_R_1982_07.pdf
-        bit_seqs = np.zeros((len(cb_edges), len(graph_edges)), dtype=np.bool)
-        # populate edge membership arrays for each cycle basis
-        for i in range(0,len(cb_edges)):
-            edge_list = [set(edge) for edge in cb_edges[i]]
-            for j in range(0,len(graph_edges)):
-                if graph_edges[j] in edge_list:
-                    bit_seqs[i][j] = 1
-
-        cycles = [cycle for cycle in __gibbs_elem_cycles(graph_edges, bit_seqs) if len(cycle) >= num]
-        return cycles
-
-    def __gibbs_elem_cycles(edges, fcs):
-        '''
-            Norman E. Gibbs. 1969. A Cycle Generation Algorithm for Finite
-                Undirected Linear Graphs. J. ACM 16, 4 (October 1969), 564-568.
-                DOI=http://dx.doi.org/10.1145/321541.321545
-        '''
-        s = [fcs[0]]
-        q = [fcs[0]]
-        r = []
-        r_star = []
-        i = 1
-        while i <= bits.shape[0]:
-            for t in q:
-                if np.any(np.logical_and(t, fcs[i])):
-                    # append t ring_sum fcs[0] to r
-                    pass
-                else:
-                    # append t ring_sum fcs[0] to r_star
-                    pass
-
-        return s
-
-
-
-
 
     cycles = __find_cycles(factors, 4)
     f_sets = [set(f) for f in factors]
     for cycle in cycles:
         s = set(cycle)
         assert any([s == f_set for f_set in sets if len(s) == len(f_set)])
+
+def __find_cycles(factors, num):
+    G=nx.Graph()
+    G.add_nodes_from(list(range(len(factors))))
+
+    for i in range(len(factors)):
+        for j in range(i,len(factors)):
+            # add edge to graph if any vars shared
+            if not set(factors[i]).isdisjoint(factors[j]):
+                G.add_edge(i,j)
+    cb = nx.cycle_basis(G)
+    cb_edges = [zip(nodes,(nodes[1:]+nodes[:1])) for nodes in cb]
+    graph_edges = [set(edge) for edge in G.edges()]
+    # generate a list of all cycles greater than or equal to num
+    # http://dspace.mit.edu/bitstream/handle/1721.1/68106/FTL_R_1982_07.pdf
+    bit_seqs = np.zeros((len(cb_edges), len(graph_edges)), dtype=np.bool)
+    # populate edge membership arrays for each cycle basis
+    for i in range(0,len(cb_edges)):
+        edge_list = [set(edge) for edge in cb_edges[i]]
+        for j in range(0,len(graph_edges)):
+            if graph_edges[j] in edge_list:
+                bit_seqs[i][j] = 1
+
+    cycles = [cycle for cycle in __gibbs_elem_cycles(graph_edges, bit_seqs) if len(cycle) >= num]
+    return cycles
+
+def __gibbs_elem_cycles(edges, fcs):
+    '''
+        Norman E. Gibbs. 1969. A Cycle Generation Algorithm for Finite
+            Undirected Linear Graphs. J. ACM 16, 4 (October 1969), 564-568.
+            DOI=http://dx.doi.org/10.1145/321541.321545
+    '''
+    s = [fcs[0]]
+    q = [fcs[0]]
+    r = []
+    r_star = []
+    i = 1
+    while i <= bits.shape[0]:
+        for t in q:
+            if np.any(np.logical_and(t, fcs[i])):
+                # append t ring_sum fcs[0] to r
+                r.append(np.logical_xor(t,fcs[0]).astype(int).tolist())
+
+            else:
+                # append t ring_sum fcs[0] to r_star
+                r_star.append(np.logical_xor(t,fcs[0]).astype(int).tolist())
+        for u,v in itertools.combinations(r, 2):
+            # check both ways u subset of v or v subset of u
+            if np.array_equal(np.logical_and(u, v), u):
+                r.remove(v)
+                if v not in r_star:
+                    r_star.append(v)
+            elif np.array_equal(np.logical_and(v, u), v):
+                r.remove(u)
+                if u not in r_star:
+                    r_star.append(u)
+        s = s # U r U fcs[i]
+
+
+    return s
+
 
 def get_arrays_and_keys(tree):
     """Get all arrays and their keys as a flat list
@@ -1906,6 +1917,43 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         item, heap = bp.remove_next(heap)
         assert item == (0, 10, 3)
+
+
+    def test_gibbs_algo_implementation(self):
+        '''
+            Example 1 as described in:
+            http://dspace.mit.edu/bitstream/handle/1721.1/68106/FTL_R_1982_07.pdf
+            (pp. 15-17)
+        '''
+        edges = [
+                    ("A","B"),
+                    ("A","E"),
+                    ("A","E"),
+                    ("B","E"),
+                    ("B","C"),
+                    ("C","E"),
+                    ("C","D"),
+                    ("D","E")
+        ]
+        fcs = [
+                [1,1,0,1,0,0,0,0],
+                [0,1,1,1,0,0,0,0],
+                [0,0,0,1,1,1,0,0],
+                [0,0,0,0,0,1,1,1]
+        ]
+        ecs = __gibs_elem_cycles(edges, fcs)
+        assert len(ecs) == 10
+        assert ecs[0] == [1,1,0,1,0,0,0,0]
+        assert ecs[1] == [1,0,1,0,0,0,0,0]
+        assert ecs[2] == [0,1,1,1,0,0,0,0]
+        assert ecs[3] == [1,1,0,0,1,1,0,0]
+        assert ecs[4] == [0,1,1,0,1,1,0,0]
+        assert ecs[5] == [0,0,0,1,1,1,0,0]
+        assert ecs[6] == [1,1,0,0,1,0,1,1]
+        assert ecs[7] == [0,1,1,0,1,0,1,1]
+        assert ecs[8] == [0,0,0,1,1,0,1,1]
+        assert ecs[9] == [0,0,0,0,0,1,1,1]
+
 
 
     def test_assert_triangulated(self):
