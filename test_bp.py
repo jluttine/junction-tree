@@ -56,7 +56,7 @@ def assert_triangulated(factors, triangulation):
 
 def __find_cycles(factors, num):
     G=nx.Graph()
-    G.add_nodes_from(list(range(len(factors))))
+    G.add_nodes_from(range(len(factors)))
 
     for i in range(len(factors)):
         for j in range(i,len(factors)):
@@ -76,7 +76,9 @@ def __find_cycles(factors, num):
             if graph_edges[j] in edge_list:
                 bit_seqs[i][j] = 1
 
-    cycles = [cycle for cycle in __gibbs_elem_cycles(graph_edges, bit_seqs) if len(cycle) >= num]
+    cycles = [np.array(graph_edges)[[np.nonzero(cycle)]]
+                for cycle in __gibbs_elem_cycles(graph_edges,
+                                                bit_seqs) if sum(cycle) >= num]
     return cycles
 
 def __gibbs_elem_cycles(edges, fcs):
@@ -109,8 +111,13 @@ def __gibbs_elem_cycles(edges, fcs):
                 r.remove(u)
                 if u not in r_star:
                     r_star.append(u)
-        s = s # U r U fcs[i]
-
+        #s U r U fcs[i]
+        s = [list(st) for st in set(map(tuple, itertools.chain(s,r,[fcs[i]]])))]
+        #q U r U r_star U fcs[i]
+        q = [list(st) for st in set(map(tuple, itertools.chain(q,r,r_star,[fcs[i]]])))]
+        r = []
+        r_star = []
+        i+=1
 
     return s
 
@@ -1996,17 +2003,71 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 ]
         fg = [_vars, factors, values]
         tri = bp.find_triangulation(fg, sizes)
-        # what information should be in the triangulation structure?
-        # just a list of clusters
 
-        assert len(tri) == len(factors)
+        # only 2 cliques should be returned as they are maximal and complete
+        assert len(tri) == 2
 
         assert tri[0] == [0,1,3]
         assert tri[1] == [1,2,3]
-        assert tri[2] == [2,3]
-        assert tri[3] == [3]
 
         assert_triangulated(fg[1], tri)
+
+    def test_join_cliques_into_junction_tree(self):
+        '''
+            Example taken from section 4.4.3 (Huang and Darwiche, 1996)
+
+            factors: 0 -> A, 1 -> B, 2 -> C, 3 -> D, 4 -> E, 5 -> F, 6 -> G,
+                        7 -> H
+        '''
+
+        cliques = [
+                    [0,1,3],#["A","B","D"]
+                    [0,2,4],#["A","C","E"],
+                    [0,3,4],#["A","D","E"],
+                    [2,4,6],#["C","E","G"],
+                    [3,4,5],#["D","E","F"],
+                    [4,6,7],#["E","G","H"]
+                ]
+        jt0 = bp.construct_junction_tree(cliques)
+
+        # expected junction tree
+
+        jt1 = [
+                0, [0,3,4],
+                (
+                    1, [0,3],
+                    [
+                        2, [0,1,3]
+                    ]
+                ),
+                (
+                    3, [3,4],
+                    [
+                        4,[3,4,5]
+                    ]
+                )
+                (
+                    5, [0,4],
+                    [
+                        6, [0,2,4]
+                        (
+                            7, [2,4],
+                            [
+                                8, [2,4,6]
+                                (
+                                    9, [4,6],
+                                    [
+                                        10, [4,6,7]
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+
+                )
+            ]
+
+        assert_junction_tree_equal(jt0, jt1)
 
     def test_convert_factor_graph_to_junction_tree(self):
         fg = []
@@ -2023,4 +2084,38 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         # the additional values added by the junction tree conversion because
         # factors only depend on the variable arguments (local domain) of the
         # factor (Aji and McEliece)
-        pass
+        factors = []
+        jt = [
+                0, [0,3,4],
+                (
+                    1, [0,3],
+                    [
+                        2, [0,1,3]
+                    ]
+                ),
+                (
+                    3, [3,4],
+                    [
+                        4,[3,4,5]
+                    ]
+                )
+                (
+                    5, [0,4],
+                    [
+                        6, [0,2,4]
+                        (
+                            7, [2,4],
+                            [
+                                8, [2,4,6]
+                                (
+                                    9, [4,6],
+                                    [
+                                        10, [4,6,7]
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+
+                )
+            ]
