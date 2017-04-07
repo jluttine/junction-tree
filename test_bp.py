@@ -2069,12 +2069,132 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         assert_junction_tree_equal(jt0, jt1)
 
-    def test_convert_factor_graph_to_junction_tree(self):
-        fg = []
-        tree = bp.convert(fg)
-        assert_junction_tree_property(tree)
-        assert_families_clustered(fg, tree)
-        pass
+class TestJunctionInference(unittest.TestCase):
+    def setUp(self):
+        self.jt = [
+                    0, [0,3,4],
+                    (
+                        1, [0,3],
+                        [
+                            2, [0,1,3]
+                        ]
+                    ),
+                    (
+                        3, [3,4],
+                        [
+                            4,[3,4,5]
+                        ]
+                    )
+                    (
+                        5, [0,4],
+                        [
+                            6, [0,2,4]
+                            (
+                                7, [2,4],
+                                [
+                                    8, [2,4,6]
+                                    (
+                                        9, [4,6],
+                                        [
+                                            10, [4,6,7]
+                                        ]
+                                    )
+                                ]
+                            )
+                        ]
+
+                    )
+                ]
+
+
+        _vars = {
+                    "A": 2,
+                    "B": 2,
+                    "C": 2,
+                    "D": 2,
+                    "E": 2,
+                    "F": 2,
+                    "G": 2,
+                    "H": 2
+                }
+
+        factors = [
+                    ["A"],
+                    ["A","B"],
+                    ["A","C"],
+                    ["B","D"],
+                    ["C","E"],
+                    ["D","E","F"],
+                    ["C","G"],
+                    ["E","G","H"],
+        ]
+
+        values = [
+                    np.array([0.5,0.5])
+                    np.array(
+                                [
+                                    [0.6,0.4],
+                                    [0.5,0.5]
+                                ]
+                            ),
+                    np.array(
+                                [
+                                    [0.8,0.2],
+                                    [0.3,0.7]
+                                ]
+                            ),
+                    np.array(
+                                [
+                                    [0.5,0.5],
+                                    [0.1,0.9]
+                                ]
+                            ),
+                    np.array(
+                                [
+                                    [0.4,0.6],
+                                    [0.7,0.3]
+                                ]
+                            ),
+                    np.array(
+                                [
+                                    [
+                                        [0.01,0.99],
+                                        [0.99,0.01]
+                                    ],
+                                    [
+                                        [0.99,0.01],
+                                        [0.99,0.01]
+                                    ]
+                                ]
+                            )
+                    np.array(
+                                [
+                                    [0.9,0.1],
+                                    [0.8,0.2]
+                                ]
+                            ),
+                    np.array(
+                                [
+                                    [
+                                        [0.05,0.95],
+                                        [0.05,0.95]
+                                    ],
+                                    [
+                                        [0.05,0.95],
+                                        [0.95,0.05]
+                                    ]
+                                ]
+                            )
+
+                ]
+
+        self.fg = [_vars,factors,values]
+
+
+    def test_transformation(self):
+        tree = bp.convert(self.fg)
+        assert_junction_tree_equal(self.jt, tree)
+
 
     def test_initialize_potentials(self):
         # this initialization is important to get proper messages passed
@@ -2084,38 +2204,33 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         # the additional values added by the junction tree conversion because
         # factors only depend on the variable arguments (local domain) of the
         # factor (Aji and McEliece)
-        factors = []
-        jt = [
-                0, [0,3,4],
-                (
-                    1, [0,3],
-                    [
-                        2, [0,1,3]
-                    ]
-                ),
-                (
-                    3, [3,4],
-                    [
-                        4,[3,4,5]
-                    ]
-                )
-                (
-                    5, [0,4],
-                    [
-                        6, [0,2,4]
-                        (
-                            7, [2,4],
-                            [
-                                8, [2,4,6]
-                                (
-                                    9, [4,6],
+        phi = bp.init_tree(self.jt, self.fg)
+        assert_potentials_equal(
+                                    phi[6:8], # clusters ACE and CE
                                     [
-                                        10, [4,6,7]
+                                        np.array(
+                                                    [
+                                                        [
+                                                            [0.32,0.48],
+                                                            [0.14,0.06]
+                                                        ],
+                                                        [
+                                                            [0.12,0.18],
+                                                            [0.49,0.21]
+                                                        ]
+                                                    ]
+                                                ),
+                                        np.array(
+                                                    [
+                                                        [1,1],
+                                                        [1,1]
+                                                    ]
+                                                )
                                     ]
                                 )
-                            ]
-                        )
-                    ]
 
-                )
-            ]
+    def test_global_propagation(self):
+        pass
+
+    def test_marginalization(self):
+        pass
