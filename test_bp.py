@@ -212,7 +212,7 @@ def assert_sum_product2(tree, potentials):
     """ Test hugin vs brute force sum-product """
     assert_potentials_equal(
         brute_force_sum_product2(tree, potentials),
-        bp.hugin2(tree, potentials, bp.sum_product)
+        bp.hugin(tree, potentials, bp.sum_product)
     )
     pass
 
@@ -2230,7 +2230,31 @@ class TestJunctionInference(unittest.TestCase):
                                 )
 
     def test_global_propagation(self):
-        pass
+        init_phi = bp.init_tree(self.jt, self.fg)
+        phi = bp.hugin(junction_tree, potentials, bp.sum_product)
+        assert_potentials_equal([phi[2]], [
+                                            np.array(
+                                                        [
+                                                            [
+                                                                [0.150,0.150],
+                                                                [0.020,0.180]
+                                                            ],
+                                                            [
+                                                                [0.125,0.125],
+                                                                [0.025,0.225]
+                                                            ]
+                                                        ]
+                                                    )
+                                            ]
 
     def test_marginalization(self):
-        pass
+        init_phi = bp.init_tree(self.jt, self.fg)
+        phi = bp.hugin(junction_tree, potentials, bp.sum_product)
+        np.testing.assert_array_equal(
+                                        bp.compute_marginal(phi, ["A"]),
+                                        np.array([0.500,0.500])
+                                    )
+        np.testing.assert_array_equal(
+                                        bp.compute_marginal(phi, ["D"]),
+                                        np.array([0.320,0.680])
+        )
