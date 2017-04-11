@@ -350,6 +350,12 @@ def absorb(phiC, phiSo, phiSn):
         return np.zeros_like(phiSo)
     return phiC*(phiSn/phiSo)
 
+def observe(tree, potentials, likelihood, data):
+    ll = [[]]*len(self.labels)
+    # set values of ll based on data argument
+    # (all 1s if var not set, all 0s except for val if var set)
+    return (ll,potentials)
+
 
 class SumProduct():
     """ Sum-product distributive law """
@@ -390,16 +396,21 @@ class SumProduct():
 # Sum-product distributive law for NumPy
 sum_product = SumProduct(np.einsum)
 
-'''class JunctionTree(object):
-    def __init__(self):
-        pass
+class JunctionTree(object):
+    def __init__(self, _vars, tree=[]):
+        self._vars = _vars
+        self.labels = sorted(_vars.keys())
+        self.tree = tree
 
     def find_var(self, var_label):
         pass
 
     def get_clique(self, var_label):
-        for seperator in self.
-        pass'''
+        #for seperator in self.
+        pass
+
+    def get_vars(self):
+        return self._vars
 
 '''class PotentialTable(object):
     pass'''

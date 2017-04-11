@@ -1,6 +1,7 @@
 import numpy as np
 
 import bp
+from bp import JunctionTree
 import unittest
 import networkx as nx
 
@@ -112,9 +113,9 @@ def __gibbs_elem_cycles(edges, fcs):
                 if u not in r_star:
                     r_star.append(u)
         #s U r U fcs[i]
-        s = [list(st) for st in set(map(tuple, itertools.chain(s,r,[fcs[i]]])))]
+        s = [list(st) for st in set(map(tuple, itertools.chain(s,r,[fcs[i]])))]
         #q U r U r_star U fcs[i]
-        q = [list(st) for st in set(map(tuple, itertools.chain(q,r,r_star,[fcs[i]]])))]
+        q = [list(st) for st in set(map(tuple, itertools.chain(q,r,r_star,[fcs[i]])))]
         r = []
         r_star = []
         i+=1
@@ -1089,7 +1090,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
+        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
         assert_junction_tree_consistent(jt, phiN)
 
@@ -1172,13 +1173,13 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
+        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
         assert_junction_tree_consistent(jt, phi0)
 
         data = {0: 1, 1: 2, 2: 3, 4: 0}
 
-        likelihood, phiN = bp.observe(jt, phi0, data, likelihood, "update")
+        likelihood, phiN = bp.observe(jt, phi0, likelihood, data, "update")
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1264,7 +1265,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
+        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
         assert_junction_tree_consistent(jt, phi0)
 
@@ -1275,7 +1276,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([0,0,1])
+        np.testing.assert_array_equal(likelihood[3], np.array([0,0,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
         assert_junction_tree_consistent(jt, phiN)
 
@@ -1318,35 +1319,44 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     def test_can_observe_dynamic_evidence_using_global_retraction(self):
         # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
-        jt = [
-                0, [0,2,4],
-                (
-                    1, [0,2],
-                    [
-                        2, [0,1,2]
-                    ]
-                ),
-                (
-                    3, [4],
-                    [
-                        4, [3,4],
-                        (
-                            5, [3],
+        jt = JunctionTree(
+                            {
+                                0: 4,
+                                1: 8,
+                                2: 5,
+                                3: 3,
+                                4: 6
+                            },
                             [
-                                6, [1,2,3]
+                                0, [0,2,4],
+                                (
+                                    1, [0,2],
+                                    [
+                                        2, [0,1,2]
+                                    ]
+                                ),
+                                (
+                                    3, [4],
+                                    [
+                                        4, [3,4],
+                                        (
+                                            5, [3],
+                                            [
+                                                6, [1,2,3]
+                                            ]
+                                        )
+                                    ]
+                                )
                             ]
-                        )
-                    ]
-                )
-            ]
+                    )
 
         # define arbitrary join tree potentials
         phi = [
-                np.random.randn(4, 5, 6),
+                np.random.randn(4,5,6),
                 np.random.randn(4,5),
                 np.random.randn(4,8,5),
                 np.random.randn(6),
-                np.random.randn(3, 6),
+                np.random.randn(3,6),
                 np.random.randn(3),
                 np.random.randn(8,5,3)
         ]
@@ -1356,13 +1366,13 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1])
+        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
         assert_junction_tree_consistent(jt, phi0)
 
         data = {0: 2, 2: 3, 4: 0}
 
-        likelihood, phiN = bp.observe(jt, phi0, data, likelihood, "retract")
+        likelihood, phiN = bp.observe(jt, phi0, likelihood, data, "retract")
         np.testing.assert_array_equal(likelihood[0], np.array([0,0,1,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1797,8 +1807,8 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         values = [
                     np.random.randn(2),
                     np.random.randn(2, 4),
-                    np.random.randn(4, 3, 5)
-                    np.random.randn(2, 5)
+                    np.random.randn(4, 3, 5),
+                    np.random.randn(2, 5),
                 ]
 
         fg = [_vars, factors, values]
@@ -1888,9 +1898,9 @@ class TestJunctionTreeConstruction(unittest.TestCase):
             (0, 3600, 3) # factor 3 has 2 neighbors (all nodes connected)
         '''
         assert len(heap) == 3
-        assert heap[0] = (0, 3600, 1)
-        assert heap[1] = (0, 3600, 2)
-        assert heap[2] = (0, 3600, 3)
+        assert heap[0] == (0, 3600, 1)
+        assert heap[1] == (0, 3600, 2)
+        assert heap[2] == (0, 3600, 3)
 
         item, heap = bp.remove_next(heap)
         assert item == (0, 3600, 1)
@@ -1905,8 +1915,8 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         '''
 
         assert len(heap) == 2
-        assert heap[0] = (0, 600, 2)
-        assert heap[1] = (0, 600, 3)
+        assert heap[0] == (0, 600, 2)
+        assert heap[1] == (0, 600, 3)
 
         item, heap = bp.remove_next(heap)
         assert item == (0, 600, 2)
@@ -1919,7 +1929,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         '''
 
         assert len(heap) == 1
-        assert heap[0] = (0, 10, 3)
+        assert heap[0] == (0, 10, 3)
 
 
         item, heap = bp.remove_next(heap)
@@ -1998,8 +2008,8 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         values = [
                     np.random.randn(2),
                     np.random.randn(2, 4),
-                    np.random.randn(4, 3, 5)
-                    np.random.randn(2, 5)
+                    np.random.randn(4, 3, 5),
+                    np.random.randn(2, 5),
                 ]
         fg = [_vars, factors, values]
         tri = bp.find_triangulation(fg, sizes)
@@ -2130,7 +2140,7 @@ class TestJunctionInference(unittest.TestCase):
         ]
 
         values = [
-                    np.array([0.5,0.5])
+                    np.array([0.5,0.5]),
                     np.array(
                                 [
                                     [0.6,0.4],
@@ -2166,7 +2176,7 @@ class TestJunctionInference(unittest.TestCase):
                                         [0.99,0.01]
                                     ]
                                 ]
-                            )
+                            ),
                     np.array(
                                 [
                                     [0.9,0.1],
@@ -2246,6 +2256,7 @@ class TestJunctionInference(unittest.TestCase):
                                                         ]
                                                     )
                                             ]
+                                        )
 
     def test_marginalization(self):
         init_phi = bp.init_tree(self.jt, self.fg)
