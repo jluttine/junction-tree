@@ -351,11 +351,30 @@ def absorb(phiC, phiSo, phiSn):
     return phiC*(phiSn/phiSo)
 
 def observe(tree, potentials, likelihood, data):
-    ll = [[]]*len(self.labels)
     # set values of ll based on data argument
+    ll = [
+                [1 if j == data[var] else 0 for j in range(0, tree._vars[var])]
+                    if var in data else [1]*tree._vars[var]
+                        for var in tree.labels
+            ]
     # (all 1s if var not set, all 0s except for val if var set)
     return (ll,potentials)
 
+def generate_potential_pairs(tree, potentials):
+    if len(tree) < 3:
+        return []
+    idx, keys = tree[0:2]
+    separators = tree[2:]
+
+    pairs = []
+    for sep in separators:
+        sep_idx, sep_keys = sep[0:2]
+        pairs.extend(generate_potential_pairs(sep[2:], potentials))
+        # making a pair from seperator and root of seperator's subtree
+        pairs.append(potentials[sep[2:][0]], potentials[sep_idx])
+        # making a pair from root of input tree and seperator
+        pairs.append(potentials[idx], potentials[sep_idx])
+    return pairs
 
 class SumProduct():
     """ Sum-product distributive law """
@@ -400,7 +419,7 @@ class JunctionTree(object):
     def __init__(self, _vars, tree=[]):
         self._vars = _vars
         self.labels = sorted(_vars.keys())
-        self.tree = tree
+        self.struct = tree
 
     def find_var(self, var_label):
         pass

@@ -224,8 +224,8 @@ def assert_junction_tree_consistent(tree, potentials):
         Function checks that junction tree is consistent with respect to the
         provided potentials
     '''
-    assert all([assert_junction_tree_consistent(cp, sp) for cp, sp in bp.generate_potential_pairs(tree, potentials)])
-    pass
+    assert all([assert_junction_tree_consistent(cp, sp)
+                    for cp, sp in bp.generate_potential_pairs(tree.struct, potentials)])
 
 def assert_pair_consistent(c_potential, s_potential):
     '''
@@ -1349,6 +1349,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 )
                             ]
                     )
+
 
         # define arbitrary join tree potentials
         phi = [
