@@ -224,16 +224,35 @@ def assert_junction_tree_consistent(tree, potentials):
         Function checks that junction tree is consistent with respect to the
         provided potentials
     '''
-    assert all([assert_junction_tree_consistent(cp, sp)
-                    for cp, sp in bp.generate_potential_pairs(tree.struct, potentials)])
 
-def assert_pair_consistent(c_potential, s_potential):
+    assert np.all(
+                [
+                    potentials_consistent(c_pot, c_vars, s_pot, s_vars)
+                        for c_pot,
+                            c_vars,
+                            s_pot,
+                            s_vars in bp.generate_potential_pairs(
+                                                        tree.get_struct(),
+                                                        potentials
+                                    )
+                ]
+            )
+
+def potentials_consistent(c_pot, c_vars, s_pot, s_vars):
     '''
         Ensure that summing over clique potentials for variables not present in
         sepset generates a potential equal to sepset potential (definition of
         consistent)
     '''
-    pass
+
+    return np.allclose(
+                bp.compute_marginal(
+                    c_pot,
+                    c_vars,
+                    np.intersect1d(c_vars, s_vars).tolist()
+                ),
+                s_pot
+            )
 
 
 def test_hugin():
@@ -675,9 +694,9 @@ class TestHUGINFunctionality(unittest.TestCase):
                         ])
         # https://obilaniu6266h16.wordpress.com/2016/02/04/einstein-summation-in-numpy/
         # marginal probability of A, P(A)
-        assert np.allclose(bp.compute_marginal(phiABD, [0]), np.array([0.500, 0.500])) == True
+        assert np.allclose(bp.compute_marginal(phiABD, [0,1,2], [0]), np.array([0.500, 0.500]))
         # marginal probability of D, P(D)
-        assert np.allclose(np.array([0.32,0.68]), np.array([0.320, 0.680])) == True
+        assert np.allclose(np.array([0.32,0.68]), np.array([0.320, 0.680]))
 
 
     def test_pass_message(self):
@@ -1075,7 +1094,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         # define arbitrary join tree potentials
         phi = [
-                np.random.randn(4, 5, 6),
+                np.random.randn(4,5,6),
                 np.random.randn(4,5),
                 np.random.randn(4,8,5),
                 np.random.randn(6),
@@ -2263,10 +2282,10 @@ class TestJunctionInference(unittest.TestCase):
         init_phi = bp.init_tree(self.jt, self.fg)
         phi = bp.hugin(junction_tree, potentials, bp.sum_product)
         np.testing.assert_array_equal(
-                                        bp.compute_marginal(phi, ["A"]),
+                                        bp.compute_marginal(phi, range(8), [0]),
                                         np.array([0.500,0.500])
                                     )
         np.testing.assert_array_equal(
-                                        bp.compute_marginal(phi, ["D"]),
+                                        bp.compute_marginal(phi, range(8), [3]),
                                         np.array([0.320,0.680])
         )

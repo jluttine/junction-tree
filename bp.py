@@ -339,8 +339,8 @@ def get_clique(tree, var_label):
 
     return None
 
-def compute_marginal(arr, _vars):
-    return np.einsum(arr, range(arr.ndim), _vars)
+def compute_marginal(arr, _vars, _vars_ss):
+    return np.einsum(arr, _vars, _vars_ss)
 
 def project(arr, _vars):
     return compute_marginal(arr, _vars)
@@ -353,27 +353,52 @@ def absorb(phiC, phiSo, phiSn):
 def observe(tree, potentials, likelihood, data):
     # set values of ll based on data argument
     ll = [
-                [1 if j == data[var] else 0 for j in range(0, tree._vars[var])]
-                    if var in data else [1]*tree._vars[var]
-                        for var in tree.labels
+                [1 if j == data[var_lbl] else 0 for j in range(0, tree.get_vars()[var_lbl])]
+                    if var_lbl in data else [1]*tree.get_vars()[var_lbl]
+                        for var_lbl in tree.get_labels()
             ]
-    # (all 1s if var not set, all 0s except for val if var set)
+    # alter potentials based on likelihoods
+    for var_lbl in data:
+        # find clique that contains var
+        clique_idx = tree.get_clique(var_lbl)
+        # multiply clique's potential by likelihood
+        pot = potentials[clique_idx]
+        var_idx = tree.get_var_idx(clique_idx, var_lbl)
+        # reshape likelihood potential to allow multiplication with pot
+        ll_pot = np.array(ll).reshape([1 if i!=var_idx else s for i, s in enumerate(p.shape)])
+        potentials[clique_idx] = pot*ll_pot
     return (ll,potentials)
 
 def generate_potential_pairs(tree, potentials):
     if len(tree) < 3:
         return []
-    idx, keys = tree[0:2]
+    root_idx, root_keys = tree[0:2]
     separators = tree[2:]
 
     pairs = []
     for sep in separators:
         sep_idx, sep_keys = sep[0:2]
-        pairs.extend(generate_potential_pairs(sep[2:], potentials))
+        child_tree = sep[2]
+        c_root_idx, c_root_keys = child_tree[0:2]
+        pairs.extend(generate_potential_pairs(child_tree, potentials))
         # making a pair from seperator and root of seperator's subtree
-        pairs.append(potentials[sep[2:][0]], potentials[sep_idx])
+        pairs.append(
+                        (
+                            potentials[c_root_idx],
+                            c_root_keys,
+                            potentials[sep_idx],
+                            sep_keys
+                        )
+                    )
         # making a pair from root of input tree and seperator
-        pairs.append(potentials[idx], potentials[sep_idx])
+        pairs.append(
+                        (
+                            potentials[root_idx],
+                            root_keys,
+                            potentials[sep_idx],
+                            sep_keys
+                        )
+                    )
     return pairs
 
 class SumProduct():
@@ -416,20 +441,50 @@ class SumProduct():
 sum_product = SumProduct(np.einsum)
 
 class JunctionTree(object):
-    def __init__(self, _vars, tree=[]):
+    def __init__(self, _vars, cliques=[], tree=[]):
         self._vars = _vars
         self.labels = sorted(_vars.keys())
         self.struct = tree
+        self.cliques = cliques
 
     def find_var(self, var_label):
-        pass
+        try:
+            var_idx = self.labels.index(var_label)
+            return var_idx
+        except ValueError:
+            return None
 
     def get_clique(self, var_label):
         #for seperator in self.
-        pass
+        idx, keys = self.struct[0:2]
+        separators = self.struct[2:]
+        if var_label in keys:
+            return idx
+        if separators == (): # base case reached (leaf)
+            return None
+
+        for separator in separators:
+            separator_idx, separator_keys, c_tree = separator
+            if var_label in separator_keys:
+                return separator_idx
+            clique_idx = self.get_clique(c_tree, var_label)
+            if clique_idx:
+                return clique_idx
+
+        return None
+
+    def get_var_idx(self, clique_idx, var_label):
+        try:
+            clique = self.cliques[clique_idx]
+            return clique.index(var_label)
+        except ValueError:
+            return None
 
     def get_vars(self):
         return self._vars
 
-'''class PotentialTable(object):
-    pass'''
+    def get_labels(self):
+        return self.labels
+
+    def get_struct(self):
+        return self.struct
