@@ -1388,6 +1388,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+        self.fail("Implement generic traversal algorithm")
         assert_junction_tree_consistent(jt, phi0)
 
         data = {0: 2, 2: 3, 4: 0}

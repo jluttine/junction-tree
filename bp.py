@@ -360,12 +360,12 @@ def observe(tree, potentials, likelihood, data):
     # alter potentials based on likelihoods
     for var_lbl in data:
         # find clique that contains var
-        clique_idx = tree.get_clique(var_lbl)
+        clique_idx = tree.get_clique_of_var(var_lbl)
         # multiply clique's potential by likelihood
         pot = potentials[clique_idx]
         var_idx = tree.get_var_idx(clique_idx, var_lbl)
         # reshape likelihood potential to allow multiplication with pot
-        ll_pot = np.array(ll).reshape([1 if i!=var_idx else s for i, s in enumerate(p.shape)])
+        ll_pot = np.array(ll[var_lbl]).reshape([1 if i!=var_idx else s for i, s in enumerate(pot.shape)])
         potentials[clique_idx] = pot*ll_pot
     return (ll,potentials)
 
@@ -441,11 +441,10 @@ class SumProduct():
 sum_product = SumProduct(np.einsum)
 
 class JunctionTree(object):
-    def __init__(self, _vars, cliques=[], tree=[]):
+    def __init__(self, _vars, tree=[]):
         self._vars = _vars
         self.labels = sorted(_vars.keys())
         self.struct = tree
-        self.cliques = cliques
 
     def find_var(self, var_label):
         try:
@@ -454,7 +453,27 @@ class JunctionTree(object):
         except ValueError:
             return None
 
-    def get_clique(self, var_label):
+    def get_clique(self, clique_idx):
+        idx, keys = self.struct[0:2]
+        separators = self.struct[2:]
+
+        if idx == clique_idx:
+            return keys
+        if separators == (): # base case reached (leaf)
+            return None
+
+        for separator in separators:
+            separator_idx, separator_keys, c_tree = separator
+            if idx == separator_idx:
+                return separator_keys
+            result = self.get_clique_of_var(c_tree, var_label)
+            if result != None:
+                return result
+
+        return None
+
+
+    def get_clique_of_var(self, var_label):
         #for seperator in self.
         idx, keys = self.struct[0:2]
         separators = self.struct[2:]
@@ -467,7 +486,7 @@ class JunctionTree(object):
             separator_idx, separator_keys, c_tree = separator
             if var_label in separator_keys:
                 return separator_idx
-            clique_idx = self.get_clique(c_tree, var_label)
+            clique_idx = self.get_clique_of_var(c_tree, var_label)
             if clique_idx:
                 return clique_idx
 
@@ -475,9 +494,9 @@ class JunctionTree(object):
 
     def get_var_idx(self, clique_idx, var_label):
         try:
-            clique = self.cliques[clique_idx]
+            clique = self.get_clique(clique_idx)
             return clique.index(var_label)
-        except ValueError:
+        except (AttributeError, ValueError):
             return None
 
     def get_vars(self):
