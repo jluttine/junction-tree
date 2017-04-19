@@ -620,6 +620,7 @@ def test_hugin():
         ]
     )
 
+
 class TestHUGINFunctionality(unittest.TestCase):
     '''
     examples taken from here:
@@ -2290,3 +2291,48 @@ class TestJunctionInference(unittest.TestCase):
                                         bp.compute_marginal(phi, range(8), [3]),
                                         np.array([0.320,0.680])
         )
+
+class TestJTTraversal(unittest.TestCase):
+    def setUp(self):
+        self.tree = [
+                0, [0,2,4],
+                (
+                    1, [0,2],
+                    [
+                        2, [0,1,2]
+                    ]
+                ),
+                (
+                    3, [4],
+                    [
+                        4, [3,4],
+                        (
+                            5, [3],
+                            [
+                                6, [1,2,3]
+                            ]
+                        )
+                    ]
+                )
+            ]
+
+    def test_flatten_tree(self):
+        assert list(bp.traverse(self.tree)) == [
+                                                    0, [0, 2, 4],
+                                                    1, [0, 2],
+                                                    3, [4],
+                                                    2, [0, 1, 2],
+                                                    4, [3, 4],
+                                                    5, [3],
+                                                    6, [1, 2, 3]
+                                                ]
+
+    def test_get_clique_keys(self):
+        assert bp.get_clique_keys(self.tree, 0) == [0, 2, 4]
+        assert bp.get_clique_keys(self.tree, 1) == [0, 2]
+        assert bp.get_clique_keys(self.tree, 2) == [0, 1, 2]
+        assert bp.get_clique_keys(self.tree, 3) == [4]
+        assert bp.get_clique_keys(self.tree, 4) == [3, 4]
+        assert bp.get_clique_keys(self.tree, 5) == [3]
+        assert bp.get_clique_keys(self.tree, 6) == [1, 2, 3]
+        assert bp.get_clique_keys(self.tree, 7) == None
