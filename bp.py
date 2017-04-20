@@ -402,7 +402,7 @@ def generate_potential_pairs(tree, potentials):
     return pairs
 
 
-def traverse(tree, clique_id=None):
+def bf_traverse(tree, clique_id=None):
     """Breadth-first traversal of tree
 
     Early termination of search is performed
@@ -417,10 +417,24 @@ def traverse(tree, clique_id=None):
         yield tree[1]
         if tree[0] == clique_id:
             raise StopIteration
-        for child_tree in tree[2:]:
-            queue.append(list(child_tree))
+        queue.extend([child_tree for child_tree in tree[2:]])
 
+def df_traverse(tree, clique_id=None):
+    """Depth-first traversal of tree
 
+    Early termination of search is performed
+    if clique_id provided
+
+    Output: [id1, keys1, ..., idN, keysN] (or [id1, keys1, ..., cid, ckeys])
+    """
+    stack = [tree]
+    while stack:
+        tree = stack.pop()
+        yield tree[0]
+        yield tree[1]
+        if tree[0] == clique_id:
+            raise StopIteration
+        stack.extend([child_tree for child_tree in reversed(tree[2:])])
 
 def get_clique_keys(tree, clique_id):
     """Return keys for clique with clique_id
@@ -428,9 +442,12 @@ def get_clique_keys(tree, clique_id):
 
     Output: clique_id_keys (or None)
     """
-    flist = list(traverse(tree, clique_id))
+    flist = list(bf_traverse(tree, clique_id))
     return flist[-1] if flist[-2] == clique_id else None
 
+
+def generate_potential_pairs(tree):
+    return []
 
 class SumProduct():
     """ Sum-product distributive law """

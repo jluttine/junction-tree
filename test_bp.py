@@ -226,15 +226,17 @@ def assert_junction_tree_consistent(tree, potentials):
     '''
 
     assert np.all(
-                [
-                    potentials_consistent(c_pot, c_vars, s_pot, s_vars)
-                        for c_pot,
+                    [
+                        potentials_consistent(
+                                            potentials[c_idx],
+                                            c_vars,
+                                            potentials[s_idx],
+                                            s_vars
+                        )
+                        for c_idx,
                             c_vars,
-                            s_pot,
-                            s_vars in bp.generate_potential_pairs(
-                                                        tree.get_struct(),
-                                                        potentials
-                                    )
+                            s_idx,
+                            s_vars in bp.generate_potential_pairs(tree.get_struct())
                 ]
             )
 
@@ -1389,7 +1391,6 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        self.fail("Implement generic traversal algorithm")
         assert_junction_tree_consistent(jt, phi0)
 
         data = {0: 2, 2: 3, 4: 0}
@@ -2101,7 +2102,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         assert_junction_tree_equal(jt0, jt1)
 
-class TestJunctionInference(unittest.TestCase):
+class TestJunctionTreeInference(unittest.TestCase):
     def setUp(self):
         self.jt = [
                     0, [0,3,4],
@@ -2116,15 +2117,15 @@ class TestJunctionInference(unittest.TestCase):
                         [
                             4,[3,4,5]
                         ]
-                    )
+                    ),
                     (
                         5, [0,4],
                         [
-                            6, [0,2,4]
+                            6, [0,2,4],
                             (
                                 7, [2,4],
                                 [
-                                    8, [2,4,6]
+                                    8, [2,4,6],
                                     (
                                         9, [4,6],
                                         [
@@ -2316,8 +2317,8 @@ class TestJTTraversal(unittest.TestCase):
                 )
             ]
 
-    def test_flatten_tree(self):
-        assert list(bp.traverse(self.tree)) == [
+    def test_bf_traverse(self):
+        assert list(bp.bf_traverse(self.tree)) == [
                                                     0, [0, 2, 4],
                                                     1, [0, 2],
                                                     3, [4],
@@ -2326,6 +2327,18 @@ class TestJTTraversal(unittest.TestCase):
                                                     5, [3],
                                                     6, [1, 2, 3]
                                                 ]
+
+    def test_df_traverse(self):
+        assert list(bp.df_traverse(self.tree)) == [
+                                                    0, [0, 2, 4],
+                                                    1, [0, 2],
+                                                    2, [0, 1, 2],
+                                                    3, [4],
+                                                    4, [3, 4],
+                                                    5, [3],
+                                                    6, [1, 2, 3]
+                                                ]
+
 
     def test_get_clique_keys(self):
         assert bp.get_clique_keys(self.tree, 0) == [0, 2, 4]
@@ -2336,3 +2349,53 @@ class TestJTTraversal(unittest.TestCase):
         assert bp.get_clique_keys(self.tree, 5) == [3]
         assert bp.get_clique_keys(self.tree, 6) == [1, 2, 3]
         assert bp.get_clique_keys(self.tree, 7) == None
+
+    def test_generate_potential_pairs(self):
+        tree = [
+                    0, [0,3,4],
+                    (
+                        1, [0,3],
+                        [
+                            2, [0,1,3]
+                        ]
+                    ),
+                    (
+                        3, [3,4],
+                        [
+                            4,[3,4,5]
+                        ]
+                    ),
+                    (
+                        5, [0,4],
+                        [
+                            6, [0,2,4],
+                            (
+                                7, [2,4],
+                                [
+                                    8, [2,4,6],
+                                    (
+                                        9, [4,6],
+                                        [
+                                            10, [4,6,7]
+                                        ]
+                                    )
+                                ]
+                            )
+                        ]
+
+                    )
+                ]
+
+        print(list(bp.df_traverse(tree)))
+        assert bp.generate_potential_pairs(tree) == [
+                                                            (0, [0,3,4], 1, [0,3]),
+                                                            (2, [0,1,3], 1, [0,3]),
+                                                            (0, [0,3,4], 3, [3,4]),
+                                                            (4, [3,4,5], 3, [3,4]),
+                                                            (0, [0,3,4], 5, [0,4]),
+                                                            (6, [0,2,4], 5, [0,4]),
+                                                            (6, [0,2,4], 7, [2,4]),
+                                                            (8, [2,4,6], 7, [2,4]),
+                                                            (8, [2,4,6], 9, [4,6]),
+                                                            (10, [4,6,7], 9, [4,6])
+        ]
