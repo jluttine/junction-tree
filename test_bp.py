@@ -1085,27 +1085,36 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     def test_can_observe_evidence_from_one_trial(self):
         # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
-        jt = [
-                0, [0,2,4],
-                (
-                    1, [0,2],
-                    [
-                        2, [0,1,2]
-                    ]
-                ),
-                (
-                    3, [4],
-                    [
-                        4, [3,4],
-                        (
-                            5, [3],
+        jt = JunctionTree(
+                            {
+                                0: 4,
+                                1: 8,
+                                2: 5,
+                                3: 3,
+                                4: 6
+                            },
                             [
-                                6, [1,2,3]
+                                0, [0,2,4],
+                                (
+                                    1, [0,2],
+                                    [
+                                        2, [0,1,2]
+                                    ]
+                                ),
+                                (
+                                    3, [4],
+                                    [
+                                        4, [3,4],
+                                        (
+                                            5, [3],
+                                            [
+                                                6, [1,2,3]
+                                            ]
+                                        )
+                                    ]
+                                )
                             ]
-                        )
-                    ]
-                )
-            ]
+                    )
 
         # define arbitrary join tree potentials
         phi = [
@@ -1120,13 +1129,14 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phiN = bp.observe(jt, phi, None, data)
+        likelihood, phi0 = bp.observe(jt, phi, None, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_junction_tree_consistent(jt, phiN)
+        phi1 = bp.hugin(jt, phi0, bp.sum_product)
+        assert_junction_tree_consistent(jt, phi1)
 
         # test that a potential containing observed variable is altered properly after observing data
         # (Eventually this will be based on familial content of clique or a more optimal clique but
@@ -1134,7 +1144,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         for var, val in data.items():
             clique, _vars = bp.get_clique(jt, var)
-            pot = phiN[clique]
+            pot = phi1[clique]
             assert pot.shape == phi[clique].shape
             var_idx = _vars.index(var)
             # check that potential properly updated
@@ -1168,27 +1178,36 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     def test_can_observe_dynamic_evidence_using_global_update_single_variable(self):
         # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
-        jt = [
-                0, [0,2,4],
-                (
-                    1, [0,2],
-                    [
-                        2, [0,1,2]
-                    ]
-                ),
-                (
-                    3, [4],
-                    [
-                        4, [3,4],
-                        (
-                            5, [3],
+        jt = JunctionTree(
+                            {
+                                0: 4,
+                                1: 8,
+                                2: 5,
+                                3: 3,
+                                4: 6
+                            },
                             [
-                                6, [1,2,3]
+                                0, [0,2,4],
+                                (
+                                    1, [0,2],
+                                    [
+                                        2, [0,1,2]
+                                    ]
+                                ),
+                                (
+                                    3, [4],
+                                    [
+                                        4, [3,4],
+                                        (
+                                            5, [3],
+                                            [
+                                                6, [1,2,3]
+                                            ]
+                                        )
+                                    ]
+                                )
                             ]
-                        )
-                    ]
-                )
-            ]
+                    )
 
         # define arbitrary join tree potentials
         phi = [
@@ -1209,17 +1228,19 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_junction_tree_consistent(jt, phi0)
+        phi1 = bp.hugin(jt, phi0, bp.sum_product)
+        assert_junction_tree_consistent(jt, phi1)
 
         data = {0: 1, 1: 2, 2: 3, 4: 0}
 
-        likelihood, phiN = bp.observe(jt, phi0, likelihood, data, "update")
+        likelihood, phi2 = bp.observe(jt, phi1, likelihood, data, "update")
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_junction_tree_consistent(jt, phiN)
+        phi3 = bp.hugin(jt, phi2, bp.sum_product)
+        assert_junction_tree_consistent(jt, phi3)
 
         # test that a potential containing observed variable is altered properly after observing data
         # (Eventually this will be based on familial content of clique or a more optimal clique but
@@ -1227,7 +1248,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         for var, val in data.items():
             clique, _vars = bp.get_clique(jt, var)
-            pot = phiN[clique]
+            pot = phi3[clique]
             assert pot.shape == phi[clique].shape
             var_idx = _vars.index(var)
             # check that potential properly updated
@@ -1260,27 +1281,36 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     def test_can_observe_dynamic_evidence_using_global_update_multi_variable(self):
         # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
-        jt = [
-                0, [0,2,4],
-                (
-                    1, [0,2],
-                    [
-                        2, [0,1,2]
-                    ]
-                ),
-                (
-                    3, [4],
-                    [
-                        4, [3,4],
-                        (
-                            5, [3],
+        jt = JunctionTree(
+                            {
+                                0: 4,
+                                1: 8,
+                                2: 5,
+                                3: 3,
+                                4: 6
+                            },
                             [
-                                6, [1,2,3]
+                                0, [0,2,4],
+                                (
+                                    1, [0,2],
+                                    [
+                                        2, [0,1,2]
+                                    ]
+                                ),
+                                (
+                                    3, [4],
+                                    [
+                                        4, [3,4],
+                                        (
+                                            5, [3],
+                                            [
+                                                6, [1,2,3]
+                                            ]
+                                        )
+                                    ]
+                                )
                             ]
-                        )
-                    ]
-                )
-            ]
+                    )
 
         # define arbitrary join tree potentials
         phi = [
@@ -1301,18 +1331,20 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_junction_tree_consistent(jt, phi0)
+        phi1 = bp.hugin(jt, phi0, bp.sum_product)
+        assert_junction_tree_consistent(jt, phi1)
 
         data = {0: 1, 1: 2, 2: 3, 3: 2, 4: 0}
 
 
-        likelihood, phiN = bp.observe(jt, phi0, likelihood, data, "update")
+        likelihood, phi2 = bp.observe(jt, phi1, likelihood, data, "update")
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([0,0,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_junction_tree_consistent(jt, phiN)
+        phi3 = bp.hugin(jt, phi2, bp.sum_product)
+        assert_junction_tree_consistent(jt, phi3)
 
         # test that a potential containing observed variable is altered properly after observing data
         # (Eventually this will be based on familial content of clique or a more optimal clique but
@@ -1320,7 +1352,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         for var, val in data.items():
             clique, _vars = bp.get_clique(jt, var)
-            pot = phiN[clique]
+            pot = phi3[clique]
             assert pot.shape == phi[clique].shape
             var_idx = _vars.index(var)
             # check that potential properly updated
@@ -1351,6 +1383,9 @@ class TestHUGINFunctionality(unittest.TestCase):
                                                     np.take(phi[clique], flat_indices)
                                                 )
 
+    '''
+        skipping this test for now as explicitly handling retraction might be
+        unnecessary
     def test_can_observe_dynamic_evidence_using_global_retraction(self):
         # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
         jt = JunctionTree(
@@ -1385,7 +1420,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     )
 
 
-        # define arbitrary join tree potentials
+        # define arbitrary initial join tree potentials
         phi = [
                 np.random.randn(4,5,6),
                 np.random.randn(4,5),
@@ -1403,17 +1438,19 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_junction_tree_consistent(jt, phi0)
+        phi1 = bp.hugin(jt, phi0, bp.sum_product)
+        assert_junction_tree_consistent(jt, phi1)
 
         data = {0: 2, 2: 3, 4: 0}
 
-        likelihood, phiN = bp.observe(jt, phi0, likelihood, data, "retract")
+        likelihood, phi2 = bp.observe(jt, phi1, likelihood, data, "retract")
         np.testing.assert_array_equal(likelihood[0], np.array([0,0,1,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-        assert_junction_tree_consistent(jt, phiN)
+        phi3 = bp.hugin(jt, phi2, bp.sum_product)
+        assert_junction_tree_consistent(jt, phi3)
 
         # test that a potential containing observed variable is altered properly after observing data
         # (Eventually this will be based on familial content of clique or a more optimal clique but
@@ -1421,7 +1458,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         for var, val in data.items():
             clique, _vars = bp.get_clique(jt, var)
-            pot = phiN[clique]
+            pot = phi3[clique]
             assert pot.shape == phi[clique].shape
             var_idx = _vars.index(var)
             # check that potential properly updated
@@ -1452,7 +1489,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                                                     np.take(phi[clique], flat_indices)
                                                 )
 
-
+        '''
 
     def test_marginalize_variable_with_evidence(self):
         '''
@@ -2399,7 +2436,7 @@ class TestJTTraversal(unittest.TestCase):
                 ]
 
 
-        assert list(bp.bf_traverse(tree, func=bp.yield_clique_pairs)) == [
+        assert bp.generate_potential_pairs(tree) == [
                                                             (0, [0,3,4], 1, [0,3]),
                                                             (0, [0,3,4], 3, [3,4]),
                                                             (0, [0,3,4], 5, [0,4]),

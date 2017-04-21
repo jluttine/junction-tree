@@ -369,37 +369,6 @@ def observe(tree, potentials, likelihood, data):
         potentials[clique_idx] = pot*ll_pot
     return (ll,potentials)
 
-def generate_potential_pairs(tree, potentials):
-    if len(tree) < 3:
-        return []
-    root_idx, root_keys = tree[0:2]
-    separators = tree[2:]
-
-    pairs = []
-    for sep in separators:
-        sep_idx, sep_keys = sep[0:2]
-        child_tree = sep[2]
-        c_root_idx, c_root_keys = child_tree[0:2]
-        pairs.extend(generate_potential_pairs(child_tree, potentials))
-        # making a pair from seperator and root of seperator's subtree
-        pairs.append(
-                        (
-                            potentials[c_root_idx],
-                            c_root_keys,
-                            potentials[sep_idx],
-                            sep_keys
-                        )
-                    )
-        # making a pair from root of input tree and seperator
-        pairs.append(
-                        (
-                            potentials[root_idx],
-                            root_keys,
-                            potentials[sep_idx],
-                            sep_keys
-                        )
-                    )
-    return pairs
 
 def yield_id_and_keys(tree):
     yield tree[0]
@@ -453,7 +422,7 @@ def get_clique_keys(tree, clique_id):
 
 
 def generate_potential_pairs(tree):
-    return []
+    return list(bf_traverse(tree, func=yield_clique_pairs))
 
 class SumProduct():
     """ Sum-product distributive law """
