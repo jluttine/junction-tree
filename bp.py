@@ -401,8 +401,16 @@ def generate_potential_pairs(tree, potentials):
                     )
     return pairs
 
+def yield_id_and_keys(tree):
+    yield tree[0]
+    yield tree[1]
 
-def bf_traverse(tree, clique_id=None):
+def yield_clique_pairs(tree):
+    for child in tree[2:]:
+        yield (tree[0], tree[1], child[0], child[1])
+
+
+def bf_traverse(tree, clique_id=None, func=yield_id_and_keys):
     """Breadth-first traversal of tree
 
     Early termination of search is performed
@@ -413,13 +421,12 @@ def bf_traverse(tree, clique_id=None):
     queue = [tree]
     while queue:
         tree = queue.pop(0)
-        yield tree[0]
-        yield tree[1]
+        yield from func(tree)
         if tree[0] == clique_id:
             raise StopIteration
-        queue.extend([child_tree for child_tree in tree[2:]])
+        queue.extend([child for child in tree[2:]])
 
-def df_traverse(tree, clique_id=None):
+def df_traverse(tree, clique_id=None, func=yield_id_and_keys):
     """Depth-first traversal of tree
 
     Early termination of search is performed
@@ -430,11 +437,10 @@ def df_traverse(tree, clique_id=None):
     stack = [tree]
     while stack:
         tree = stack.pop()
-        yield tree[0]
-        yield tree[1]
+        yield from func(tree)
         if tree[0] == clique_id:
             raise StopIteration
-        stack.extend([child_tree for child_tree in reversed(tree[2:])])
+        stack.extend([child for child in reversed(tree[2:])])
 
 def get_clique_keys(tree, clique_id):
     """Return keys for clique with clique_id

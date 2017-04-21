@@ -228,24 +228,36 @@ def assert_junction_tree_consistent(tree, potentials):
     assert np.all(
                     [
                         potentials_consistent(
-                                            potentials[c_idx],
-                                            c_vars,
-                                            potentials[s_idx],
-                                            s_vars
+                                            potentials[c_idx1],
+                                            c_vars1,
+                                            potentials[c_idx2],
+                                            c_vars2
                         )
-                        for c_idx,
-                            c_vars,
-                            s_idx,
-                            s_vars in bp.generate_potential_pairs(tree.get_struct())
+                        for c_idx1,
+                            c_vars1,
+                            c_idx2,
+                            c_vars2 in bp.generate_potential_pairs(tree.get_struct())
                 ]
             )
 
-def potentials_consistent(c_pot, c_vars, s_pot, s_vars):
+def potentials_consistent(pot1, vars1, pot2, vars2):
     '''
         Ensure that summing over clique potentials for variables not present in
         sepset generates a potential equal to sepset potential (definition of
         consistent)
     '''
+    c_pot, c_vars, s_pot, s_vars = (
+                                    pot1,
+                                    vars1,
+                                    pot2,
+                                    vars2
+    ) if len(vars1) > len(vars2) else (
+                                        pot2,
+                                        vars2,
+                                        pot1,
+                                        vars1
+
+    )
 
     return np.allclose(
                 bp.compute_marginal(
@@ -2386,16 +2398,16 @@ class TestJTTraversal(unittest.TestCase):
                     )
                 ]
 
-        print(list(bp.df_traverse(tree)))
-        assert bp.generate_potential_pairs(tree) == [
+
+        assert list(bp.bf_traverse(tree, func=bp.yield_clique_pairs)) == [
                                                             (0, [0,3,4], 1, [0,3]),
-                                                            (2, [0,1,3], 1, [0,3]),
                                                             (0, [0,3,4], 3, [3,4]),
-                                                            (4, [3,4,5], 3, [3,4]),
                                                             (0, [0,3,4], 5, [0,4]),
-                                                            (6, [0,2,4], 5, [0,4]),
+                                                            (1, [0,3], 2, [0,1,3]),
+                                                            (3, [3,4], 4, [3,4,5]),
+                                                            (5, [0,4], 6, [0,2,4]),
                                                             (6, [0,2,4], 7, [2,4]),
-                                                            (8, [2,4,6], 7, [2,4]),
+                                                            (7, [2,4], 8, [2,4,6]),
                                                             (8, [2,4,6], 9, [4,6]),
-                                                            (10, [4,6,7], 9, [4,6])
+                                                            (9, [4,6], 10, [4,6,7])
         ]
