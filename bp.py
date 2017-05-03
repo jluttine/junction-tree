@@ -274,21 +274,40 @@ def initialize(tree):
     raise NotImplementedError()
 
 
-def collect(tree, potentials, visited, clique_index=0):
+def collect(tree, potentials, visited, distributive_law):
     """ Used by Hugin algorithm to collect messages """
+    clique_idx, clique_vars = tree[:2]
     # set clique_index in visited to 1
+    visited[clique_idx] = 1
 
     # loop over neighbors of clique
+    for neighbor in tree[2:]:
+        sep_idx, sep_vars, child = neighbor
         # call collect on neighbor if not marked as visited
-    # return messages from neighbors (in what form? setting a new value for the potential?)
-    raise NotImplementedError()
+        if not visited[child[0]]:
+            # need to combine these messages
+            potentials = collect(child, potentials, visited, distributive_law)
+            new_clique_pot, new_sep_pot = distributive_law.update(
+                                        potentials[child[0]], child[1],
+                                        potentials[clique_idx], clique_vars,
+                                        potentials[sep_idx], sep_vars
+            )
+            potentials[clique_idx] = new_clique_pot
+            potentials[sep_idx] = new_sep_pot
+
+    # return the updated potentials
+    # LOOK INTO MAKING FUNCTION LESS VERBOSE USING SIMPLE TRAVERSAL OF JT STRUCTURE
+    return potentials
 
 
-def distribute(tree, potentials, visited, clique_index=0):
+def distribute(tree, potentials, visited, distributive_law):
     """ Used by Hugin algorithm to distribute messages """
     # set clique_index in visited to 1
+    visited[clique_index] = 1
 
     # loop over neighbors of clique_index
+    for neighbor in tree[2:]:
+        pass
         # if neighbor unmarked
             # pass a message (in what form? update to clique's potential) to neighbor if not marked
             # call distribute on neighbor
@@ -301,25 +320,23 @@ def hugin(junction_tree, potentials, distributive_law, root_index=0):
 
     Input tree format:
 
-    [array, keys, (separator1_array, separator1_keys, child_tree1), ... (separatorN_array, separatorN_keys, child_treeN)]
+    [id, keys, (separator1_id, separator1_keys, child_tree1), ... (separatorN_id, separatorN_keys, child_treeN)]
 
-    Output tree format is the same?
 
     See page 3:
     http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
     """
     # initialize visited array which has the same number of elements as potentials array
-    #visited = [0]*len(potentials)
+    visited = [0]*len(potentials)
 
     # call collect on root_index storing the result in new_potentials
+    new_potentials = collect(junction_tree, potentials, visited, distributive_law, root_index)
 
     # initialize visited array again
-    #visited = [0]*len(potentials)
+    visited = [0]*len(potentials)
 
     # return the result of a call to distribute on root index
-
-    # Not implemented yet. Just return the potentials.
-    return potentials
+    return distribute(junction_tree, potentials, visited, distributive_law, root_index)
 
 def get_clique(tree, var_label):
     idx, keys = tree[0:2]
@@ -438,25 +455,42 @@ class SumProduct():
     def initialize(self, tbd):
         raise NotImplementedError()
 
+    def project(self, clique_pot, clique_vars, sep_vars):
+        return self.einsum(
+            clique_pot, clique_vars, sep_vars
+        )
 
-    def update(self, clique_a, clique_b, separator):
+    def absorb(self, clique_2_pot, clique_2_vars, sep_pot, new_sep_pot, sep_vars):
+        if np.all(sep_pot) == 0:
+            return np.zeros_like(clique_2_pot)
+
+        return self.einsum(
+            new_sep_pot / sep_pot, sep_vars,
+            clique_2_pot, clique_2_vars,
+            clique_2_vars
+        )
+
+    def update(self, clique_1_pot, clique_1_vars, clique_2_pot, clique_2_vars, sep_pot, sep_vars):
         # See page 2:
         # http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
 
         # Sum variables in A that are not in B
-        new_separator = self.einsum(
-            clique_a, variables_a,
-            variables_separator
+        new_sep_pot = self.project(
+                                clique_1_pot,
+                                clique_1_vars,
+                                sep_vars
         )
 
         # Compensate the updated separator in the clique
-        new_clique_b = self.einsum(
-            new_separator / separator, variables_separator,
-            clique_b, variables_b,
-            variables_b
+        new_clique_2_pot = self.absorb(
+                                clique_2_pot,
+                                clique_2_vars,
+                                sep_pot,
+                                new_sep_pot,
+                                sep_vars
         )
 
-        return (new_clique_b, new_separator) # may return unchanged clique_a
+        return (new_clique_2_pot, new_sep_pot) # may return unchanged clique_a
                                              # too if it helps elsewhere
 
 
