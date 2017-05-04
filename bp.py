@@ -374,21 +374,24 @@ def absorb(phiC, phiSo, phiSn):
         return np.zeros_like(phiSo)
     return phiC*(phiSn/phiSo)
 
-def observe(tree, potentials, likelihood, data):
+def observe(tree, potentials, data):
     # set values of ll based on data argument
     ll = [
                 [1 if j == data[var_lbl] else 0 for j in range(0, tree.get_vars()[var_lbl])]
                     if var_lbl in data else [1]*tree.get_vars()[var_lbl]
                         for var_lbl in tree.get_labels()
             ]
+    #print(ll)
     # alter potentials based on likelihoods
     for var_lbl in data:
         # find clique that contains var
-        clique_idx = tree.get_clique_of_var(var_lbl)
+        clique_idx = get_clique_of_var(tree.get_struct(), var_lbl)
         # multiply clique's potential by likelihood
         pot = potentials[clique_idx]
         var_idx = tree.get_var_idx(clique_idx, var_lbl)
         # reshape likelihood potential to allow multiplication with pot
+        #print(var_idx)
+        #print([1 if i!=var_idx else s for i, s in enumerate(pot.shape)])
         ll_pot = np.array(ll[var_lbl]).reshape([1 if i!=var_idx else s for i, s in enumerate(pot.shape)])
         potentials[clique_idx] = pot*ll_pot
     return (ll,potentials)
@@ -457,6 +460,25 @@ def get_cliques(tree, var):
             (flist[i], flist[i+1])
                 for i in range(0, len(flist), 2) if var in flist[i+1]
     ]
+
+def get_clique_of_var(tree, var_label):
+    #for seperator in self.
+    idx, keys = tree[0:2]
+    separators = tree[2:]
+    if var_label in keys:
+        return idx
+    if separators == (): # base case reached (leaf)
+        return None
+
+    for separator in separators:
+        separator_idx, separator_keys, c_tree = separator
+        if var_label in separator_keys:
+            return separator_idx
+        clique_idx = get_clique_of_var(c_tree, var_label)
+        if clique_idx:
+            return clique_idx
+
+    return None
 
 def generate_potential_pairs(tree):
     return list(bf_traverse(tree, func=yield_clique_pairs))
@@ -530,49 +552,10 @@ class JunctionTree(object):
         except ValueError:
             return None
 
-    def get_clique(self, clique_idx):
-        idx, keys = self.struct[0:2]
-        separators = self.struct[2:]
-
-        if idx == clique_idx:
-            return keys
-        if separators == (): # base case reached (leaf)
-            return None
-
-        for separator in separators:
-            separator_idx, separator_keys, c_tree = separator
-            if idx == separator_idx:
-                return separator_keys
-            result = self.get_clique_of_var(c_tree, var_label)
-            if result != None:
-                return result
-
-        return None
-
-
-    def get_clique_of_var(self, var_label):
-        #for seperator in self.
-        idx, keys = self.struct[0:2]
-        separators = self.struct[2:]
-        if var_label in keys:
-            return idx
-        if separators == (): # base case reached (leaf)
-            return None
-
-        for separator in separators:
-            separator_idx, separator_keys, c_tree = separator
-            if var_label in separator_keys:
-                return separator_idx
-            clique_idx = self.get_clique_of_var(c_tree, var_label)
-            if clique_idx:
-                return clique_idx
-
-        return None
-
     def get_var_idx(self, clique_idx, var_label):
         try:
-            clique = self.get_clique(clique_idx)
-            return clique.index(var_label)
+            keys = get_clique_keys(self.get_struct(), clique_idx)
+            return keys.index(var_label)
         except (AttributeError, ValueError):
             return None
 

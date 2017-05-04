@@ -1129,7 +1129,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = bp.observe(jt, phi, None, data)
+        likelihood, phi0 = bp.observe(jt, phi, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1222,7 +1222,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data0 = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = bp.observe(jt, phi, None, data0)
+        likelihood, phi0 = bp.observe(jt, phi, data0)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1233,7 +1233,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data = {0: 1, 1: 2, 2: 3, 4: 0}
 
-        likelihood, phi2 = bp.observe(jt, phi1, likelihood, data, "update")
+        likelihood, phi2 = bp.observe(jt, phi1, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1247,7 +1247,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         # for now just find one but for now just check the first clique containing the variable)
 
         for var, val in data.items():
-            clique, _vars = bp.get_clique(jt, var)
+            clique, _vars = bp.get_clique(jt.get_struct(), var)
             pot = phi3[clique]
             assert pot.shape == phi[clique].shape
             var_idx = _vars.index(var)
@@ -1325,7 +1325,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data0 = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = bp.observe(jt, phi, None, data0)
+        likelihood, phi0 = bp.observe(jt, phi, data0)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1337,7 +1337,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         data = {0: 1, 1: 2, 2: 3, 3: 2, 4: 0}
 
 
-        likelihood, phi2 = bp.observe(jt, phi1, likelihood, data, "update")
+        likelihood, phi2 = bp.observe(jt, phi1, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1351,7 +1351,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         # for now just find one but for now just check the first clique containing the variable)
 
         for var, val in data.items():
-            clique, _vars = bp.get_clique(jt, var)
+            clique, _vars = bp.get_clique(jt.get_struct(), var)
             pot = phi3[clique]
             assert pot.shape == phi[clique].shape
             var_idx = _vars.index(var)
@@ -1432,7 +1432,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         ]
         data0 = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = bp.observe(jt, phi, None, data0)
+        likelihood, phi0 = bp.observe(jt, phi, data0)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1443,7 +1443,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data = {0: 2, 2: 3, 4: 0}
 
-        likelihood, phi2 = bp.observe(jt, phi1, likelihood, data, "retract")
+        likelihood, phi2 = bp.observe(jt, phi1, data, "retract")
         np.testing.assert_array_equal(likelihood[0], np.array([0,0,1,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1457,7 +1457,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         # for now just find one but for now just check the first clique containing the variable)
 
         for var, val in data.items():
-            clique, _vars = bp.get_clique(jt, var)
+            clique, _vars = bp.get_clique(jt.get_struct(), var)
             pot = phi3[clique]
             assert pot.shape == phi[clique].shape
             var_idx = _vars.index(var)
