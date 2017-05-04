@@ -1143,7 +1143,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         # for now just find one but for now just check the first clique containing the variable)
 
         for var, val in data.items():
-            clique, _vars = bp.get_clique(jt, var)
+            clique, _vars = bp.get_clique(jt.get_struct(), var)
             pot = phi1[clique]
             assert pot.shape == phi[clique].shape
             var_idx = _vars.index(var)
@@ -1158,11 +1158,11 @@ class TestHUGINFunctionality(unittest.TestCase):
                                         )
 
         # test that no change made to potential values for unobserved variables
-        for var in bp.get_vars(tree):
+        for var in jt.get_vars():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique, _vars in bp.get_cliques(tree, var).iteritems():
-
+                for clique_idx, _vars in bp.get_cliques(jt.get_struct(), var):
+                    pot = phi1[clique_idx]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
                     # retain indices in array which all observed axes set to observed val
@@ -1172,7 +1172,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     # elements at these indices should not have changed by observations
                     np.testing.assert_array_equal(
                                                     np.take(pot, flat_indices),
-                                                    np.take(phi[clique], flat_indices)
+                                                    np.take(phi[clique_idx], flat_indices)
                                                 )
 
 
@@ -1262,11 +1262,11 @@ class TestHUGINFunctionality(unittest.TestCase):
                                         )
 
         # test that no change made to potential values for unobserved variables
-        for var in bp.get_vars(tree):
+        for var in jt.get_vars():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique, _vars in bp.get_cliques(tree, var).iteritems():
-
+                for clique_idx, _vars in bp.get_cliques(jt.get_struct(), var):
+                    pot = phi3[clique_idx]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
                     # retain indices in array which all observed axes set to observed val
@@ -1366,11 +1366,11 @@ class TestHUGINFunctionality(unittest.TestCase):
                                         )
 
         # test that no change made to potential values for unobserved variables
-        for var in bp.get_vars(tree):
+        for var in jt.get_vars():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique, _vars in bp.get_cliques(tree, var).iteritems():
-
+                for clique_idx, _vars in bp.get_cliques(jt.get_struct(), var):
+                    pot = phi3[clique_idx]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
                     # retain indices in array which all observed axes set to observed val
@@ -1472,11 +1472,11 @@ class TestHUGINFunctionality(unittest.TestCase):
                                         )
 
         # test that no change made to potential values for unobserved variables
-        for var in bp.get_vars(tree):
+        for var in jt.get_vars():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique, _vars in bp.get_cliques(tree, var).iteritems():
-
+                for clique_idx, _vars in bp.get_cliques(jt.get_struct(), var):
+                    pot = phi3[clique_idx]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
                     # retain indices in array which all observed axes set to observed val

@@ -280,12 +280,11 @@ def collect(tree, potentials, visited, distributive_law):
     # set clique_index in visited to 1
     visited[clique_idx] = 1
 
-    # loop over neighbors of clique
+    # loop over neighbors of root of tree
     for neighbor in tree[2:]:
         sep_idx, sep_vars, child = neighbor
         # call collect on neighbor if not marked as visited
         if not visited[child[0]]:
-            # need to combine these messages
             potentials = collect(child, potentials, visited, distributive_law)
             new_clique_pot, new_sep_pot = distributive_law.update(
                                         potentials[child[0]], child[1],
@@ -296,23 +295,31 @@ def collect(tree, potentials, visited, distributive_law):
             potentials[sep_idx] = new_sep_pot
 
     # return the updated potentials
-    # LOOK INTO MAKING FUNCTION LESS VERBOSE USING SIMPLE TRAVERSAL OF JT STRUCTURE
     return potentials
 
 
 def distribute(tree, potentials, visited, distributive_law):
     """ Used by Hugin algorithm to distribute messages """
     # set clique_index in visited to 1
-    visited[clique_index] = 1
+    clique_idx, clique_vars = tree[:2]
+    visited[clique_idx] = 1
 
-    # loop over neighbors of clique_index
+    # loop over neighbors of root of tree
     for neighbor in tree[2:]:
-        pass
-        # if neighbor unmarked
-            # pass a message (in what form? update to clique's potential) to neighbor if not marked
-            # call distribute on neighbor
+        sep_idx, sep_vars, child = neighbor
+        # call distribute on neighbor if not marked as visited
+        if not visited[child[0]]:
+            new_clique_pot, new_sep_pot = distributive_law.update(
+                                        potentials[clique_idx], clique_vars,
+                                        potentials[child[0]], child[1],
+                                        potentials[sep_idx], sep_vars
+            )
+            potentials[child[0]] = new_clique_pot
+            potentials[sep_idx] = new_sep_pot
+            potentials = distribute(child, potentials, visited, distributive_law)
 
-    raise NotImplementedError()
+    # return the updated potentials
+    return potentials
 
 
 def hugin(junction_tree, potentials, distributive_law, root_index=0):
@@ -330,29 +337,29 @@ def hugin(junction_tree, potentials, distributive_law, root_index=0):
     visited = [0]*len(potentials)
 
     # call collect on root_index storing the result in new_potentials
-    new_potentials = collect(junction_tree, potentials, visited, distributive_law, root_index)
+    new_potentials = collect(junction_tree.get_struct(), potentials, visited, distributive_law)
 
     # initialize visited array again
     visited = [0]*len(potentials)
 
     # return the result of a call to distribute on root index
-    return distribute(junction_tree, potentials, visited, distributive_law, root_index)
+    return distribute(junction_tree.get_struct(), potentials, visited, distributive_law)
 
 def get_clique(tree, var_label):
     idx, keys = tree[0:2]
     separators = tree[2:]
     if var_label in keys:
-        return idx
+        return idx, keys
     if separators == (): # base case reached (leaf)
         return None
 
     for separator in separators:
         separator_idx, separator_keys, c_tree = separator
         if var_label in separator_keys:
-            return separator_idx
-        clique_idx = get_clique(c_tree, var_label)
-        if clique_idx:
-            return clique_idx
+            return separator_idx, separator_keys
+        clique_info = get_clique(c_tree, var_label)
+        if clique_info:
+            return clique_info
 
     return None
 
@@ -437,6 +444,19 @@ def get_clique_keys(tree, clique_id):
     flist = list(bf_traverse(tree, clique_id))
     return flist[-1] if flist[-2] == clique_id else None
 
+def get_cliques(tree, var):
+    """ Return the (M) cliques which include var and all other variables
+        in clique
+
+    Output:
+    [clique_wvar_id1, clique_wvar_keys1, ..., clique_wvar_idM, clique_wvar_keysM]
+    """
+
+    flist = list(bf_traverse(tree))
+    return [
+            (flist[i], flist[i+1])
+                for i in range(0, len(flist), 2) if var in flist[i+1]
+    ]
 
 def generate_potential_pairs(tree):
     return list(bf_traverse(tree, func=yield_clique_pairs))
