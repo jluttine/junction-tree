@@ -274,9 +274,10 @@ def initialize(tree):
     raise NotImplementedError()
 
 
-def collect(tree, potentials, visited, distributive_law):
+def collect(tree, var_labels, potentials, visited, distributive_law):
     """ Used by Hugin algorithm to collect messages """
     clique_idx, clique_vars = tree[:2]
+    print(visited)
     # set clique_index in visited to 1
     visited[clique_idx] = 1
 
@@ -285,11 +286,17 @@ def collect(tree, potentials, visited, distributive_law):
         sep_idx, sep_vars, child = neighbor
         # call collect on neighbor if not marked as visited
         if not visited[child[0]]:
-            potentials = collect(child, potentials, visited, distributive_law)
+            potentials = collect(
+                            child,
+                            var_labels,
+                            potentials,
+                            visited,
+                            distributive_law
+            )
             new_clique_pot, new_sep_pot = distributive_law.update(
-                                        potentials[child[0]], child[1],
-                                        potentials[clique_idx], clique_vars,
-                                        potentials[sep_idx], sep_vars
+                                        potentials[child[0]], [var_labels[k] for k in child[1]],
+                                        potentials[clique_idx], [var_labels[k] for k in clique_vars],
+                                        potentials[sep_idx], [var_labels[k] for k in sep_vars]
             )
             potentials[clique_idx] = new_clique_pot
             potentials[sep_idx] = new_sep_pot
@@ -298,7 +305,7 @@ def collect(tree, potentials, visited, distributive_law):
     return potentials
 
 
-def distribute(tree, potentials, visited, distributive_law):
+def distribute(tree, var_labels, potentials, visited, distributive_law):
     """ Used by Hugin algorithm to distribute messages """
     # set clique_index in visited to 1
     clique_idx, clique_vars = tree[:2]
@@ -310,13 +317,19 @@ def distribute(tree, potentials, visited, distributive_law):
         # call distribute on neighbor if not marked as visited
         if not visited[child[0]]:
             new_clique_pot, new_sep_pot = distributive_law.update(
-                                        potentials[clique_idx], clique_vars,
-                                        potentials[child[0]], child[1],
-                                        potentials[sep_idx], sep_vars
+                                        potentials[clique_idx], [var_labels[k] for k in clique_vars],
+                                        potentials[child[0]], [var_labels[k] for k in child[1]],
+                                        potentials[sep_idx], [var_labels[k] for k in sep_vars]
             )
             potentials[child[0]] = new_clique_pot
             potentials[sep_idx] = new_sep_pot
-            potentials = distribute(child, potentials, visited, distributive_law)
+            potentials = distribute(
+                                child,
+                                var_labels,
+                                potentials,
+                                visited,
+                                distributive_law
+            )
 
     # return the updated potentials
     return potentials
@@ -337,13 +350,25 @@ def hugin(junction_tree, potentials, distributive_law, root_index=0):
     visited = [0]*len(potentials)
 
     # call collect on root_index storing the result in new_potentials
-    new_potentials = collect(junction_tree.get_struct(), potentials, visited, distributive_law)
+    new_potentials = collect(
+                        junction_tree.get_struct(),
+                        junction_tree.get_label_order(),
+                        potentials,
+                        visited,
+                        distributive_law
+    )
 
     # initialize visited array again
     visited = [0]*len(potentials)
 
     # return the result of a call to distribute on root index
-    return distribute(junction_tree.get_struct(), potentials, visited, distributive_law)
+    return distribute(
+                    junction_tree.get_struct(),
+                    junction_tree.get_label_order(),
+                    potentials,
+                    visited,
+                    distributive_law
+    )
 
 def get_clique(tree, var_label):
     idx, keys = tree[0:2]
@@ -498,6 +523,8 @@ class SumProduct():
         raise NotImplementedError()
 
     def project(self, clique_pot, clique_vars, sep_vars):
+        print(clique_vars)
+        print(sep_vars)
         return self.einsum(
             clique_pot, clique_vars, sep_vars
         )
@@ -542,12 +569,12 @@ sum_product = SumProduct(np.einsum)
 class JunctionTree(object):
     def __init__(self, _vars, tree=[]):
         self._vars = _vars
-        self.labels = sorted(_vars.keys())
+        self.labels = {vl:i for i, vl in enumerate(sorted(_vars.keys()))}
         self.struct = tree
 
     def find_var(self, var_label):
         try:
-            var_idx = self.labels.index(var_label)
+            var_idx = self.labels[var_label]
             return var_idx
         except ValueError:
             return None
@@ -562,8 +589,18 @@ class JunctionTree(object):
     def get_vars(self):
         return self._vars
 
-    def get_labels(self):
+    def get_label_order(self):
         return self.labels
+
+    def get_labels(self):
+        '''
+        Returns variables in sorted order
+        '''
+        labels = [None]*len(self.labels)
+        for k,i in self.labels.items():
+            labels[i] = k
+
+        return labels
 
     def get_struct(self):
         return self.struct

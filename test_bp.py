@@ -823,8 +823,14 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 ]
                             )
                     )
-        # jt.collect_messages(POTENTIALS, CLIQUE_INDEX=0)
-        phiN = bp.collect(jt, phi, [0]*len(phi), 2)
+
+        phiN = bp.collect(
+                            jt,
+                            {"V1": 0, "V2": 1, "V3": 2},
+                            phi,
+                            [0]*len(phi),
+                            bp.sum_product
+        )
         np.allclose(phiN[2], np.array([
                                         [0.03,0.07],
                                         [0.45,0.45]
@@ -841,6 +847,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     ]
                 )
             ]
+        phi = []
         phi.append(
                     np.array(
                                 [
@@ -861,8 +868,13 @@ class TestHUGINFunctionality(unittest.TestCase):
                     )
 
 
-        # jt.distribute_messages(POTENTIALS, CLIQUE_INDEX=0)
-        phiN = bp.distribute(jt, phi, [0]*len(phi), 2)
+        phiN = bp.distribute(
+                                jt,
+                                {"V1": 0, "V2": 1, "V3": 2},
+                                phi,
+                                [0]*len(phi),
+                                bp.sum_product
+        )
         np.allclose(phiN[2], np.array([
                                         [0.04,0.72],
                                         [0.06,0.18]
@@ -1658,12 +1670,12 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         '''
 
-        phi = []
-        _vars = sorted("L","Q","S","F","G","B","I","H")
+        phi0 = []
+        _vars = sorted(["L","Q","S","F","G","B","I","H"])
 
         #("S","L") -> 0
 
-        phi.append(
+        phi0.append(
                     np.array([
                             [0.42,0.08],
                             [0.18,0.32]
@@ -1672,7 +1684,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     )
 
         #("L","B","Q","G") -> 1
-        phi.append(
+        phi0.append(
                     np.array([
                                 [
                                     [
@@ -1698,7 +1710,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                         )
 
         #("F","Q","B","H") -> 2
-        phi.append(
+        phi0.append(
                     np.array([
                                 [
                                     [
@@ -1725,7 +1737,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     )
 
         #("H","B","Q","G") -> 3
-        phi.append(
+        phi0.append(
                     np.array([
                                 [
                                     [
@@ -1752,7 +1764,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     )
 
         #("I","G","H") -> 4
-        phi.append(
+        phi0.append(
                     np.array([
                             [
                                 [0.9,1],
@@ -1770,10 +1782,10 @@ class TestHUGINFunctionality(unittest.TestCase):
                     )
 
         #("L") -> 5
-        phi.append(np.array([1,1]))
+        phi0.append(np.array([1,1]))
 
         #("B","H","Q") -> 6
-        phi.append(
+        phi0.append(
                     np.array([
                             [
                                 [1,1],
@@ -1787,7 +1799,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     )
 
         #("Q", "B", "G") -> 7
-        phi.append(
+        phi0.append(
                     np.array([
                             [
                                 [1,1,1],
@@ -1801,47 +1813,67 @@ class TestHUGINFunctionality(unittest.TestCase):
                     )
 
         #("G", "H") -> 8
-        phi.append(
+        phi0.append(
                     np.array([
                                 [1,1],
                                 [1,1],
                         ])
                     )
 
-        # TODO: Need to think about internal mapping of variable names to variable index
-
-        jt = [
-                0, [_vars.index("H"), _vars.index("B"), _vars.index("Q"), _vars.index("G")],
-                (
-                    1, [_vars.index("B"), _vars.index("H"), _vars.index("Q")],
-                    [
-                        2, [_vars.index("F"), _vars.index("Q"), _vas.index("B"), _vars.index("H")],
-                    ]
-                ),
-                (
-                    3, [_vars.index("G"), _vars.index("H")],
-                    [
-                        4, [_vars.index("I"), _vars.index("G"), _vars.index("H")]
-                    ]
-
-                ),
-                (
-                    5, [_vars.index("Q"),_vars.index("B"),_vars.index("G")],
-                    [
-                        6, [_vars.index("L"), _vars.index("Q"), _vars.index("B"), _vars.index("G")],
-                        (
-                            7, [_vars.index("L")],
+        jt = JunctionTree(  {
+                                "L":2,
+                                "Q":2,
+                                "S":2,
+                                "F":2,
+                                "G":3,
+                                "B":2,
+                                "I":2,
+                                "H":2
+                            },
                             [
-                                8, [_vars.index("S"), _vars.index("L")]
-                            ]
-                        )
-                    ]
-                )
-            ]
+                                0, ["H", "B", "Q", "G"],
+                                (
+                                    1, ["B", "H", "Q"],
+                                    [
+                                        2, ["F", "Q", "B", "H"],
+                                    ]
+                                ),
+                                (
+                                    3, ["G", "H"],
+                                    [
+                                        4, ["I", "G", "H"]
+                                    ]
 
-        phiN = bp.collect(jt, phi, []*len(phi))
+                                ),
+                                (
+                                    5, ["Q", "B", "G"],
+                                    [
+                                        6, ["L", "Q", "B", "G"],
+                                        (
+                                            7, ["L"],
+                                            [
+                                                8, ["S", "L"]
+                                            ]
+                                        )
+                                    ]
+                                )
+                            ]
+        )
+
+
         # need to set evidence here: Q=0, G=0, F=1
-        np.allclose(marginalize(jt, "H"), np.array([0.4, 0.6])) == True
+        data = {"Q":0, "G":0, "F":1}
+        likelihood, phi1 = bp.observe(jt, phi0, data)
+
+        phi2 = bp.collect(
+                        jt.get_struct(),
+                        jt.get_label_order(),
+                        phi1,
+                        [0]*len(phi1),
+                        bp.sum_product
+        )
+
+        np.allclose(marginalize(jt, phi2, "H"), np.array([0.4, 0.6])) == True
 
 
 
