@@ -276,8 +276,8 @@ def initialize(tree):
 
 def collect(tree, var_labels, potentials, visited, distributive_law):
     """ Used by Hugin algorithm to collect messages """
+    print(tree)
     clique_idx, clique_vars = tree[:2]
-    print(visited)
     # set clique_index in visited to 1
     visited[clique_idx] = 1
 
@@ -294,9 +294,9 @@ def collect(tree, var_labels, potentials, visited, distributive_law):
                             distributive_law
             )
             new_clique_pot, new_sep_pot = distributive_law.update(
-                                        potentials[child[0]], [var_labels[k] for k in child[1]],
-                                        potentials[clique_idx], [var_labels[k] for k in clique_vars],
-                                        potentials[sep_idx], [var_labels[k] for k in sep_vars]
+                                        potentials[child[0]], child[1],
+                                        potentials[clique_idx], clique_vars,
+                                        potentials[sep_idx], sep_vars
             )
             potentials[clique_idx] = new_clique_pot
             potentials[sep_idx] = new_sep_pot
@@ -317,9 +317,9 @@ def distribute(tree, var_labels, potentials, visited, distributive_law):
         # call distribute on neighbor if not marked as visited
         if not visited[child[0]]:
             new_clique_pot, new_sep_pot = distributive_law.update(
-                                        potentials[clique_idx], [var_labels[k] for k in clique_vars],
-                                        potentials[child[0]], [var_labels[k] for k in child[1]],
-                                        potentials[sep_idx], [var_labels[k] for k in sep_vars]
+                                        potentials[clique_idx], clique_vars,
+                                        potentials[child[0]], child[1],
+                                        potentials[sep_idx], sep_vars
             )
             potentials[child[0]] = new_clique_pot
             potentials[sep_idx] = new_sep_pot
@@ -388,16 +388,17 @@ def get_clique(tree, var_label):
 
     return None
 
+def marginalize(tree, potentials, var_label):
+    clique_idx, clique_keys = get_clique_of_var(tree.get_struct(), var_label)
+
+    return compute_marginal(
+                        potentials[clique_idx],
+                        list(range(len(clique_keys))),
+                        [clique_keys.index(var_label)]
+    )
+
 def compute_marginal(arr, _vars, _vars_ss):
     return np.einsum(arr, _vars, _vars_ss)
-
-def project(arr, _vars):
-    return compute_marginal(arr, _vars)
-
-def absorb(phiC, phiSo, phiSn):
-    if not np.count_nonzero(phiSo):
-        return np.zeros_like(phiSo)
-    return phiC*(phiSn/phiSo)
 
 def observe(tree, potentials, data):
     # set values of ll based on data argument
@@ -406,18 +407,16 @@ def observe(tree, potentials, data):
                     if var_lbl in data else [1]*tree.get_vars()[var_lbl]
                         for var_lbl in tree.get_labels()
             ]
-    #print(ll)
+
     # alter potentials based on likelihoods
     for var_lbl in data:
         # find clique that contains var
-        clique_idx = get_clique_of_var(tree.get_struct(), var_lbl)
+        clique_idx, clique_keys = get_clique_of_var(tree.get_struct(), var_lbl)
         # multiply clique's potential by likelihood
         pot = potentials[clique_idx]
         var_idx = tree.get_var_idx(clique_idx, var_lbl)
         # reshape likelihood potential to allow multiplication with pot
-        #print(var_idx)
-        #print([1 if i!=var_idx else s for i, s in enumerate(pot.shape)])
-        ll_pot = np.array(ll[var_lbl]).reshape([1 if i!=var_idx else s for i, s in enumerate(pot.shape)])
+        ll_pot = np.array(ll[tree.find_var(var_lbl)]).reshape([1 if i!=var_idx else s for i, s in enumerate(pot.shape)])
         potentials[clique_idx] = pot*ll_pot
     return (ll,potentials)
 
@@ -491,19 +490,19 @@ def get_clique_of_var(tree, var_label):
     idx, keys = tree[0:2]
     separators = tree[2:]
     if var_label in keys:
-        return idx
+        return idx, keys
     if separators == (): # base case reached (leaf)
-        return None
+        return None, None
 
     for separator in separators:
         separator_idx, separator_keys, c_tree = separator
         if var_label in separator_keys:
-            return separator_idx
-        clique_idx = get_clique_of_var(c_tree, var_label)
+            return separator_idx, separator_keys
+        clique_idx, clique_keys = get_clique_of_var(c_tree, var_label)
         if clique_idx:
-            return clique_idx
+            return clique_idx, clique_keys
 
-    return None
+    return None, None
 
 def generate_potential_pairs(tree):
     return list(bf_traverse(tree, func=yield_clique_pairs))
@@ -523,8 +522,6 @@ class SumProduct():
         raise NotImplementedError()
 
     def project(self, clique_pot, clique_vars, sep_vars):
-        print(clique_vars)
-        print(sep_vars)
         return self.einsum(
             clique_pot, clique_vars, sep_vars
         )
@@ -546,17 +543,17 @@ class SumProduct():
         # Sum variables in A that are not in B
         new_sep_pot = self.project(
                                 clique_1_pot,
-                                clique_1_vars,
-                                sep_vars
+                                list(range(len(clique_1_vars))),
+                                [clique_1_vars.index(s_i) for s_i in sep_vars]
         )
 
         # Compensate the updated separator in the clique
         new_clique_2_pot = self.absorb(
                                 clique_2_pot,
-                                clique_2_vars,
+                                list(range(len(clique_2_vars))),
                                 sep_pot,
                                 new_sep_pot,
-                                sep_vars
+                                [clique_2_vars.index(s_i) for s_i in sep_vars]
         )
 
         return (new_clique_2_pot, new_sep_pot) # may return unchanged clique_a
