@@ -198,7 +198,7 @@ def brute_force_sum_product2(junction_tree, potentials):
     """Compute brute force sum-product with einsum """
 
     # Function to compute the sum-product with brute force einsum
-    arrays_keys = get_arrays_and_keys2(junction_tree, potentials)
+    arrays_keys = get_arrays_and_keys2(junction_tree.get_struct(), potentials)
     f = lambda output_keys: np.einsum(*(arrays_keys + [output_keys]))
 
     def __run(tree, p, f, res=[]):
@@ -207,7 +207,7 @@ def brute_force_sum_product2(junction_tree, potentials):
             __run(child_tree, p, f, res)
         return res
 
-    return __run(junction_tree, potentials, f)
+    return __run(junction_tree.get_struct(), potentials, f)
 
 def assert_sum_product2(tree, potentials):
     """ Test hugin vs brute force sum-product """
@@ -773,17 +773,17 @@ class TestHUGINFunctionality(unittest.TestCase):
                             [0.45, 0.45]
                         ])
 
-        phi2n = bp.project(phi12, [1])
+        phi2n = bp.sum_product.project(phi12, [0,1], [1])
         np.allclose(phi2n, np.array([1,1])) == True
-        phi23 = bp.absorb(phi23, phi2, phi2n)
+        phi23 = bp.sum_product.absorb(phi23, [0,1], phi2, phi2n, [1])
         np.allclose(phi23, np.array([
                                         [0.03,0.07],
                                         [0.45,0.45]
                                     ])) == True
 
-        phi2nn = bp.project(phi23, [0])
+        phi2nn = bp.sum_product.project(phi23, [0,1], [0])
         np.allclose(phi2nn, np.array([0.9, 0.1])) == True
-        phi12 = bp.absorb(phi12, phi2n, phi2nn)
+        phi12 = bp.sum_product.absorb(phi12, [0,1], phi2n, phi2nn, [0])
         np.allclose(phi12, np.array([
                                         [0.04,0.72],
                                         [0.06,0.18]
@@ -883,44 +883,51 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     def test_one_scalar_node(self):
         assert_sum_product2(
-            [
-                0, []
-            ],
-            [
-                np.random.randn(),
-            ]
+                JunctionTree(
+                        {},
+                        [
+                            0, []
+                        ]
+                ),
+                [
+                    np.random.randn(),
+                ]
         )
 
     def test_one_matrix_node(self):
         assert_sum_product2(
-            [
-                0, [3, 5]
-            ],
-            [
-                np.random.randn(2, 3),
-            ]
+                JunctionTree(
+                        {
+                            3:2,
+                            5:3
+                        },
+                        [
+                            0, [3, 5]
+                        ],
+
+                ),
+                [
+                    np.random.randn(2, 3),
+                ]
         )
 
     def test_one_child_node_with_all_variables_shared(self):
-        # is it possible to have two cliques with the exact same set of variables
-
-
-        potentials =             [
-                        np.random.randn(2, 3),
-                        np.ones((3, 2)),
-                        np.random.randn(3, 2),
-                    ]
-
         assert_sum_product2(
-            [
-                0, [3, 5],
-                (
-                    1, [5, 3],
-                    [
-                        2, [5, 3],
-                    ]
-                )
-            ],
+            JunctionTree(
+                            {
+                                3:2,
+                                5:3
+                            },
+                            [
+                                0, [3, 5],
+                                (
+                                    1, [5, 3],
+                                    [
+                                        2, [5, 3],
+                                    ]
+                                )
+                            ],
+            ),
             [
                 np.random.randn(2, 3),
                 np.ones((3, 2)),
@@ -930,173 +937,226 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     def test_one_child_node_with_one_common_variable(self):
         assert_sum_product2(
-            [
-                0, [3, 5],
-                (
-                    1, [5],
+                    JunctionTree(
+                            {
+                                3:2,
+                                5:3,
+                                9:4
+                            },
+                            [
+                                0, [3, 5],
+                                (
+                                    1, [5],
+                                    [
+                                        2, [5, 9]
+                                    ]
+                                )
+                            ]
+                    ),
                     [
-                        2, [5, 9]
+                        np.random.randn(2, 3),
+                        np.ones((3,)),
+                        np.random.randn(3, 4),
                     ]
-                )
-            ],
-            [
-                np.random.randn(2, 3),
-                np.ones((3,)),
-                np.random.randn(3, 4),
-            ]
         )
 
     def test_one_child_node_with_no_common_variable(self):
         assert_sum_product2(
-            [
-                0, [3],
-                (
-                    1, [],
+                    JunctionTree(
+                        {
+                            3:2,
+                            9:3
+                        },
+                        [
+                            0, [3],
+                            (
+                                1, [],
+                                [
+                                    2, [9]
+                                ]
+                            )
+                        ],
+                    ),
                     [
-                        2, [9]
+                        np.random.randn(2),
+                        np.ones(()),
+                        np.random.randn(3),
                     ]
-                )
-            ],
-            [
-                np.random.randn(2),
-                np.ones(()),
-                np.random.randn(3),
-            ]
         )
 
     def test_one_grand_child_node_with_no_variable_shared_with_grand_parent(self):
         assert_sum_product2(
-            [
-                0, [3, 5],
-                (
-                    1, [5],
-                    [
-                        2, [5, 9],
-                        (
-                            3, [9],
+                    JunctionTree(
+                            {
+                                1:5,
+                                3:2,
+                                5:3,
+                                9:4,
+                            },
                             [
-                                4, [9, 1]
-                            ]
-                        )
+                                0, [3, 5],
+                                (
+                                    1, [5],
+                                    [
+                                        2, [5, 9],
+                                        (
+                                            3, [9],
+                                            [
+                                                4, [9, 1]
+                                            ]
+                                        )
+                                    ]
+                                )
+                            ],
+
+                    ),
+                    [
+                        np.random.randn(2, 3),
+                        np.ones((3,)),
+                        np.random.randn(3, 4),
+                        np.ones((4,)),
+                        np.random.randn(4, 5),
                     ]
-                )
-            ],
-            [
-                np.random.randn(2, 3),
-                np.ones((3,)),
-                np.random.randn(3, 4),
-                np.ones((4,)),
-                np.random.randn(4, 5),
-            ]
         )
 
     def test_one_grand_child_node_with_variable_shared_with_grand_parent(self):
         assert_sum_product2(
-            [
-                0, [3, 5],
-                (
-                    1, [5],
-                    [
-                        2, [5, 9],
-                        (
-                            3, [5],
+                    JunctionTree(
+                            {
+                                1:6,
+                                3:2,
+                                5:3,
+                                9:4
+                            },
                             [
-                                4, [1, 5]
-                            ]
-                        )
+                                0, [3, 5],
+                                (
+                                    1, [5],
+                                    [
+                                        2, [5, 9],
+                                        (
+                                            3, [5],
+                                            [
+                                                4, [1, 5]
+                                            ]
+                                        )
+                                    ]
+                                )
+                            ],
+                    ),
+                    [
+                        np.random.randn(2, 3),
+                        np.ones((3,)),
+                        np.random.randn(3, 4),
+                        np.ones((3,)),
+                        np.random.randn(6, 3),
                     ]
-                )
-            ],
-            [
-                np.random.randn(2, 3),
-                np.ones((3,)),
-                np.random.randn(3, 4),
-                np.ones((3,)),
-                np.random.randn(6, 3),
-            ]
         )
 
     def test_two_children_with_no_variable_shared(self):
         assert_sum_product2(
-            [
-                0, [3, 5],
-                (
-                    1, [5],
+                    JunctionTree(
+                            {
+                                3:2,
+                                5:3,
+                                9:4,
+                                1:5
+                            },
+                            [
+                                0, [3, 5],
+                                (
+                                    1, [5],
+                                    [
+                                        2, [5, 9],
+                                    ]
+                                ),
+                                (
+                                    3, [3],
+                                    [
+                                        4, [3, 1]
+                                    ]
+                                )
+                            ],
+                    ),
                     [
-                        2, [5, 9],
+                        np.random.randn(2, 3),
+                        np.ones((3,)),
+                        np.random.randn(3, 4),
+                        np.ones((2,)),
+                        np.random.randn(2, 5),
                     ]
-                ),
-                (
-                    3, [3],
-                    [
-                        4, [3, 1]
-                    ]
-                )
-            ],
-            [
-                np.random.randn(2, 3),
-                np.ones((3,)),
-                np.random.randn(3, 4),
-                np.ones((2,)),
-                np.random.randn(2, 5),
-            ]
         )
 
     def test_two_child_with_shared_variable(self):
         assert_sum_product2(
-            [
-                0, [3, 5],
-                (
-                    1, [5],
+                    JunctionTree(
+                            {
+                                2:2,
+                                3:3,
+                                9:4,
+                            },
+                            [
+                                0, [3, 5],
+                                (
+                                    1, [5],
+                                    [
+                                        2, [5, 9],
+                                    ]
+                                ),
+                                (
+                                    3, [5],
+                                    [
+                                        4, [5]
+                                    ]
+                                )
+                            ],
+                    ),
                     [
-                        2, [5, 9],
-                    ]
-                ),
-                (
-                    3, [5],
-                    [
-                        4, [5]
-                    ]
-                )
-            ],
-            [
-                np.random.randn(2, 3),
-                np.ones((3,)),
-                np.random.randn(3, 4),
-                np.ones((3,)),
-                np.random.randn(3),
+                        np.random.randn(2, 3),
+                        np.ones((3,)),
+                        np.random.randn(3, 4),
+                        np.ones((3,)),
+                        np.random.randn(3),
 
-            ]
+                    ]
         )
 
     def test_two_children_with_3D_tensors(self):
         assert_sum_product2(
-            [
-                0, [3, 5, 7],
-                (
-                    1, [5, 7],
+                    JunctionTree(
+                            {
+                                1:6,
+                                3:2,
+                                5:3,
+                                7:4,
+                                9:5
+                            },
+                            [
+                                0, [3, 5, 7],
+                                (
+                                    1, [5, 7],
+                                    [
+                                        2, [5, 7, 9],
+                                    ]
+                                ),
+                                (
+                                    3, [5],
+                                    [
+                                        4, [5, 1]
+                                    ]
+                                )
+                            ],
+                    ),
                     [
-                        2, [5, 7, 9],
+                        np.random.randn(2, 3, 4),
+                        np.ones((3, 4)),
+                        np.random.randn(3, 4, 5),
+                        np.ones((3,)),
+                        np.random.randn(3, 6),
                     ]
-                ),
-                (
-                    3, [5],
-                    [
-                        4, [5, 1]
-                    ]
-                )
-            ],
-            [
-                np.random.randn(2, 3, 4),
-                np.ones((3, 4)),
-                np.random.randn(3, 4, 5),
-                np.ones((3,)),
-                np.random.randn(3, 6),
-            ]
         )
 
     def test_can_observe_evidence_from_one_trial(self):
-        # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
         jt = JunctionTree(
                             {
                                 0: 4,
@@ -1189,7 +1249,6 @@ class TestHUGINFunctionality(unittest.TestCase):
 
 
     def test_can_observe_dynamic_evidence_using_global_update_single_variable(self):
-        # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
         jt = JunctionTree(
                             {
                                 0: 4,
@@ -1292,7 +1351,6 @@ class TestHUGINFunctionality(unittest.TestCase):
                                                 )
 
     def test_can_observe_dynamic_evidence_using_global_update_multi_variable(self):
-        # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
         jt = JunctionTree(
                             {
                                 0: 4,

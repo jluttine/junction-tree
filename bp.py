@@ -526,14 +526,14 @@ class SumProduct():
             clique_pot, clique_vars, sep_vars
         )
 
-    def absorb(self, clique_2_pot, clique_2_vars, sep_pot, new_sep_pot, sep_vars):
+    def absorb(self, clique_pot, clique_vars, sep_pot, new_sep_pot, sep_vars):
         if np.all(sep_pot) == 0:
-            return np.zeros_like(clique_2_pot)
+            return np.zeros_like(clique_pot)
 
         return self.einsum(
             new_sep_pot / sep_pot, sep_vars,
-            clique_2_pot, clique_2_vars,
-            clique_2_vars
+            clique_pot, clique_vars,
+            clique_vars
         )
 
     def update(self, clique_1_pot, clique_1_vars, clique_2_pot, clique_2_vars, sep_pot, sep_vars):
