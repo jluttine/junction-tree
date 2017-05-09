@@ -4,6 +4,8 @@ import bp
 from bp import JunctionTree
 import unittest
 import networkx as nx
+import itertools
+import heapq
 
 
 # Tests here using pytest
@@ -37,10 +39,11 @@ def assert_factor_graph_equal(fg1, fg2):
     # assert that the variable maps are equal
     assert fg1[0] == fg2[0]
     # ensure that factor lists are the same
-    assert len(fg1[1]) == len(fg[1])
+    assert len(fg1[1]) == len(fg2[1])
     assert np.all([a1 == a2 for a1,a2 in zip(fg1[1],fg2[1])])
     assert len(fg1[2]) == len(fg2[2])
-    assert np.all([np.testing.assert_allclose(a1, a2) for a1,a2 in zip(fg1[2],fg2[2])])
+    print([np.testing.assert_allclose(a1, a2) for a1,a2 in zip(fg1[2],fg2[2])])
+    assert np.all([np.allclose(a1, a2) for a1,a2 in zip(fg1[2],fg2[2])])
 
 def assert_triangulated(factors, triangulation):
     '''
@@ -78,12 +81,14 @@ def __find_cycles(factors, num):
                 bit_seqs[i][j] = 1
 
     cycles = [np.array(graph_edges)[[np.nonzero(cycle)]]
-                for cycle in __gibbs_elem_cycles(graph_edges,
-                                                bit_seqs) if sum(cycle) >= num]
+                for cycle in gibbs_elem_cycles(bit_seqs) if sum(cycle) >= num]
     return cycles
 
-def __gibbs_elem_cycles(edges, fcs):
+def gibbs_elem_cycles(fcs):
     '''
+        Generate all elementary cycles based on the set of fundamental cycles
+        of a undirected graph.
+
         Norman E. Gibbs. 1969. A Cycle Generation Algorithm for Finite
             Undirected Linear Graphs. J. ACM 16, 4 (October 1969), 564-568.
             DOI=http://dx.doi.org/10.1145/321541.321545
@@ -93,7 +98,7 @@ def __gibbs_elem_cycles(edges, fcs):
     r = []
     r_star = []
     i = 1
-    while i <= bits.shape[0]:
+    while i < fcs.shape[0]:
         for t in q:
             if np.any(np.logical_and(t, fcs[i])):
                 # append t ring_sum fcs[0] to r
@@ -123,48 +128,6 @@ def __gibbs_elem_cycles(edges, fcs):
     return s
 
 
-def get_arrays_and_keys(tree):
-    """Get all arrays and their keys as a flat list
-
-    Output: [array1, keys1, ..., arrayN, keysN]
-
-    """
-    return list(tree[:2]) + sum(
-        [
-            get_arrays_and_keys(child_tree)
-            for child_tree in tree[2:]
-        ],
-        []
-    )
-
-
-def brute_force_sum_product(junction_tree):
-    """Compute brute force sum-product with einsum """
-
-    # Function to compute the sum-product with brute force einsum
-    arrays_keys = get_arrays_and_keys(junction_tree)
-    f = lambda output_keys: np.einsum(*(arrays_keys + [output_keys]))
-
-    def __run(tree, f):
-        return [
-            f(tree[1]),
-            tree[1],
-            *[
-                __run(child_tree, f)
-                for child_tree in tree[2:]
-            ]
-        ]
-
-    return __run(junction_tree, f)
-
-
-def assert_sum_product(tree):
-    """ Test hugin vs brute force sum-product """
-    assert_junction_tree_equal(
-        brute_force_sum_product(tree),
-        bp.hugin(tree, bp.sum_product)
-    )
-    pass
 
 def assert_potentials_equal(p1, p2):
     """Test equality of two potentials
@@ -180,7 +143,7 @@ def assert_potentials_equal(p1, p2):
         # recursively check remaining potentials
         assert_potentials_equal(p1[1:], p2[1:])
 
-def get_arrays_and_keys2(tree, potentials):
+def get_arrays_and_keys(tree, potentials):
     """Get all arrays and their keys as a flat list
 
     Output: [array1, keys1, ..., arrayN, keysN]
@@ -188,17 +151,17 @@ def get_arrays_and_keys2(tree, potentials):
     """
     return list([potentials[tree[0]],tree[1]]) + sum(
         [
-            get_arrays_and_keys2(child_tree, potentials)
+            get_arrays_and_keys(child_tree, potentials)
             for child_tree in tree[2:]
         ],
         []
     )
 
-def brute_force_sum_product2(junction_tree, potentials):
+def brute_force_sum_product(junction_tree, potentials):
     """Compute brute force sum-product with einsum """
 
     # Function to compute the sum-product with brute force einsum
-    arrays_keys = get_arrays_and_keys2(junction_tree.get_struct(), potentials)
+    arrays_keys = get_arrays_and_keys(junction_tree.get_struct(), potentials)
     f = lambda output_keys: np.einsum(*(arrays_keys + [output_keys]))
 
     def __run(tree, p, f, res=[]):
@@ -209,10 +172,10 @@ def brute_force_sum_product2(junction_tree, potentials):
 
     return __run(junction_tree.get_struct(), potentials, f)
 
-def assert_sum_product2(tree, potentials):
+def assert_sum_product(tree, potentials):
     """ Test hugin vs brute force sum-product """
     assert_potentials_equal(
-        brute_force_sum_product2(tree, potentials),
+        brute_force_sum_product(tree, potentials),
         bp.hugin(tree, potentials, bp.sum_product)
     )
     pass
@@ -269,370 +232,6 @@ def potentials_consistent(pot1, vars1, pot2, vars2):
             )
 
 
-def test_hugin():
-    """ Test hugin sum-product """
-
-    # One scalar node
-    assert_sum_product(
-        [
-            np.random.randn(),
-            []
-        ]
-    )
-
-    # One matrix node
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5]
-        ]
-    )
-
-    # One child node with all variables shared
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3, 2)),
-                [5, 3],
-                [
-                    np.random.randn(3, 2),
-                    [5, 3],
-                ]
-            )
-        ]
-    )
-
-    # One child node with one common variable
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 4),
-                    [5, 9]
-                ]
-            )
-        ]
-    )
-
-    # One child node with no common variable
-    assert_sum_product(
-        [
-            np.random.randn(2),
-            [3],
-            (
-                np.ones(()),
-                [],
-                [
-                    np.random.randn(3),
-                    [9]
-                ]
-            )
-        ]
-    )
-
-    # One grand child node (not sharing with grand parent)
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 4),
-                    [5, 9],
-                    (
-                        np.ones((4,)),
-                        [9],
-                        [
-                            np.random.randn(4, 5),
-                            [9, 1]
-                        ]
-                    )
-                ]
-            )
-        ]
-    )
-
-    # One grand child node (sharing with grand parent)
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 4),
-                    [5, 9],
-                    (
-                        np.ones((3,)),
-                        [5],
-                        [
-                            np.random.randn(6, 3),
-                            [1, 5]
-                        ]
-                    )
-                ]
-            )
-        ]
-    )
-
-    # Two children (not sharing)
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 4),
-                    [5, 9],
-                ]
-            ),
-            (
-                np.ones((2,)),
-                [3],
-                [
-                    np.random.randn(2, 5),
-                    [3, 1]
-                ]
-            )
-        ]
-    )
-
-    # Two children (sharing)
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 4),
-                    [5, 9],
-                ]
-            ),
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3),
-                    [5]
-                ]
-            )
-        ]
-    )
-
-    # Two children (with 3-D tensors)
-    assert_sum_product(
-        [
-            np.random.randn(2, 3, 4),
-            [3, 5, 7],
-            (
-                np.ones((3, 4)),
-                [5, 7],
-                [
-                    np.random.randn(3, 4, 5),
-                    [5, 7, 9],
-                ]
-            ),
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 6),
-                    [5, 1]
-                ]
-            )
-        ]
-    )
-
-    pass
-
-    # One matrix node
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5]
-        ]
-    )
-
-    # One child node with all variables shared
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3, 2)),
-                [5, 3],
-                [
-                    np.random.randn(3, 2),
-                    [5, 3],
-                ]
-            )
-        ]
-    )
-
-    # One child node with one common variable
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 4),
-                    [5, 9]
-                ]
-            )
-        ]
-    )
-
-    # One child node with no common variable
-    assert_sum_product(
-        [
-            np.random.randn(2),
-            [3],
-            (
-                np.ones(()),
-                [],
-                [
-                    np.random.randn(3),
-                    [9]
-                ]
-            )
-        ]
-    )
-
-    # One grand child node (not sharing with grand parent)
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 4),
-                    [5, 9],
-                    (
-                        np.ones((4,)),
-                        [9],
-                        [
-                            np.random.randn(4, 5),
-                            [9, 1]
-                        ]
-                    )
-                ]
-            )
-        ]
-    )
-
-    # One grand child node (sharing with grand parent)
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 4),
-                    [5, 9],
-                    (
-                        np.ones((3,)),
-                        [5],
-                        [
-                            np.random.randn(6, 3),
-                            [1, 5]
-                        ]
-                    )
-                ]
-            )
-        ]
-    )
-
-    # Two children (not sharing)
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 4),
-                    [5, 9],
-                ]
-            ),
-            (
-                np.ones((2,)),
-                [3],
-                [
-                    np.random.randn(2, 5),
-                    [3, 1]
-                ]
-            )
-        ]
-    )
-
-    # Two children (sharing)
-    assert_sum_product(
-        [
-            np.random.randn(2, 3),
-            [3, 5],
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 4),
-                    [5, 9],
-                ]
-            ),
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3),
-                    [5]
-                ]
-            )
-        ]
-    )
-
-    # Two children (with 3-D tensors)
-    assert_sum_product(
-        [
-            np.random.randn(2, 3, 4),
-            [3, 5, 7],
-            (
-                np.ones((3, 4)),
-                [5, 7],
-                [
-                    np.random.randn(3, 4, 5),
-                    [5, 7, 9],
-                ]
-            ),
-            (
-                np.ones((3,)),
-                [5],
-                [
-                    np.random.randn(3, 6),
-                    [5, 1]
-                ]
-            )
-        ]
-    )
 
 
 class TestHUGINFunctionality(unittest.TestCase):
@@ -882,7 +481,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
 
     def test_one_scalar_node(self):
-        assert_sum_product2(
+        assert_sum_product(
                 JunctionTree(
                         {},
                         [
@@ -895,7 +494,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         )
 
     def test_one_matrix_node(self):
-        assert_sum_product2(
+        assert_sum_product(
                 JunctionTree(
                         {
                             3:2,
@@ -912,7 +511,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         )
 
     def test_one_child_node_with_all_variables_shared(self):
-        assert_sum_product2(
+        assert_sum_product(
             JunctionTree(
                             {
                                 3:2,
@@ -936,7 +535,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         )
 
     def test_one_child_node_with_one_common_variable(self):
-        assert_sum_product2(
+        assert_sum_product(
                     JunctionTree(
                             {
                                 3:2,
@@ -961,7 +560,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         )
 
     def test_one_child_node_with_no_common_variable(self):
-        assert_sum_product2(
+        assert_sum_product(
                     JunctionTree(
                         {
                             3:2,
@@ -985,7 +584,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         )
 
     def test_one_grand_child_node_with_no_variable_shared_with_grand_parent(self):
-        assert_sum_product2(
+        assert_sum_product(
                     JunctionTree(
                             {
                                 1:5,
@@ -1020,7 +619,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         )
 
     def test_one_grand_child_node_with_variable_shared_with_grand_parent(self):
-        assert_sum_product2(
+        assert_sum_product(
                     JunctionTree(
                             {
                                 1:6,
@@ -1054,7 +653,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         )
 
     def test_two_children_with_no_variable_shared(self):
-        assert_sum_product2(
+        assert_sum_product(
                     JunctionTree(
                             {
                                 3:2,
@@ -1088,7 +687,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         )
 
     def test_two_child_with_shared_variable(self):
-        assert_sum_product2(
+        assert_sum_product(
                     JunctionTree(
                             {
                                 2:2,
@@ -1122,7 +721,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         )
 
     def test_two_children_with_3D_tensors(self):
-        assert_sum_product2(
+        assert_sum_product(
                     JunctionTree(
                             {
                                 1:6,
@@ -2006,7 +1605,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         heapq.heappush(heap, (4, 6, 3))
 
         # check that heappop returns the element with the lowest value in the tuple
-        assert heapq.pop(heap) == (1, 3, 1)
+        assert heapq.heappop(heap) == (1, 3, 1)
 
         # add value back to heap
         heapq.heappush(heap, (1, 3, 1))
@@ -2016,10 +1615,10 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         heapq.heappush(heap, (1, 1, 5))
 
         # ensure that tie is broken by second element
-        assert heapq.pop(heap) == (1, 1, 5)
+        assert heapq.heappop(heap) == (1, 1, 5)
         # ensure that updated heap returns second smalles element with tie-
         # breaker
-        assert heapq.pop(heap) == (1, 2, 4)
+        assert heapq.heappop(heap) == (1, 2, 4)
 
     def test_node_heap_construction(self):
         _vars = {
@@ -2134,13 +1733,16 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ("C","D"),
                     ("D","E")
         ]
-        fcs = [
-                [1,1,0,1,0,0,0,0],
-                [0,1,1,1,0,0,0,0],
-                [0,0,0,1,1,1,0,0],
-                [0,0,0,0,0,1,1,1]
-        ]
-        ecs = __gibs_elem_cycles(edges, fcs)
+        fcs = np.array(
+                    [
+                        [1,1,0,1,0,0,0,0],
+                        [0,1,1,1,0,0,0,0],
+                        [0,0,0,1,1,1,0,0],
+                        [0,0,0,0,0,1,1,1]
+                    ]
+        )
+        ecs = gibbs_elem_cycles(fcs)
+        print(ecs)
         assert len(ecs) == 10
         assert ecs[0] == [1,1,0,1,0,0,0,0]
         assert ecs[1] == [1,0,1,0,0,0,0,0]
@@ -2156,12 +1758,6 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
 
     def test_assert_triangulated(self):
-        '''
-            f0----f1
-            |      |
-            |      |
-            f2----f3
-        '''
         factors = [
                     ["A", "B"],
                     ["B"],

@@ -117,6 +117,7 @@ Hypergraphs - 1988) proved that a junction tree can be constructed by a maximal 
 
 import numpy as np
 import heapq
+import copy
 
 
 def find_triangulation(factor_graph, sizes):
@@ -181,6 +182,13 @@ def triangulate(triangulation, arrays):
     """
     raise NotImplementedError()
 
+def initialize_triangulation_heap(factors):
+    """
+    Input: A list of factors (where factors are lists of keys)
+
+    Output: ?
+    """
+    raise NotImplementedError()
 
 def construct_junction_tree(tbd):
     """
@@ -335,7 +343,7 @@ def distribute(tree, var_labels, potentials, visited, distributive_law):
     return potentials
 
 
-def hugin(junction_tree, potentials, distributive_law, root_index=0):
+def hugin(junction_tree, potentials, distributive_law):
     """Run hugin algorithm by using the given distributive law.
 
     Input tree format:
@@ -420,6 +428,8 @@ def observe(tree, potentials, data):
         potentials[clique_idx] = pot*ll_pot
     return (ll,potentials)
 
+def copy_factor_graph(fg):
+    return copy.deepcopy(fg)
 
 def yield_id_and_keys(tree):
     yield tree[0]
