@@ -52,13 +52,15 @@ def assert_triangulated(factors, triangulation):
         cycle. (Huang and Darwiche, 1996)
     '''
 
-    cycles = __find_cycles(factors, 4)
+    cycles = find_cycles(factors, 4)
     f_sets = [set(f) for f in factors]
+    print(cycles)
+    print(f_sets)
     for cycle in cycles:
         s = set(cycle)
         assert any([s == f_set for f_set in sets if len(s) == len(f_set)])
 
-def __find_cycles(factors, num):
+def find_cycles(factors, num):
     G=nx.Graph()
     G.add_nodes_from(range(len(factors)))
 
@@ -102,25 +104,31 @@ def gibbs_elem_cycles(fcs):
         for t in q:
             if np.any(np.logical_and(t, fcs[i])):
                 # append t ring_sum fcs[0] to r
-                r.append(np.logical_xor(t,fcs[0]).astype(int).tolist())
+                r.append(np.logical_xor(t,fcs[i]).astype(int).tolist())
 
             else:
                 # append t ring_sum fcs[0] to r_star
-                r_star.append(np.logical_xor(t,fcs[0]).astype(int).tolist())
+                r_star.append(np.logical_xor(t,fcs[i]).astype(int).tolist())
+
         for u,v in itertools.combinations(r, 2):
             # check both ways u subset of v or v subset of u
             if np.array_equal(np.logical_and(u, v), u):
-                r.remove(v)
+                if v in r: # may have already been removed
+                    r.remove(v)
                 if v not in r_star:
                     r_star.append(v)
             elif np.array_equal(np.logical_and(v, u), v):
-                r.remove(u)
+                if u in r: # may have already been removed
+                    r.remove(u)
                 if u not in r_star:
                     r_star.append(u)
+
         #s U r U fcs[i]
         s = [list(st) for st in set(map(tuple, itertools.chain(s,r,[fcs[i]])))]
+
         #q U r U r_star U fcs[i]
         q = [list(st) for st in set(map(tuple, itertools.chain(q,r,r_star,[fcs[i]])))]
+
         r = []
         r_star = []
         i+=1
@@ -1742,27 +1750,31 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ]
         )
         ecs = gibbs_elem_cycles(fcs)
-        print(ecs)
         assert len(ecs) == 10
-        assert ecs[0] == [1,1,0,1,0,0,0,0]
-        assert ecs[1] == [1,0,1,0,0,0,0,0]
-        assert ecs[2] == [0,1,1,1,0,0,0,0]
-        assert ecs[3] == [1,1,0,0,1,1,0,0]
-        assert ecs[4] == [0,1,1,0,1,1,0,0]
-        assert ecs[5] == [0,0,0,1,1,1,0,0]
-        assert ecs[6] == [1,1,0,0,1,0,1,1]
-        assert ecs[7] == [0,1,1,0,1,0,1,1]
-        assert ecs[8] == [0,0,0,1,1,0,1,1]
-        assert ecs[9] == [0,0,0,0,0,1,1,1]
-
+        ecs_str = ["".join(map(str, c)) for c in ecs]
+        test_str = ["".join(map(str, c))
+                        for c in [
+                            [1,1,0,1,0,0,0,0], # fcs[0]
+                            [1,0,1,0,0,0,0,0], # fcs[0] xor fcs[1]
+                            [0,1,1,1,0,0,0,0], # fcs[1]
+                            [1,1,0,0,1,1,0,0], # fcs[0] xor fcs[2]
+                            [0,1,1,0,1,1,0,0], # fcs[1] xor fcs[2]
+                            [0,0,0,1,1,1,0,0], # fcs[2]
+                            [1,1,0,0,1,0,1,1], # fcs[0] xor fcs[2] xor fcs[3]
+                            [0,1,1,0,1,0,1,1], # fcs[1] xor fcs[2] xor fcs[3]
+                            [0,0,0,1,1,0,1,1], # fcs[2] xor fcs[3]
+                            [0,0,0,0,0,1,1,1] # fcs[3]
+                        ]
+                    ]
+        assert set(ecs_str) == set(test_str)
 
 
     def test_assert_triangulated(self):
         factors = [
-                    ["A", "B"],
-                    ["B"],
-                    ["B", "C"],
-                    ["A", "C"]
+                    [0, 1], # [A,B]
+                    [1], # [B]
+                    [1, 2], # [B,C]
+                    [0, 2] # [A,C]
                 ]
         tri0 = []
         self.assertRaises(AssertionError, assert_triangulated(factors, tri0))
