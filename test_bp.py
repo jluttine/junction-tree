@@ -53,19 +53,24 @@ def assert_triangulated(factors, triangulation):
     '''
 
     cycles = find_cycles(factors, 4)
-    f_sets = [set(f) for f in factors]
-    print(cycles)
-    print(f_sets)
     for cycle in cycles:
-        s = set(cycle)
-        assert any([s == f_set for f_set in sets if len(s) == len(f_set)])
+        cycle_factors = set([fac for edge in cycle for fac in edge])
+        membership = []
+        for clique in triangulation:
+            if len(cycle_factors) == len(clique):
+                # check that all factors in maximal clique
+                membership.append([fac in clique for fac in cycle_factors])
+
+        # exactly one maximal clique should contain all factors in cycle
+        assert sum([all(m) for m in membership]) == 1
+
 
 def find_cycles(factors, num):
     G=nx.Graph()
     G.add_nodes_from(range(len(factors)))
 
     for i in range(len(factors)):
-        for j in range(i,len(factors)):
+        for j in range(i+1,len(factors)):
             # add edge to graph if any vars shared
             if not set(factors[i]).isdisjoint(factors[j]):
                 G.add_edge(i,j)
@@ -82,8 +87,9 @@ def find_cycles(factors, num):
             if graph_edges[j] in edge_list:
                 bit_seqs[i][j] = 1
 
-    cycles = [np.array(graph_edges)[[np.nonzero(cycle)]]
+    cycles = [np.array(graph_edges)[[np.nonzero(cycle)[0]]]
                 for cycle in gibbs_elem_cycles(bit_seqs) if sum(cycle) >= num]
+
     return cycles
 
 def gibbs_elem_cycles(fcs):
@@ -104,11 +110,11 @@ def gibbs_elem_cycles(fcs):
         for t in q:
             if np.any(np.logical_and(t, fcs[i])):
                 # append t ring_sum fcs[0] to r
-                r.append(np.logical_xor(t,fcs[i]).astype(int).tolist())
-
+                #r.append(np.logical_xor(t,fcs[i]).astype(int).tolist())
+                r.append(np.logical_xor(t,fcs[i]).tolist())
             else:
                 # append t ring_sum fcs[0] to r_star
-                r_star.append(np.logical_xor(t,fcs[i]).astype(int).tolist())
+                r_star.append(np.logical_xor(t,fcs[i]).tolist())
 
         for u,v in itertools.combinations(r, 2):
             # check both ways u subset of v or v subset of u
@@ -1777,7 +1783,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     [0, 2] # [A,C]
                 ]
         tri0 = []
-        self.assertRaises(AssertionError, assert_triangulated(factors, tri0))
+        self.assertRaises(AssertionError, assert_triangulated, factors, tri0)
 
         tri1 = [[0,1,2,3]]
         assert_triangulated(factors, tri1)
