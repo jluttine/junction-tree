@@ -1648,8 +1648,8 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["B", "C", "D"], # weight: 60
                     ["A", "D"] # weight: 10
                 ]
-        heap = bp.initialize_triangulation_heap(factors)
-        assert len(heap) == 4
+        hp, ef = bp.initialize_triangulation_heap(factors, _vars)
+        assert len(hp) == 4
         '''
             Entries:
             (0, 120, 0) # factor 0 has 2 neighbors (all nodes connected)
@@ -1657,10 +1657,11 @@ class TestJunctionTreeConstruction(unittest.TestCase):
             (0, 3600, 2) # factor 2 has 2 neighbors (all nodes connected)
             (1, 7200, 3) # factor 3 has 3 neighbors (0-2 edge added)
         '''
-        assert heap[0] == (0, 120, 0)
-        assert heap[1] == (0, 3600, 2)
-        assert heap[2] == (1, 7200, 1)
-        assert heap[3] == (1, 7200, 3)
+
+        assert heapq.heappop(hp) == (0, 120, 0)
+        assert heapq.heappop(hp) == (0, 3600, 2)
+        assert heapq.heappop(hp) == (1, 7200, 1)
+        assert heapq.heappop(hp) == (1, 7200, 3)
 
 
     def test_heap_update_after_node_removal(self):
@@ -1757,7 +1758,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         )
         ecs = gibbs_elem_cycles(fcs)
         assert len(ecs) == 10
-        ecs_str = ["".join(map(str, c)) for c in ecs]
+        ecs_str = ["".join(map(str, [1 if c_i else 0 for c_i in c])) for c in ecs]
         test_str = ["".join(map(str, c))
                         for c in [
                             [1,1,0,1,0,0,0,0], # fcs[0]
@@ -1808,13 +1809,12 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     np.random.randn(2, 5),
                 ]
         fg = [_vars, factors, values]
-        tri = bp.find_triangulation(fg, sizes)
+        tri = bp.find_triangulation(fg[1], fg[0])
 
-        # only 2 cliques should be returned as they are maximal and complete
-        assert len(tri) == 2
+        # only 1 clique should be returned as it is maximal and complete
+        assert len(tri) == 1
 
-        assert tri[0] == [0,1,3]
-        assert tri[1] == [1,2,3]
+        assert tri[1] == [0,1,2,3]
 
         assert_triangulated(fg[1], tri)
 

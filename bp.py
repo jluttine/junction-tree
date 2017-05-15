@@ -118,9 +118,11 @@ Hypergraphs - 1988) proved that a junction tree can be constructed by a maximal 
 import numpy as np
 import heapq
 import copy
+import itertools
 
+REMOVED = '<removed-task>'
 
-def find_triangulation(factor_graph, sizes):
+def find_triangulation(factors, var_sizes):
     """Triangulate given factor graph.
 
     TODO: Provide different algorithms.
@@ -128,7 +130,7 @@ def find_triangulation(factor_graph, sizes):
     Inputs:
     -------
 
-    Factor graph syntax is a list of factor where each factor is given as a
+    A list of factor where each factor is given as a
     list of variable keys the factor contains:
 
     [keys1, ..., keysN]
@@ -160,6 +162,8 @@ def find_triangulation(factor_graph, sizes):
     http://www.stat.washington.edu/courses/stat535/fall11/Handouts/l5-decomposable.pdf
 
     """
+
+
     raise NotImplementedError()
 
 
@@ -182,11 +186,67 @@ def triangulate(triangulation, arrays):
     """
     raise NotImplementedError()
 
-def initialize_triangulation_heap(factors):
+def initialize_triangulation_heap(factors, var_sizes):
     """
     Input: A list of factors (where factors are lists of keys)
 
-    Output: ?
+    Output: A heap of factors
+    """
+
+    edges = {}
+    neighbors = {}
+    for i, fac1 in enumerate(factors):
+        for j, fac2 in enumerate(factors[i+1:]):
+            if not set(fac1).isdisjoint(fac2):
+                edges.update(
+                                {
+                                    (i,i+j+1): None,
+                                    (i+j+1,i): None
+                                }
+                )
+                neighbors.setdefault(i, []).append(i+j+1)
+                neighbors.setdefault(i+j+1, []).append(i)
+
+    h = []
+    entry_finder = {}
+    for i, fac in enumerate(factors):
+        # determine how many of i's neighbors need to be connected
+        num_new_edges = sum(
+                            [
+                                (n1,n2) not in edges and (n2,n1) not in edges
+                                for n1, n2 in itertools.combinations(neighbors[i], 2)
+                            ]
+        )
+        # weight of a cluster is the product of all variable values in cluster
+        weight = np.prod(
+                    [var_sizes[var] for var in fac] \
+                    + [var_sizes[var] for n in neighbors[i] for var in factors[n]]
+        )
+        entry = (num_new_edges, weight, i)
+        heapq.heappush(h, entry)
+        entry_finder = {i: entry}
+
+    return h, entry_finder
+
+def remove_next(heap, entry_finder, factors, var_sizes):
+    """
+    Input:
+    ------
+
+    heap containing remaining factors and weights
+
+    list of factors remaining in G' (len(factors) = N)
+
+    variable sizes
+
+    Output:
+    -------
+
+    heap with updated keys after factor removal
+
+    entry_finder with updated references to heap elements
+
+    list of factors without most recently removed factor (len(factors) = N-1)
     """
     raise NotImplementedError()
 
