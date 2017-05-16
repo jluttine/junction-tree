@@ -6,6 +6,7 @@ import unittest
 import networkx as nx
 import itertools
 import heapq
+import copy
 
 
 # Tests here using pytest
@@ -1634,6 +1635,11 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         # breaker
         assert heapq.heappop(heap) == (1, 2, 4)
 
+    def test_edge_additions_and_clique_weight_calculations(self):
+        #num_new_edges = bp.calc_edge_additions
+        #clique_weight = bp.calc_weight_calculations
+        assert self.fail()
+
     def test_node_heap_construction(self):
         _vars = {
                     "A": 2,
@@ -1648,7 +1654,14 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["B", "C", "D"], # weight: 60
                     ["A", "D"] # weight: 10
                 ]
-        hp, ef = bp.initialize_triangulation_heap(factors, _vars)
+        edges, neighbors = bp.get_graph_structure(factors)
+        hp, ef = bp.initialize_triangulation_heap(
+                                                factors,
+                                                _vars,
+                                                edges,
+                                                neighbors
+        )
+
         assert len(hp) == 4
         '''
             Entries:
@@ -1658,10 +1671,10 @@ class TestJunctionTreeConstruction(unittest.TestCase):
             (1, 7200, 3) # factor 3 has 3 neighbors (0-2 edge added)
         '''
 
-        assert heapq.heappop(hp) == (0, 120, 0)
-        assert heapq.heappop(hp) == (0, 3600, 2)
-        assert heapq.heappop(hp) == (1, 7200, 1)
-        assert heapq.heappop(hp) == (1, 7200, 3)
+        assert heapq.heappop(hp) == [0, 120, 0]
+        assert heapq.heappop(hp) == [0, 3600, 2]
+        assert heapq.heappop(hp) == [1, 7200, 1]
+        assert heapq.heappop(hp) == [1, 7200, 3]
 
 
     def test_heap_update_after_node_removal(self):
@@ -1678,9 +1691,25 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["B", "C", "D"],
                     ["A", "D"]
                 ]
-        heap = bp.initialize_triangulation_heap(factors)
-        item, heap = bp.remove_next(heap)
-        assert item == (0, 120, 0)
+
+        edges, neighbors = bp.get_graph_structure(factors)
+        heap, entry_finder = bp.initialize_triangulation_heap(
+                                                        factors,
+                                                        _vars,
+                                                        edges,
+                                                        neighbors
+        )
+        new_factors = copy.deepcopy(factors)
+        item, heap, entry_finder, factors = bp.remove_next(
+                                                        heap,
+                                                        entry_finder,
+                                                        new_factors,
+                                                        _vars,
+                                                        edges,
+                                                        neighbors
+        )
+
+        assert item == [0, 120, 0]
 
         '''
             factors_p = [
@@ -1693,29 +1722,45 @@ class TestJunctionTreeConstruction(unittest.TestCase):
             (0, 3600, 2) # factor 2 has 2 neighbors (all nodes connected)
             (0, 3600, 3) # factor 3 has 2 neighbors (all nodes connected)
         '''
-        assert len(heap) == 3
-        assert heap[0] == (0, 3600, 1)
-        assert heap[1] == (0, 3600, 2)
-        assert heap[2] == (0, 3600, 3)
+        chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != -1]
+        assert len(chk_heap) == 3
+        assert chk_heap[0] == [0, 3600, 2]
+        assert chk_heap[1] == [1, 3600, 1]
+        assert chk_heap[2] == [1, 3600, 3]
 
-        item, heap = bp.remove_next(heap)
-        assert item == (0, 3600, 1)
+        item, heap, entry_finder, factors = bp.remove_next(
+                                                        heap,
+                                                        entry_finder,
+                                                        new_factors,
+                                                        _vars,
+                                                        edges,
+                                                        neighbors
+        )
+        assert item == [0, 3600, 2]
         '''
             factors_p = [
-                            ["B", "C", "D"], # weight: 60
+                            ["A", "C"], # weight: 6
                             ["A", "D"] # weight: 10
                     ]
             Entries:
-            (0, 600, 2) # factor 2 has 1 neighbors (already connected)
-            (0, 600, 3) # factor 3 has 1 neighbors (already connected)
+            (0, 60, 2) # factor 1 has 1 neighbors (already connected)
+            (0, 60, 3) # factor 3 has 1 neighbors (already connected)
         '''
 
-        assert len(heap) == 2
-        assert heap[0] == (0, 600, 2)
-        assert heap[1] == (0, 600, 3)
+        chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != -1]
+        assert len(chk_heap) == 2
+        assert chk_heap[0] == [0, 60, 1]
+        assert chk_heap[1] == [0, 60, 3]
 
-        item, heap = bp.remove_next(heap)
-        assert item == (0, 600, 2)
+        item, heap, entry_finder, factors = bp.remove_next(
+                                                        heap,
+                                                        entry_finder,
+                                                        new_factors,
+                                                        _vars,
+                                                        edges,
+                                                        neighbors
+        )
+        assert item == [0, 60, 1]
         '''
             factors_p = [
                             ["A", "D"] # weight: 10
@@ -1724,12 +1769,20 @@ class TestJunctionTreeConstruction(unittest.TestCase):
             (0, 10, 3) # factor 3 has 0 neighbors (no connections possible)
         '''
 
-        assert len(heap) == 1
-        assert heap[0] == (0, 10, 3)
+        chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != -1]
+        assert len(chk_heap) == 1
+        assert heapq.heappop() == [0, 10, 3]
 
 
-        item, heap = bp.remove_next(heap)
-        assert item == (0, 10, 3)
+        item, heap, entry_finder, factors = bp.remove_next(
+                                                        heap,
+                                                        entry_finder,
+                                                        new_factors,
+                                                        _vars,
+                                                        edges,
+                                                        neighbors
+        )
+        assert item == [0, 10, 3]
 
 
     def test_gibbs_algo_implementation(self):

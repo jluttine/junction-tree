@@ -118,9 +118,7 @@ Hypergraphs - 1988) proved that a junction tree can be constructed by a maximal 
 import numpy as np
 import heapq
 import copy
-import itertools
 
-REMOVED = '<removed-task>'
 
 def find_triangulation(factors, var_sizes):
     """Triangulate given factor graph.
@@ -186,11 +184,33 @@ def triangulate(triangulation, arrays):
     """
     raise NotImplementedError()
 
-def initialize_triangulation_heap(factors, var_sizes):
+def initialize_triangulation_heap(factors, var_sizes, edges, neighbors):
     """
     Input: A list of factors (where factors are lists of keys)
 
     Output: A heap of factors
+    """
+
+    edges, neighbors = get_graph_structure(factors)
+
+    h, entry_finder = update_heap(factors, edges, neighbors, var_sizes)
+
+    return h, entry_finder
+
+def get_graph_structure(factors):
+    """
+    Input:
+    ------
+
+    list of factors
+
+    Output:
+    -------
+
+    edges of factor graph as paired factor indices
+
+    neighbors of factors as dictionary with factor index as keys
+    and list of neighbor factor indices as values
     """
 
     edges = {}
@@ -207,28 +227,62 @@ def initialize_triangulation_heap(factors, var_sizes):
                 neighbors.setdefault(i, []).append(i+j+1)
                 neighbors.setdefault(i+j+1, []).append(i)
 
-    h = []
-    entry_finder = {}
+    return edges, neighbors
+
+def update_heap(factors, edges, neighbors, var_sizes, heap=None, entry_finder=None):
+    """
+    Input:
+    ------
+
+    list of factors
+
+    list of edges (factor idx pairs)
+
+    dictionary of variables (variable is key, size is value)
+
+    heap to be updated (None if new heap is to be created)
+
+    entry_finder dictionary with references to heap elements
+
+    Output:
+    -------
+
+    updated (or newly created) heap
+
+    entry_finder dictionary with updated references to heap elements
+    """
+
+    h = heap if heap else []
+    entry_finder = entry_finder if entry_finder else {}
     for i, fac in enumerate(factors):
-        # determine how many of i's neighbors need to be connected
-        num_new_edges = sum(
-                            [
-                                (n1,n2) not in edges and (n2,n1) not in edges
-                                for n1, n2 in itertools.combinations(neighbors[i], 2)
-                            ]
-        )
-        # weight of a cluster is the product of all variable values in cluster
-        weight = np.prod(
-                    [var_sizes[var] for var in fac] \
-                    + [var_sizes[var] for n in neighbors[i] for var in factors[n]]
-        )
-        entry = (num_new_edges, weight, i)
-        heapq.heappush(h, entry)
-        entry_finder = {i: entry}
+        if len(fac) > 0:
+            # determine how many of i's neighbors need to be connected
+            num_new_edges = sum(
+                                [
+                                    (n1,n2) not in edges and (n2,n1) not in edges
+                                    #for n1, n2 in itertools.combinations(neighbors[i], 2)
+                                    for j, n1 in enumerate(neighbors[i])
+                                        for k, n2 in enumerate(neighbors[i][j+1:])
+                                ]
+            )
+            # weight of a cluster is the product of all variable values in cluster
+            weight = np.prod(
+                        [var_sizes[var] for var in fac] \
+                        + [var_sizes[var] for n in neighbors[i] for var in factors[n] if var]
+            )
+            entry = [num_new_edges, weight, i]
+            heapq.heappush(h, entry)
+            # invalidate previous entry if it exists
+            prev = entry_finder.get(i, None)
+            if prev:
+                # set entry to be removed
+                prev[2] = -1
+            entry_finder[i] = entry
 
     return h, entry_finder
 
-def remove_next(heap, entry_finder, factors, var_sizes):
+
+def remove_next(heap, entry_finder, factors, var_sizes, edges, neighbors):
     """
     Input:
     ------
@@ -244,11 +298,34 @@ def remove_next(heap, entry_finder, factors, var_sizes):
 
     heap with updated keys after factor removal
 
-    entry_finder with updated references to heap elements
+    entry_finder dictionary with updated references to heap elements
 
     list of factors without most recently removed factor (len(factors) = N-1)
     """
-    raise NotImplementedError()
+
+    entry = (None, None, -1)
+
+    while entry[2] == -1:
+        entry = heapq.heappop(heap)
+
+
+    # remove entry from entry_finder
+    del entry_finder[entry[2]]
+
+    # set factor as removed from factor list
+    factors[entry[2]] = []
+
+    heap, entry_finder = update_heap(
+                                factors,
+                                edges,
+                                neighbors,
+                                var_sizes,
+                                heap,
+                                entry_finder
+    )
+
+
+    return entry, heap, entry_finder, factors
 
 def construct_junction_tree(tbd):
     """
