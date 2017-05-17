@@ -256,11 +256,10 @@ def update_heap(factors, edges, neighbors, var_sizes, heap=None, entry_finder=No
     entry_finder = entry_finder if entry_finder else {}
     for i, fac in enumerate(factors):
         if len(fac) > 0:
-            # determine how many of i's neighbors need to be connected
+            # determine how many of i's remaining neighbors need to be connected
             num_new_edges = sum(
                                 [
-                                    (n1,n2) not in edges and (n2,n1) not in edges
-                                    #for n1, n2 in itertools.combinations(neighbors[i], 2)
+                                    (n1,n2) not in edges and (n2,n1) not in edges and len(factors[n1]) > 0 and len(factors[n2]) > 0
                                     for j, n1 in enumerate(neighbors[i])
                                         for k, n2 in enumerate(neighbors[i][j+1:])
                                 ]

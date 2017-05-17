@@ -1635,10 +1635,6 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         # breaker
         assert heapq.heappop(heap) == (1, 2, 4)
 
-    def test_edge_additions_and_clique_weight_calculations(self):
-        #num_new_edges = bp.calc_edge_additions
-        #clique_weight = bp.calc_weight_calculations
-        assert self.fail()
 
     def test_node_heap_construction(self):
         _vars = {
@@ -1665,10 +1661,10 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert len(hp) == 4
         '''
             Entries:
-            (0, 120, 0) # factor 0 has 2 neighbors (all nodes connected)
-            (1, 7200, 1) # factor 1 has 3 neighbors (0-2 edge added)
-            (0, 3600, 2) # factor 2 has 2 neighbors (all nodes connected)
-            (1, 7200, 3) # factor 3 has 3 neighbors (0-2 edge added)
+            [0, 120, 0] # factor 0 has 2 neighbors (all nodes connected)
+            [1, 7200, 1] # factor 1 has 3 neighbors (0-2 edge added)
+            [0, 3600, 2] # factor 2 has 2 neighbors (all nodes connected)
+            [1, 7200, 3] # factor 3 has 3 neighbors (0-2 edge added)
         '''
 
         assert heapq.heappop(hp) == [0, 120, 0]
@@ -1711,23 +1707,26 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         assert item == [0, 120, 0]
 
+
         '''
-            factors_p = [
+            factors = [
+                            [],
                             ["A", "C"], # weight: 6
                             ["B", "C", "D"], # weight: 60
                             ["A", "D"] # weight: 10
                     ]
             Entries:
-            (0, 3600, 1) # factor 1 has 2 neighbors (all nodes connected)
-            (0, 3600, 2) # factor 2 has 2 neighbors (all nodes connected)
-            (0, 3600, 3) # factor 3 has 2 neighbors (all nodes connected)
+            [0, 3600, 1] # factor 1 has 2 neighbors (all nodes connected)
+            [0, 3600, 2] # factor 2 has 2 neighbors (all nodes connected)
+            [0, 3600, 3] # factor 3 has 2 neighbors (all nodes connected)
         '''
         chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != -1]
         assert len(chk_heap) == 3
-        assert chk_heap[0] == [0, 3600, 2]
-        assert chk_heap[1] == [1, 3600, 1]
-        assert chk_heap[2] == [1, 3600, 3]
+        assert chk_heap[0] == [0, 3600, 1]
+        assert chk_heap[1] == [0, 3600, 2]
+        assert chk_heap[2] == [0, 3600, 3]
 
+        new_factors = copy.deepcopy(factors)
         item, heap, entry_finder, factors = bp.remove_next(
                                                         heap,
                                                         entry_finder,
@@ -1736,22 +1735,28 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                                                         edges,
                                                         neighbors
         )
-        assert item == [0, 3600, 2]
+
+        assert item == [0, 3600, 1]
+
         '''
-            factors_p = [
-                            ["A", "C"], # weight: 6
+            factors = [
+                            [],
+                            [],
+                            ["B", "C", "D"]
                             ["A", "D"] # weight: 10
                     ]
             Entries:
-            (0, 60, 2) # factor 1 has 1 neighbors (already connected)
-            (0, 60, 3) # factor 3 has 1 neighbors (already connected)
+            [0, 600, 2] # factor 2 has 1 neighbors (already connected)
+            [0, 600, 3] # factor 3 has 1 neighbors (already connected)
         '''
 
         chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != -1]
         assert len(chk_heap) == 2
-        assert chk_heap[0] == [0, 60, 1]
-        assert chk_heap[1] == [0, 60, 3]
+        assert chk_heap[0] == [0, 600, 2]
+        assert chk_heap[1] == [0, 600, 3]
 
+
+        new_factors = copy.deepcopy(factors)
         item, heap, entry_finder, factors = bp.remove_next(
                                                         heap,
                                                         entry_finder,
@@ -1760,20 +1765,25 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                                                         edges,
                                                         neighbors
         )
-        assert item == [0, 60, 1]
+
+        assert item == [0, 600, 2]
+
         '''
-            factors_p = [
+            factors = [
+                            [],
+                            [],
+                            [],
                             ["A", "D"] # weight: 10
                     ]
             Entries:
-            (0, 10, 3) # factor 3 has 0 neighbors (no connections possible)
+            [0, 10, 3] # factor 3 has 0 neighbors (no connections possible)
         '''
 
         chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != -1]
         assert len(chk_heap) == 1
-        assert heapq.heappop() == [0, 10, 3]
+        assert chk_heap[0] == [0, 10, 3]
 
-
+        new_factors = copy.deepcopy(factors)
         item, heap, entry_finder, factors = bp.remove_next(
                                                         heap,
                                                         entry_finder,
