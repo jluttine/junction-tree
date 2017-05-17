@@ -144,20 +144,8 @@ def find_triangulation(factors, var_sizes):
     Output:
     -------
 
-    A list of maximal cliques where each maximal clique is a tuple/list of
-    factor indices it contains:
-
-    [clique1, ..., cliqueK]
-
-    That is, if there are N factors, each clique contains some subset of
-    numbers from {0, ..., N-1} as a tuple/list.
-
-    Notes
-    -----
-    A clique may contain multiple factors.
-
-    See:
-    http://www.stat.washington.edu/courses/stat535/fall11/Handouts/l5-decomposable.pdf
+    A list of edges (2-element sets) representing triangulation
+    of factor graph
 
     """
 
@@ -180,7 +168,7 @@ def find_triangulation(factors, var_sizes):
                                                         neighbors
         )
         rm_factor_idx = item[2]
-        tri.append([(rm_factor_idx,n) for n in neighbors[rm_factor_idx] if len(factors[n])])
+        tri.append([set((rm_factor_idx,n)) for n in neighbors[rm_factor_idx] if len(factors[n])])
 
 
     return tri
@@ -347,6 +335,31 @@ def remove_next(heap, entry_finder, factors, var_sizes, edges, neighbors):
 
 
     return entry, heap, entry_finder, factors
+
+def find_cliques(tbd):
+    """
+    Input: ?
+
+    Output:
+    -------
+
+    A list of maximal cliques where each maximal clique is a tuple/list of
+    factor indices it contains:
+
+    [clique1, ..., cliqueK]
+
+    That is, if there are N factors, each clique contains some subset of
+    numbers from {0, ..., N-1} as a tuple/list.
+
+    Notes
+    -----
+    A clique may contain multiple factors.
+
+    See:
+    http://www.stat.washington.edu/courses/stat535/fall11/Handouts/l5-decomposable.pdf
+
+
+    """
 
 def construct_junction_tree(tbd):
     """

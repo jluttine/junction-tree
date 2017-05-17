@@ -58,14 +58,13 @@ def assert_triangulated(factors, triangulation):
     cycles = find_cycles(factors, 4)
     for cycle in cycles:
         cycle_factors = set([fac for edge in cycle for fac in edge])
-        membership = []
-        for clique in triangulation:
-            if len(cycle_factors) == len(clique):
-                # check that all factors in maximal clique
-                membership.append([fac in clique for fac in cycle_factors])
-
-        # exactly one maximal clique should contain all factors in cycle
-        assert sum([all(m) for m in membership]) == 1
+        # at least one chord of cycle should be in triangulation
+        assert sum(
+                    [
+                        1 for edge in triangulation
+                        if edge not in cycle and edge.issubset(cycle_factors)
+                    ]
+        ) > 0
 
 
 def find_cycles(factors, num):
@@ -1848,10 +1847,10 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     [1, 2], # [B,C]
                     [0, 2] # [A,C]
                 ]
-        tri0 = []
+        tri0 = [set((0,1)),set((0,3)),set((1,2)),set((2,3))]
         self.assertRaises(AssertionError, assert_triangulated, factors, tri0)
 
-        tri1 = [(0,1),(0,2),(0,3),(1,3),(2,3)]
+        tri1 = [set((0,1)),set((0,2)),set((0,3)),set((1,2)),set((2,3))]
         assert_triangulated(factors, tri1)
 
     def test_triangulate_factor_graph(self):
