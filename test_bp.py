@@ -51,6 +51,8 @@ def assert_triangulated(factors, triangulation):
         An undirected graph is triangulated iff every cycle of length four or
         greater contains an edge that connects two nonadjacent nodes in the
         cycle. (Huang and Darwiche, 1996)
+
+        Only one such edge is required.
     '''
 
     cycles = find_cycles(factors, 4)
@@ -1849,7 +1851,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         tri0 = []
         self.assertRaises(AssertionError, assert_triangulated, factors, tri0)
 
-        tri1 = [[0,1,2,3]]
+        tri1 = [(0,1),(0,2),(0,3),(1,3),(2,3)]
         assert_triangulated(factors, tri1)
 
     def test_triangulate_factor_graph(self):

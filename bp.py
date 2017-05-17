@@ -161,8 +161,29 @@ def find_triangulation(factors, var_sizes):
 
     """
 
+    tri = []
+    edges, neighbors = get_graph_structure(factors)
+    heap, entry_finder = initialize_triangulation_heap(
+                                            factors,
+                                            var_sizes,
+                                            edges,
+                                            neighbors
+    )
+    _factors = copy.deepcopy(factors)
+    for i in range(len(factors)):
+        item, heap, entry_finder, _factors = remove_next(
+                                                        heap,
+                                                        entry_finder,
+                                                        _factors,
+                                                        var_sizes,
+                                                        edges,
+                                                        neighbors
+        )
+        rm_factor_idx = item[2]
+        tri.append([(rm_factor_idx,n) for n in neighbors[rm_factor_idx] if len(factors[n])])
 
-    raise NotImplementedError()
+
+    return tri
 
 
 def triangulate(triangulation, arrays):
@@ -193,9 +214,9 @@ def initialize_triangulation_heap(factors, var_sizes, edges, neighbors):
 
     edges, neighbors = get_graph_structure(factors)
 
-    h, entry_finder = update_heap(factors, edges, neighbors, var_sizes)
+    heap, entry_finder = update_heap(factors, edges, neighbors, var_sizes)
 
-    return h, entry_finder
+    return heap, entry_finder
 
 def get_graph_structure(factors):
     """
@@ -259,9 +280,10 @@ def update_heap(factors, edges, neighbors, var_sizes, heap=None, entry_finder=No
             # determine how many of i's remaining neighbors need to be connected
             num_new_edges = sum(
                                 [
-                                    (n1,n2) not in edges and (n2,n1) not in edges and len(factors[n1]) > 0 and len(factors[n2]) > 0
+                                    (n1,n2) not in edges and (n2,n1) not in edges
                                     for j, n1 in enumerate(neighbors[i])
                                         for k, n2 in enumerate(neighbors[i][j+1:])
+                                            if len(factors[n1]) and len(factors[n2])
                                 ]
             )
             # weight of a cluster is the product of all variable values in cluster
