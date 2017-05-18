@@ -168,7 +168,7 @@ def find_triangulation(factors, var_sizes):
                                                         neighbors
         )
         rm_factor_idx = item[2]
-        tri.append([set((rm_factor_idx,n)) for n in neighbors[rm_factor_idx] if len(factors[n])])
+        tri.extend([(rm_factor_idx,n) for n in neighbors[rm_factor_idx] if len(_factors[n])])
 
 
     return tri
@@ -195,9 +195,28 @@ def triangulate(triangulation, arrays):
 
 def initialize_triangulation_heap(factors, var_sizes, edges, neighbors):
     """
-    Input: A list of factors (where factors are lists of keys)
+    Input:
+    ------
 
-    Output: A heap of factors
+    A list of factors (where factors are lists of keys)
+
+    A dictionary with variables as keys and variable size as values
+
+    A list of pairs of of variables representing factor graph edges
+
+    A dictionary with factor ids as keys and a list of neighboring factor ids
+
+    Output:
+    -------
+    A heap of entries where entry has structure:
+    [
+        num edges added to factor graph by removal of factor,
+        induced cluster weight,
+        id of factor associated with other two elements
+    ]
+
+    A dictionary with factor id as key and reference to entry
+    containing factor id as 3rd elements as value
     """
 
     edges, neighbors = get_graph_structure(factors)
@@ -305,6 +324,8 @@ def remove_next(heap, entry_finder, factors, var_sizes, edges, neighbors):
     Output:
     -------
 
+    the entry removed from the heap
+
     heap with updated keys after factor removal
 
     entry_finder dictionary with updated references to heap elements
@@ -336,14 +357,19 @@ def remove_next(heap, entry_finder, factors, var_sizes, edges, neighbors):
 
     return entry, heap, entry_finder, factors
 
-def find_cliques(tbd):
+def identify_cliques(triangulation):
     """
-    Input: ?
+    Input:
+    ------
+
+    A list of edges representing the triangulation
+    assumes that the first factor id in edge pair is
+    the factor that was eliminated during triangulation
 
     Output:
     -------
 
-    A list of maximal cliques where each maximal clique is a tuple/list of
+    A list of maximal cliques where each maximal clique is a list of
     factor indices it contains:
 
     [clique1, ..., cliqueK]
@@ -360,13 +386,30 @@ def find_cliques(tbd):
 
 
     """
+    d = {}
 
-def construct_junction_tree(tbd):
-    """
-    Input: ?
+    for n1,n2 in triangulation:
+        d.setdefault(n1,[]).append(n2)
+    clusters = [set((k,*v)) for k,v in d.items()]
+    # only retain clusters that are not a subset of another cluster
+    cliques = [list(c) for c in filter(lambda c1: not any(c2 < c2 for c2 in clusters), clusters)]
 
-    Output: ?
+    return cliques
+
+def construct_junction_tree(cliques):
     """
+    Input:
+    ------
+
+    A list of maximal cliques where each maximal clique is a list of
+    factor indices it contains
+
+    Output:
+    -------
+
+    A junction tree constructed from the input cliques
+    """
+
     raise NotImplementedError()
 
 

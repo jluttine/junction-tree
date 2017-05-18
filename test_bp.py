@@ -62,7 +62,7 @@ def assert_triangulated(factors, triangulation):
         assert sum(
                     [
                         1 for edge in triangulation
-                        if edge not in cycle and edge.issubset(cycle_factors)
+                        if edge not in cycle and set(edge).issubset(cycle_factors)
                     ]
         ) > 0
 
@@ -1875,20 +1875,86 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         fg = [_vars, factors, values]
         tri = bp.find_triangulation(fg[1], fg[0])
 
-        # only 1 clique should be returned as it is maximal and complete
-        assert len(tri) == 1
+        # triangulation should consist of 5 edges
 
-        assert tri[1] == [0,1,2,3]
+        assert len(tri) == 5
+
+        assert (0,3) in tri
+        assert (0,1) in tri
+        assert (1,2) in tri
+        assert (1,3) in tri
+        assert (2,3) in tri
 
         assert_triangulated(fg[1], tri)
 
-    def test_join_cliques_into_junction_tree(self):
-        '''
+    def test_identify_cliques(self):
+        """
+            test_identify_cliques
+
             Example taken from section 4.4.3 (Huang and Darwiche, 1996)
 
-            factors: 0 -> A, 1 -> B, 2 -> C, 3 -> D, 4 -> E, 5 -> F, 6 -> G,
-                        7 -> H
-        '''
+            factors: [
+                        ["A"], # 0
+                        ["B"], # 1
+                        ["C"], # 2
+                        ["D"], # 3
+                        ["E"], # 4
+                        ["F"], # 5
+                        ["G"], # 6
+                        ["H"]  # 7
+            ]
+        """
+        tri = [
+                # H eliminated
+                (7,4),
+                (7,6),
+                # G eliminated
+                (6,2),
+                (6,4),
+                # F eliminated
+                (5,3),
+                (5,4),
+                # C eliminated
+                (2,0),
+                (2,4),
+                # B eliminated
+                (1,0),
+                (1,3),
+                # D eliminated
+                (3,0),
+                (3,4),
+                # E eliminated
+                (4,0)
+                # A eliminated
+        ]
+
+        cliques = bp.identify_cliques(tri)
+
+        assert set([4,6,7]) in [set(c) for c in cliques]
+        assert set([2,4,6]) in [set(c) for c in cliques]
+        assert set([3,4,5]) in [set(c) for c in cliques]
+        assert set([0,2,4]) in [set(c) for c in cliques]
+        assert set([0,1,3]) in [set(c) for c in cliques]
+        assert set([0,3,4]) in [set(c) for c in cliques]
+
+
+    def test_join_cliques_into_junction_tree(self):
+        """
+            test_join_cliques_into_junction_tree
+
+            Example taken from section 4.4.3 (Huang and Darwiche, 1996)
+
+            factors: [
+                        ["A"], # 0
+                        ["B"], # 1
+                        ["C"], # 2
+                        ["D"], # 3
+                        ["E"], # 4
+                        ["F"], # 5
+                        ["G"], # 6
+                        ["H"]  # 7
+            ]
+        """
 
         cliques = [
                     [0,1,3],#["A","B","D"]
