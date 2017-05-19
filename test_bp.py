@@ -1937,6 +1937,38 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert set([0,1,3]) in [set(c) for c in cliques]
         assert set([0,3,4]) in [set(c) for c in cliques]
 
+    def test_join_trees_with_single_cliques(self):
+        tree_i = [0, [0,1,2]]
+        sepset = [2, [2]]
+        tree_j = [1, [2,3,4]]
+
+        output = insert_sepset(
+                            tree_i,
+                            tree_i[0],
+                            tree_j,
+                            tree_j[0],
+                            sepset[0],
+                            sepset[1]
+        )
+
+        tree_ij = [
+                0, [0,1,2],
+                (
+                    2, [2],
+                    [
+                        1, [2,3,4]
+                    ]
+                )
+            ]
+
+        assert_junction_tree_equal(output, tree_ij)
+
+    def test_join_tree_with_single_clique_to_multiclique_tree(self):
+        pass
+
+    def test_join_tree_with_multiple_cliques_to_tree_with_multiple_cliques(self):
+        pass
+
 
     def test_join_cliques_into_junction_tree(self):
         """

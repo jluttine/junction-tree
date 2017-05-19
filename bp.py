@@ -396,7 +396,7 @@ def identify_cliques(triangulation):
 
     return cliques
 
-def construct_junction_tree(cliques):
+def construct_junction_tree(cliques, factors, var_sizes):
     """
     Input:
     ------
@@ -407,12 +407,88 @@ def construct_junction_tree(cliques):
     Output:
     -------
 
-    A junction tree constructed from the input cliques
+    A list representing the junction tree structure constructed from the input cliques
     """
 
+    forest = [[c_idx, clique] for c_idx, clique in enumerate(cliques)]
+    # set of candidate sepsets
+    sepsets = list()
+    for i, X in enumerate(cliques):
+        for j, Y in enumerate(cliques[i+1:]):
+            sepset = tuple(set(X+Y))
+            sepsets.append((sepset, (i,j)))
+
+
+    heap = build_sepset_heap(sepsets, factors, var_sizes)
+    num_selected = 0
+    while len(selected) < len(cliques) - 1:
+        entry = heapq.heappop(heap)
+        ss_id = entry[2]
+        (c_i, c_j) = sepsets[ss_id]
+        # find tree (t_i) containing c_i
+        # find tree (t_j) containing c_j
+        # if t_i != t_j join t_i and t_j into t_ij
+            # and insert t_ij into forest and remove t_i and t_j
+            insert_sepset(t_i, c_i, t_j, c_j, len(cliques) + num_selected, sepsets[ss_id])
+        # num_selected += 1
+
+    return tree_struct
+
+def build_sepset_heap(sepsets, cliques, factors, var_sizes):
+    """
+    Input:
+    ------
+
+    Set of candidate sepsets consisting of sets of factor ids and
+        tuple of clique ids which produce sepset
+
+    Output:
+    -------
+
+    Heap of sepset entries
+
+    """
+
+    heap = []
+
+    for i, (ss, (c_i, c_j)) in enumerate(sepsets):
+        mass = len(set(ss))
+        weight_i = np.prod([var_sizes[var] for fac_id in cliques[c_i] for var in factors[fac_id]])
+        weight_i = np.prod([var_sizes[var] for fac_id in cliques[c_j] for var in factors[fac_id]])
+        # invert mass to use minheap
+        entry = [1.0/mass, weight_i + weight_j, i]
+        heapq.heappush(heap, entry)
+
+    return heap
+
+def insert_sepset(tree_i, clique_i_idx, tree_j, clique_j_idx, sepset_idx, sepset):
+    """
+    Input:
+    ------
+
+    Tree structure (list) containing clique_i
+
+    The clique id for clique_i
+
+    Tree structure (list) containing clique_j
+
+    The clique id for clique_j
+
+    The sepset id for the sepset to be inserted
+
+    The sepset (list of factor ids) to be inserted
+
+    Output:
+    -------
+
+    A tree structure (list) containing clique_i, clique_j, and sepset
+
+    """
+
+    #t_ij = t_i + [(len(cliques) + num_selected, sepsets[ss_id][0])]
+
     raise NotImplementedError()
-
-
+    
 def get_maximum_weight_spanning_tree(tbd):
     """
     Input: ?
