@@ -487,8 +487,15 @@ def insert_sepset(tree_i, clique_i_idx, tree_j, clique_j_idx, sepset_idx, sepset
 
     #t_ij = t_i + [(len(cliques) + num_selected, sepsets[ss_id][0])]
 
+    # make deep copy of t_i
+    # make deep copy of t_j
+
+    # combine t_j with sepset at clique_j position
+    # insert the combination into t_i after clique_i
+    # return the transformed t_i
+
     raise NotImplementedError()
-    
+
 def get_maximum_weight_spanning_tree(tbd):
     """
     Input: ?
