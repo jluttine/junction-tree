@@ -520,9 +520,13 @@ def change_root(tree, clique_ix):
         return tree
 
     # find child tree rooted by clique_ix
-    # make clique_ix's parent separator (ps) into a child separator of clique_ix
-    # make ps's parent clique a child of ps...
+    # remove parent separator (ps) of clique_ix's tree from list of separator's
+    #   of ps's parent clique (pc)
+    # make pc child of ps
+    # add ps to separator list of of tree rooted by clique_ix
+    # return tree rooted by clique_ix
 
+    # return tree rooted by clique_ix
     return tree
 
 def get_maximum_weight_spanning_tree(tbd):
