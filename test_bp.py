@@ -23,16 +23,32 @@ def assert_junction_tree_equal(t1, t2):
     just add levels.
 
     """
-    # Equality of arrays
-    np.testing.assert_allclose(t1[0], t2[0])
+    # Equality of ids
+    assert t1[0] == t2[0]
     # Equality of keys
-    assert t1[1] == t2[1]
-
+    assert set(t1[1]) == set(t2[1])
+    print("\n")
+    print(t1)
+    print(t2)
     # Same number of child trees
-    assert len(t1) == len(t2)
+    assert len(t1[2:]) == len(t2[2:])
     # Equality of child trees (recursively)
-    for (child_t1, child_t2) in zip(t1[2:], t2[2:]):
-        assert_junction_tree_equal(child_t1, child_t2)
+    for sep_and_child1 in t1[2:]:
+        matched = False
+        sep1_ix = sep_and_child1[0]
+        sep1_factors = sep_and_child1[1]
+        child_t1 = sep_and_child1[2]
+        for sep_and_child2 in t2[2:]:
+            sep2_ix = sep_and_child2[0]
+            if sep1_ix == sep2_ix:
+                matched = True
+                sep2_factors = sep_and_child2[1]
+                child_t2 = sep_and_child2[2]
+                assert_junction_tree_equal(child_t1, child_t2)
+                break
+
+        assert matched == True
+
 
 
 
@@ -207,14 +223,14 @@ def assert_junction_tree_consistent(tree, potentials):
     assert np.all(
                     [
                         potentials_consistent(
-                                            potentials[c_idx1],
+                                            potentials[c_ix1],
                                             c_vars1,
-                                            potentials[c_idx2],
+                                            potentials[c_ix2],
                                             c_vars2
                         )
-                        for c_idx1,
+                        for c_ix1,
                             c_vars1,
-                            c_idx2,
+                            c_ix2,
                             c_vars2 in bp.generate_potential_pairs(tree.get_struct())
                 ]
             )
@@ -833,33 +849,33 @@ class TestHUGINFunctionality(unittest.TestCase):
             clique, _vars = bp.get_clique(jt.get_struct(), var)
             pot = phi1[clique]
             assert pot.shape == phi[clique].shape
-            var_idx = _vars.index(var)
+            var_ix = _vars.index(var)
             # check that potential properly updated
-            mask = [val == dim for dim in range(pot.shape[var_idx])]
+            mask = [val == dim for dim in range(pot.shape[var_ix])]
             # values along var axis not equal to val will have a 0 value
-            assert np.all(np.compress(np.invert(mask), pot, axis=var_idx)) == 0
+            assert np.all(np.compress(np.invert(mask), pot, axis=var_ix)) == 0
             # ensure that var axis equal to val is equivalent in both original and new potentials
             np.testing.assert_array_equal(
-                                            np.compress(mask, pot, axis=var_idx),
-                                            np.compress(mask, phi[clique], axis=var_idx)
+                                            np.compress(mask, pot, axis=var_ix),
+                                            np.compress(mask, phi[clique], axis=var_ix)
                                         )
 
         # test that no change made to potential values for unobserved variables
         for var in jt.get_vars():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique_idx, _vars in bp.get_cliques(jt.get_struct(), var):
-                    pot = phi1[clique_idx]
+                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
+                    pot = phi1[clique_ix]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
                     # retain indices in array which all observed axes set to observed val
                     # if none observed this should just evaluate to all indices of the potential
-                    test_indices = np.array([a_idx for a_idx in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_idx)) == (test_arr > -1).sum()]).transpose()
+                    test_indices = np.array([a_ix for a_ix in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_ix)) == (test_arr > -1).sum()]).transpose()
                     flat_indices = np.ravel_multi_index(test_indices, pot.shape)
                     # elements at these indices should not have changed by observations
                     np.testing.assert_array_equal(
                                                     np.take(pot, flat_indices),
-                                                    np.take(phi[clique_idx], flat_indices)
+                                                    np.take(phi[clique_ix], flat_indices)
                                                 )
 
 
@@ -936,28 +952,28 @@ class TestHUGINFunctionality(unittest.TestCase):
             clique, _vars = bp.get_clique(jt.get_struct(), var)
             pot = phi3[clique]
             assert pot.shape == phi[clique].shape
-            var_idx = _vars.index(var)
+            var_ix = _vars.index(var)
             # check that potential properly updated
-            mask = [val == dim for dim in range(pot.shape[var_idx])]
+            mask = [val == dim for dim in range(pot.shape[var_ix])]
             # values along var axis not equal to val will have a 0 value
-            assert np.all(np.compress(np.invert(mask), pot, axis=var_idx)) == 0
+            assert np.all(np.compress(np.invert(mask), pot, axis=var_ix)) == 0
             # ensure that var axis equal to val is equivalent in both original and new potentials
             np.testing.assert_array_equal(
-                                            np.compress(mask, pot, axis=var_idx),
-                                            np.compress(mask, phi[clique], axis=var_idx)
+                                            np.compress(mask, pot, axis=var_ix),
+                                            np.compress(mask, phi[clique], axis=var_ix)
                                         )
 
         # test that no change made to potential values for unobserved variables
         for var in jt.get_vars():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique_idx, _vars in bp.get_cliques(jt.get_struct(), var):
-                    pot = phi3[clique_idx]
+                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
+                    pot = phi3[clique_ix]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
                     # retain indices in array which all observed axes set to observed val
                     # if none observed this should just evaluate to all indices of the potential
-                    test_indices = np.array([a_idx for a_idx in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_idx)) == (test_arr > -1).sum()]).transpose()
+                    test_indices = np.array([a_ix for a_ix in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_ix)) == (test_arr > -1).sum()]).transpose()
                     flat_indices = np.ravel_multi_index(test_indices, pot.shape)
                     # elements at these indices should not have changed by observations
                     np.testing.assert_array_equal(
@@ -1039,28 +1055,28 @@ class TestHUGINFunctionality(unittest.TestCase):
             clique, _vars = bp.get_clique(jt.get_struct(), var)
             pot = phi3[clique]
             assert pot.shape == phi[clique].shape
-            var_idx = _vars.index(var)
+            var_ix = _vars.index(var)
             # check that potential properly updated
-            mask = [val == dim for dim in range(pot.shape[var_idx])]
+            mask = [val == dim for dim in range(pot.shape[var_ix])]
             # values along var axis not equal to val will have a 0 value
-            assert np.all(np.compress(np.invert(mask), pot, axis=var_idx)) == 0
+            assert np.all(np.compress(np.invert(mask), pot, axis=var_ix)) == 0
             # ensure that var axis equal to val is equivalent in both original and new potentials
             np.testing.assert_array_equal(
-                                            np.compress(mask, pot, axis=var_idx),
-                                            np.compress(mask, phi[clique], axis=var_idx)
+                                            np.compress(mask, pot, axis=var_ix),
+                                            np.compress(mask, phi[clique], axis=var_ix)
                                         )
 
         # test that no change made to potential values for unobserved variables
         for var in jt.get_vars():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique_idx, _vars in bp.get_cliques(jt.get_struct(), var):
-                    pot = phi3[clique_idx]
+                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
+                    pot = phi3[clique_ix]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
                     # retain indices in array which all observed axes set to observed val
                     # if none observed this should just evaluate to all indices of the potential
-                    test_indices = np.array([a_idx for a_idx in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_idx)) == (test_arr > -1).sum()]).transpose()
+                    test_indices = np.array([a_ix for a_ix in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_ix)) == (test_arr > -1).sum()]).transpose()
                     flat_indices = np.ravel_multi_index(test_indices, pot.shape)
                     # elements at these indices should not have changed by observations
                     np.testing.assert_array_equal(
@@ -1145,28 +1161,28 @@ class TestHUGINFunctionality(unittest.TestCase):
             clique, _vars = bp.get_clique(jt.get_struct(), var)
             pot = phi3[clique]
             assert pot.shape == phi[clique].shape
-            var_idx = _vars.index(var)
+            var_ix = _vars.index(var)
             # check that potential properly updated
-            mask = [val == dim for dim in range(pot.shape[var_idx])]
+            mask = [val == dim for dim in range(pot.shape[var_ix])]
             # values along var axis not equal to val will have a 0 value
-            assert np.all(np.compress(np.invert(mask), pot, axis=var_idx)) == 0
+            assert np.all(np.compress(np.invert(mask), pot, axis=var_ix)) == 0
             # ensure that var axis equal to val is equivalent in both original and new potentials
             np.testing.assert_array_equal(
-                                            np.compress(mask, pot, axis=var_idx),
-                                            np.compress(mask, phi[clique], axis=var_idx)
+                                            np.compress(mask, pot, axis=var_ix),
+                                            np.compress(mask, phi[clique], axis=var_ix)
                                         )
 
         # test that no change made to potential values for unobserved variables
         for var in jt.get_vars():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique_idx, _vars in bp.get_cliques(jt.get_struct(), var):
-                    pot = phi3[clique_idx]
+                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
+                    pot = phi3[clique_ix]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
                     # retain indices in array which all observed axes set to observed val
                     # if none observed this should just evaluate to all indices of the potential
-                    test_indices = np.array([a_idx for a_idx in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_idx)) == (test_arr > -1).sum()]).transpose()
+                    test_indices = np.array([a_ix for a_ix in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_ix)) == (test_arr > -1).sum()]).transpose()
                     flat_indices = np.ravel_multi_index(test_indices, pot.shape)
                     # elements at these indices should not have changed by observations
                     np.testing.assert_array_equal(
@@ -1942,7 +1958,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [2, [2]]
         tree_j = [1, [2,3,4]]
 
-        output = insert_sepset(
+        output = bp.insert_sepset(
                             tree_i,
                             tree_i[0],
                             tree_j,
@@ -1964,10 +1980,252 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert_junction_tree_equal(output, tree_ij)
 
     def test_join_tree_with_single_clique_to_multiclique_tree(self):
-        pass
+        tree_i = [0, [0,2,4]]
+        sepset = [3, [4]]
+        tree_j = [4, [3,4], (5, [3],[6, [1,2,3]])]
+
+        output = bp.insert_sepset(
+                            tree_i,
+                            tree_i[0],
+                            tree_j,
+                            tree_j[0],
+                            sepset[0],
+                            sepset[1]
+        )
+        tree_ij = [
+                    0, [0,2,4],
+                    (
+                        3, [4],
+                        [
+                            4, [3,4],
+                            (
+                                5, [3],
+                                [
+                                    6, [1,2,3]
+                                ]
+                            )
+                        ]
+                    )
+        ]
+
+        assert_junction_tree_equal(output, tree_ij)
+
 
     def test_join_tree_with_multiple_cliques_to_tree_with_multiple_cliques(self):
-        pass
+        tree_i = [0, [0,2,4], (1, [0,2], [2, [0,1,2]])]
+        sepset = [3, [4]]
+        tree_j = [4, [3,4], (5, [3],[6, [1,2,3]])]
+
+        output = bp.insert_sepset(
+                            tree_i,
+                            tree_i[0],
+                            tree_j,
+                            tree_j[0],
+                            sepset[0],
+                            sepset[1]
+        )
+        tree_ij = [
+                    0, [0,2,4],
+                    (
+                        1, [0,2],
+                        [
+                            2, [0,1,2]
+                        ]
+                    ),
+                    (
+                        3, [4],
+                        [
+                            4, [3,4],
+                            (
+                                5, [3],
+                                [
+                                    6, [1,2,3]
+                                ]
+                            )
+                        ]
+                    )
+        ]
+
+        assert_junction_tree_equal(output, tree_ij)
+
+    def test_change_root(self):
+        tree1 = [
+                    4,[0,8],
+                    (
+                        5, [0],
+                        [
+                            0, [0,2,4],
+                            (
+                                1, [2],
+                                [
+                                    2, [1,2]
+                                ]
+                            )
+                        ]
+                    )
+                ]
+
+        output = bp.change_root(tree1, 4)
+
+        assert output == tree1
+
+        output = bp.change_root(tree1, 0)
+
+        tree2 = [
+                    0, [0,2,4],
+                    (
+                        1, [2],
+                        [
+                            2, [1,2]
+                        ]
+                    ),
+                    (
+                        5, [0],
+                        [
+                            4, [0,8]
+                        ]
+                    )
+                ]
+
+        assert output == tree2
+        assert assert_junction_tree_equal(tree1, output)
+
+    def test_join_trees_with_multiple_cliques_with_first_nested(self):
+        tree_i = [4,[0,8], (5, [0], [0, [0,2,4], (1, [2], [2, [1,2]])])]
+        sepset = [3, [4]]
+        tree_j = [8, [4,5,6], (9, [6], [10, [6,7]])]
+
+        output = bp.insert_sepset(
+                            tree_i,
+                            tree_i[0],
+                            tree_j,
+                            tree_j[0],
+                            sepset[0],
+                            sepset[1]
+        )
+        tree_ij = [
+                    4, [0,8],
+                    (
+                        5, [0],
+                        [
+                            0, [0,2,4],
+                            (
+                                1, [2],
+                                [
+                                    2, [1,2]
+                                ]
+                            ),
+                            (
+                                3, [4],
+                                [
+                                    8, [4,5,6],
+                                    (
+                                        9, [6],
+                                        [
+                                            10, [6,7]
+                                        ]
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                ]
+
+        assert_junction_tree_equal(output, tree_ij)
+
+
+    def test_join_trees_with_multiple_cliques_with_second_nested(self):
+        tree_i = [0, [0,2,4], (1, [0,2], [2, [0,1,2]])]
+        sepset = [3, [4]]
+        tree_j = [6, [3,5,8], (7, [5], [8, [4,5,6], (9, [6], [10, [6,7]])])]
+
+        output = bp.insert_sepset(
+                            tree_i,
+                            tree_i[0],
+                            tree_j,
+                            tree_j[0],
+                            sepset[0],
+                            sepset[1]
+        )
+        tree_ij = [
+                    0, [0,2,4],
+                    (
+                        1, [0,2],
+                        [
+                            2, [0,1,2]
+                        ]
+                    ),
+                    (
+                        3, [4],
+                        [
+                            8, [4,5,6],
+                            (
+                                9, [6],
+                                [
+                                    10, [6,7]
+                                ]
+                            ),
+                            (
+                                7, [5],
+                                [
+                                    6, [3,5,8]
+                                ]
+                            )
+                        ]
+                    )
+        ]
+
+        assert_junction_tree_equal(output, tree_ij)
+
+    def test_join_trees_with_multiple_cliques_with_both_nested(self):
+        tree_i = [4,[0,8], (5, [0], [0, [0,2,4], (1, [2], [2, [1,2]])])]
+        sepset = [3, [4]]
+        tree_j = [6, [3,5], (7, [5], [8, [4,5,6], (9, [6], [10, [6,7]])])]
+
+        output = bp.insert_sepset(
+                            tree_i,
+                            tree_i[0],
+                            tree_j,
+                            tree_j[0],
+                            sepset[0],
+                            sepset[1]
+        )
+        tree_ij = [
+                    4, [0,8],
+                    (
+                        5, [0],
+                        [
+                            0, [0,2,4],
+                            (
+                                1, [2],
+                                [
+                                    2, [1,2]
+                                ]
+                            ),
+                            (
+                                3, [4],
+                                [
+                                    8, [4,5,6],
+                                    (
+                                        9, [6],
+                                        [
+                                            10, [6,7]
+                                        ]
+                                    ),
+                                    (
+                                        7, [5],
+                                        [
+                                            6, [3,5,8]
+                                        ]
+                                    )
+                                ]
+                            )
+                        ]
+                    )
+                ]
+
+
+        assert_junction_tree_equal(output, tree_ij)
 
 
     def test_join_cliques_into_junction_tree(self):
@@ -2017,11 +2275,11 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 (
                     5, [0,4],
                     [
-                        6, [0,2,4]
+                        6, [0,2,4],
                         (
                             7, [2,4],
                             [
-                                8, [2,4,6]
+                                8, [2,4,6],
                                 (
                                     9, [4,6],
                                     [

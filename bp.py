@@ -167,8 +167,8 @@ def find_triangulation(factors, var_sizes):
                                                         edges,
                                                         neighbors
         )
-        rm_factor_idx = item[2]
-        tri.extend([(rm_factor_idx,n) for n in neighbors[rm_factor_idx] if len(_factors[n])])
+        rm_factor_ix = item[2]
+        tri.extend([(rm_factor_ix,n) for n in neighbors[rm_factor_ix] if len(_factors[n])])
 
 
     return tri
@@ -264,7 +264,7 @@ def update_heap(factors, edges, neighbors, var_sizes, heap=None, entry_finder=No
 
     list of factors
 
-    list of edges (factor idx pairs)
+    list of edges (factor ix pairs)
 
     dictionary of variables (variable is key, size is value)
 
@@ -410,7 +410,7 @@ def construct_junction_tree(cliques, factors, var_sizes):
     A list representing the junction tree structure constructed from the input cliques
     """
 
-    forest = [[c_idx, clique] for c_idx, clique in enumerate(cliques)]
+    forest = [[c_ix, clique] for c_ix, clique in enumerate(cliques)]
     # set of candidate sepsets
     sepsets = list()
     for i, X in enumerate(cliques):
@@ -429,7 +429,7 @@ def construct_junction_tree(cliques, factors, var_sizes):
         # find tree (t_j) containing c_j
         # if t_i != t_j join t_i and t_j into t_ij
             # and insert t_ij into forest and remove t_i and t_j
-            insert_sepset(t_i, c_i, t_j, c_j, len(cliques) + num_selected, sepsets[ss_id])
+            #insert_sepset(t_i, c_i, t_j, c_j, len(cliques) + num_selected, sepsets[ss_id])
         # num_selected += 1
 
     return tree_struct
@@ -461,7 +461,7 @@ def build_sepset_heap(sepsets, cliques, factors, var_sizes):
 
     return heap
 
-def insert_sepset(tree_i, clique_i_idx, tree_j, clique_j_idx, sepset_idx, sepset):
+def insert_sepset(tree_i, clique_i_ix, tree_j, clique_j_ix, sepset_ix, sepset):
     """
     Input:
     ------
@@ -485,16 +485,45 @@ def insert_sepset(tree_i, clique_i_idx, tree_j, clique_j_idx, sepset_idx, sepset
 
     """
 
-    #t_ij = t_i + [(len(cliques) + num_selected, sepsets[ss_id][0])]
+    t_i = copy.deepcopy(tree_i)
+    t_j = copy.deepcopy(tree_j)
 
-    # make deep copy of t_i
-    # make deep copy of t_j
+    t_ij = t_i + [(sepset_ix, sepset, tree_j)]
 
     # combine t_j with sepset at clique_j position
     # insert the combination into t_i after clique_i
     # return the transformed t_i
 
-    raise NotImplementedError()
+    return t_ij
+
+def change_root(tree, clique_ix):
+    """
+    Input:
+    ------
+
+    Tree to be altered
+
+    Id of the clique that will become tree's root
+
+    Output:
+    -------
+
+    Tree with clique_ix as root.
+
+    If clique_ix not in tree or clique_ix is already
+    root of tree tree is returned
+    """
+
+    if len(tree) < 2:
+        raise ValueError("Must provide a valid tree")
+    if tree[0] == clique_ix:
+        return tree
+
+    # find child tree rooted by clique_ix
+    # make clique_ix's parent separator (ps) into a child separator of clique_ix
+    # make ps's parent clique a child of ps...
+
+    return tree
 
 def get_maximum_weight_spanning_tree(tbd):
     """
@@ -582,13 +611,13 @@ def initialize(tree):
 def collect(tree, var_labels, potentials, visited, distributive_law):
     """ Used by Hugin algorithm to collect messages """
     print(tree)
-    clique_idx, clique_vars = tree[:2]
+    clique_ix, clique_vars = tree[:2]
     # set clique_index in visited to 1
-    visited[clique_idx] = 1
+    visited[clique_ix] = 1
 
     # loop over neighbors of root of tree
     for neighbor in tree[2:]:
-        sep_idx, sep_vars, child = neighbor
+        sep_ix, sep_vars, child = neighbor
         # call collect on neighbor if not marked as visited
         if not visited[child[0]]:
             potentials = collect(
@@ -600,11 +629,11 @@ def collect(tree, var_labels, potentials, visited, distributive_law):
             )
             new_clique_pot, new_sep_pot = distributive_law.update(
                                         potentials[child[0]], child[1],
-                                        potentials[clique_idx], clique_vars,
-                                        potentials[sep_idx], sep_vars
+                                        potentials[clique_ix], clique_vars,
+                                        potentials[sep_ix], sep_vars
             )
-            potentials[clique_idx] = new_clique_pot
-            potentials[sep_idx] = new_sep_pot
+            potentials[clique_ix] = new_clique_pot
+            potentials[sep_ix] = new_sep_pot
 
     # return the updated potentials
     return potentials
@@ -613,21 +642,21 @@ def collect(tree, var_labels, potentials, visited, distributive_law):
 def distribute(tree, var_labels, potentials, visited, distributive_law):
     """ Used by Hugin algorithm to distribute messages """
     # set clique_index in visited to 1
-    clique_idx, clique_vars = tree[:2]
-    visited[clique_idx] = 1
+    clique_ix, clique_vars = tree[:2]
+    visited[clique_ix] = 1
 
     # loop over neighbors of root of tree
     for neighbor in tree[2:]:
-        sep_idx, sep_vars, child = neighbor
+        sep_ix, sep_vars, child = neighbor
         # call distribute on neighbor if not marked as visited
         if not visited[child[0]]:
             new_clique_pot, new_sep_pot = distributive_law.update(
-                                        potentials[clique_idx], clique_vars,
+                                        potentials[clique_ix], clique_vars,
                                         potentials[child[0]], child[1],
-                                        potentials[sep_idx], sep_vars
+                                        potentials[sep_ix], sep_vars
             )
             potentials[child[0]] = new_clique_pot
-            potentials[sep_idx] = new_sep_pot
+            potentials[sep_ix] = new_sep_pot
             potentials = distribute(
                                 child,
                                 var_labels,
@@ -676,17 +705,17 @@ def hugin(junction_tree, potentials, distributive_law):
     )
 
 def get_clique(tree, var_label):
-    idx, keys = tree[0:2]
+    ix, keys = tree[0:2]
     separators = tree[2:]
     if var_label in keys:
-        return idx, keys
+        return ix, keys
     if separators == (): # base case reached (leaf)
         return None
 
     for separator in separators:
-        separator_idx, separator_keys, c_tree = separator
+        separator_ix, separator_keys, c_tree = separator
         if var_label in separator_keys:
-            return separator_idx, separator_keys
+            return separator_ix, separator_keys
         clique_info = get_clique(c_tree, var_label)
         if clique_info:
             return clique_info
@@ -694,10 +723,10 @@ def get_clique(tree, var_label):
     return None
 
 def marginalize(tree, potentials, var_label):
-    clique_idx, clique_keys = get_clique_of_var(tree.get_struct(), var_label)
+    clique_ix, clique_keys = get_clique_of_var(tree.get_struct(), var_label)
 
     return compute_marginal(
-                        potentials[clique_idx],
+                        potentials[clique_ix],
                         list(range(len(clique_keys))),
                         [clique_keys.index(var_label)]
     )
@@ -716,13 +745,13 @@ def observe(tree, potentials, data):
     # alter potentials based on likelihoods
     for var_lbl in data:
         # find clique that contains var
-        clique_idx, clique_keys = get_clique_of_var(tree.get_struct(), var_lbl)
+        clique_ix, clique_keys = get_clique_of_var(tree.get_struct(), var_lbl)
         # multiply clique's potential by likelihood
-        pot = potentials[clique_idx]
-        var_idx = tree.get_var_idx(clique_idx, var_lbl)
+        pot = potentials[clique_ix]
+        var_ix = tree.get_var_ix(clique_ix, var_lbl)
         # reshape likelihood potential to allow multiplication with pot
-        ll_pot = np.array(ll[tree.find_var(var_lbl)]).reshape([1 if i!=var_idx else s for i, s in enumerate(pot.shape)])
-        potentials[clique_idx] = pot*ll_pot
+        ll_pot = np.array(ll[tree.find_var(var_lbl)]).reshape([1 if i!=var_ix else s for i, s in enumerate(pot.shape)])
+        potentials[clique_ix] = pot*ll_pot
     return (ll,potentials)
 
 def copy_factor_graph(fg):
@@ -794,20 +823,20 @@ def get_cliques(tree, var):
 
 def get_clique_of_var(tree, var_label):
     #for seperator in self.
-    idx, keys = tree[0:2]
+    ix, keys = tree[0:2]
     separators = tree[2:]
     if var_label in keys:
-        return idx, keys
+        return ix, keys
     if separators == (): # base case reached (leaf)
         return None, None
 
     for separator in separators:
-        separator_idx, separator_keys, c_tree = separator
+        separator_ix, separator_keys, c_tree = separator
         if var_label in separator_keys:
-            return separator_idx, separator_keys
-        clique_idx, clique_keys = get_clique_of_var(c_tree, var_label)
-        if clique_idx:
-            return clique_idx, clique_keys
+            return separator_ix, separator_keys
+        clique_ix, clique_keys = get_clique_of_var(c_tree, var_label)
+        if clique_ix:
+            return clique_ix, clique_keys
 
     return None, None
 
@@ -878,14 +907,14 @@ class JunctionTree(object):
 
     def find_var(self, var_label):
         try:
-            var_idx = self.labels[var_label]
-            return var_idx
+            var_ix = self.labels[var_label]
+            return var_ix
         except ValueError:
             return None
 
-    def get_var_idx(self, clique_idx, var_label):
+    def get_var_ix(self, clique_ix, var_label):
         try:
-            keys = get_clique_keys(self.get_struct(), clique_idx)
+            keys = get_clique_keys(self.get_struct(), clique_ix)
             return keys.index(var_label)
         except (AttributeError, ValueError):
             return None
