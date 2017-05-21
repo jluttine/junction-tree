@@ -496,7 +496,7 @@ def insert_sepset(tree_i, clique_i_ix, tree_j, clique_j_ix, sepset_ix, sepset):
 
     return t_ij
 
-def change_root(tree, clique_ix):
+def change_root(tree, clique_ix, p_tree=None):
     """
     Input:
     ------
@@ -505,19 +505,52 @@ def change_root(tree, clique_ix):
 
     Id of the clique that will become tree's root
 
+    Parent tree of tree if tree is not root
+
     Output:
     -------
 
     Tree with clique_ix as root.
 
     If clique_ix not in tree or clique_ix is already
-    root of tree tree is returned
+    root of tree, tree is returned
     """
 
     if len(tree) < 2:
         raise ValueError("Must provide a valid tree")
+    if len(tree) == 2:
+        return p_tree
     if tree[0] == clique_ix:
-        return tree
+        if p_tree == None:
+            # clique_ix is already root
+            return tree
+        # find separator between tree root and gp_tree root
+        for i, sep_group in enumerate(p_tree[2:]):
+            child_list = []
+            if sep_group[2][0] == tree[0]:
+                break
+
+
+        # make parent tree child of tree with clique_ix as root
+        return sep_group[2] + [
+                                    (
+                                        sep_group[0], sep_group[1],
+                                        # remove separator from parent tree
+                                        p_tree[:i+2] + p_tree[i+3:]
+                                    )
+                                ]
+
+    results = [
+                change_root(sep_group[2], clique_ix, tree)
+                for sep_group in tree[2:]
+            ]
+    for trans_tree in results:
+        if trans_tree != tree:
+            return trans_tree
+
+    # no transformations took place
+    return p_tree if p_tree else tree
+
 
     # find child tree rooted by clique_ix
     # remove parent separator (ps) of clique_ix's tree from list of separator's

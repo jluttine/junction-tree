@@ -15,40 +15,33 @@ import copy
 def assert_junction_tree_equal(t1, t2):
     """Test equality of two junction trees
 
-    Junction tree syntax:
-
-    [array, keys, child_tree1, ..., child_treeN]
-
-    Note this syntax supports separators in the trees because the separators
-    just add levels.
+    Both trees contain same edges and cliques have same keys
 
     """
-    # Equality of ids
-    assert t1[0] == t2[0]
-    # Equality of keys
-    assert set(t1[1]) == set(t2[1])
-    print("\n")
-    print(t1)
-    print(t2)
-    # Same number of child trees
-    assert len(t1[2:]) == len(t2[2:])
-    # Equality of child trees (recursively)
-    for sep_and_child1 in t1[2:]:
-        matched = False
-        sep1_ix = sep_and_child1[0]
-        sep1_factors = sep_and_child1[1]
-        child_t1 = sep_and_child1[2]
-        for sep_and_child2 in t2[2:]:
-            sep2_ix = sep_and_child2[0]
-            if sep1_ix == sep2_ix:
-                matched = True
-                sep2_factors = sep_and_child2[1]
-                child_t2 = sep_and_child2[2]
-                assert_junction_tree_equal(child_t1, child_t2)
-                break
 
-        assert matched == True
 
+
+    def __build_dict(tree):
+        # dict are: clique_ix -> (keys, neighbors)
+        d = {}
+        stack = [tree]
+        d[tree[0]] = (tree[1],set())
+        while stack:
+            tree = stack.pop()
+            for child in reversed(tree[2:]):
+                d[tree[0]][1].add(child[0])
+                # child clique entry initialized
+                d[child[2][0]] = (child[2][1], set([child[0]]))
+                # separator entered in dictionary
+                d[child[0]] = (child[1], set([tree[0],child[2][0]]))
+                stack.append(child[2])
+
+        return d
+
+    d1 = __build_dict(t1)
+    d2 = __build_dict(t2)
+
+    assert d1 == d2
 
 
 
@@ -2088,7 +2081,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 ]
 
         assert output == tree2
-        assert assert_junction_tree_equal(tree1, output)
+        assert_junction_tree_equal(tree1, output)
 
     def test_join_trees_with_multiple_cliques_with_first_nested(self):
         tree_i = [4,[0,8], (5, [0], [0, [0,2,4], (1, [2], [2, [1,2]])])]
