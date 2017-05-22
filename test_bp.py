@@ -52,7 +52,6 @@ def assert_factor_graph_equal(fg1, fg2):
     assert len(fg1[1]) == len(fg2[1])
     assert np.all([a1 == a2 for a1,a2 in zip(fg1[1],fg2[1])])
     assert len(fg1[2]) == len(fg2[2])
-    print([np.testing.assert_allclose(a1, a2) for a1,a2 in zip(fg1[2],fg2[2])])
     assert np.all([np.allclose(a1, a2) for a1,a2 in zip(fg1[2],fg2[2])])
 
 def assert_triangulated(factors, triangulation):
@@ -1947,20 +1946,20 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert set([0,3,4]) in [set(c) for c in cliques]
 
     def test_join_trees_with_single_cliques(self):
-        tree_i = [0, [0,1,2]]
+        tree1 = [0, [0,1,2]]
         sepset = [2, [2]]
-        tree_j = [1, [2,3,4]]
+        tree2 = [1, [2,3,4]]
 
         output = bp.insert_sepset(
-                            tree_i,
-                            tree_i[0],
-                            tree_j,
-                            tree_j[0],
+                            tree1,
+                            tree1[0],
+                            tree2,
+                            tree2[0],
                             sepset[0],
                             sepset[1]
         )
 
-        tree_ij = [
+        merged_tree = [
                 0, [0,1,2],
                 (
                     2, [2],
@@ -1970,22 +1969,23 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 )
             ]
 
-        assert_junction_tree_equal(output, tree_ij)
+
+        assert_junction_tree_equal(output, merged_tree)
 
     def test_join_tree_with_single_clique_to_multiclique_tree(self):
-        tree_i = [0, [0,2,4]]
+        tree1 = [0, [0,2,4]]
         sepset = [3, [4]]
-        tree_j = [4, [3,4], (5, [3],[6, [1,2,3]])]
+        tree2 = [4, [3,4], (5, [3],[6, [1,2,3]])]
 
         output = bp.insert_sepset(
-                            tree_i,
-                            tree_i[0],
-                            tree_j,
-                            tree_j[0],
+                            tree1,
+                            tree1[0],
+                            tree2,
+                            tree2[0],
                             sepset[0],
                             sepset[1]
         )
-        tree_ij = [
+        merged_tree = [
                     0, [0,2,4],
                     (
                         3, [4],
@@ -2001,23 +2001,23 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
         ]
 
-        assert_junction_tree_equal(output, tree_ij)
+        assert_junction_tree_equal(output, merged_tree)
 
 
     def test_join_tree_with_multiple_cliques_to_tree_with_multiple_cliques(self):
-        tree_i = [0, [0,2,4], (1, [0,2], [2, [0,1,2]])]
+        tree1 = [0, [0,2,4], (1, [0,2], [2, [0,1,2]])]
         sepset = [3, [4]]
-        tree_j = [4, [3,4], (5, [3],[6, [1,2,3]])]
+        tree2 = [4, [3,4], (5, [3],[6, [1,2,3]])]
 
         output = bp.insert_sepset(
-                            tree_i,
-                            tree_i[0],
-                            tree_j,
-                            tree_j[0],
+                            tree1,
+                            tree1[0],
+                            tree2,
+                            tree2[0],
                             sepset[0],
                             sepset[1]
         )
-        tree_ij = [
+        merged_tree = [
                     0, [0,2,4],
                     (
                         1, [0,2],
@@ -2039,7 +2039,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
         ]
 
-        assert_junction_tree_equal(output, tree_ij)
+        assert_junction_tree_equal(output, merged_tree)
 
     def test_change_root(self):
         tree1 = [
@@ -2084,19 +2084,19 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert_junction_tree_equal(tree1, output)
 
     def test_join_trees_with_multiple_cliques_with_first_nested(self):
-        tree_i = [4,[0,8], (5, [0], [0, [0,2,4], (1, [2], [2, [1,2]])])]
+        tree1 = [4,[0,8], (5, [0], [0, [0,2,4], (1, [2], [2, [1,2]])])]
         sepset = [3, [4]]
-        tree_j = [8, [4,5,6], (9, [6], [10, [6,7]])]
+        tree2 = [8, [4,5,6], (9, [6], [10, [6,7]])]
 
         output = bp.insert_sepset(
-                            tree_i,
-                            tree_i[0],
-                            tree_j,
-                            tree_j[0],
+                            tree1,
+                            0,
+                            tree2,
+                            8,
                             sepset[0],
                             sepset[1]
         )
-        tree_ij = [
+        merged_tree = [
                     4, [0,8],
                     (
                         5, [0],
@@ -2124,23 +2124,23 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
                 ]
 
-        assert_junction_tree_equal(output, tree_ij)
+        assert_junction_tree_equal(output, merged_tree)
 
 
     def test_join_trees_with_multiple_cliques_with_second_nested(self):
-        tree_i = [0, [0,2,4], (1, [0,2], [2, [0,1,2]])]
+        tree1 = [0, [0,2,4], (1, [0,2], [2, [0,1,2]])]
         sepset = [3, [4]]
-        tree_j = [6, [3,5,8], (7, [5], [8, [4,5,6], (9, [6], [10, [6,7]])])]
+        tree2 = [6, [3,5,8], (7, [5], [8, [4,5,6], (9, [6], [10, [6,7]])])]
 
         output = bp.insert_sepset(
-                            tree_i,
-                            tree_i[0],
-                            tree_j,
-                            tree_j[0],
+                            tree1,
+                            0,
+                            tree2,
+                            8,
                             sepset[0],
                             sepset[1]
         )
-        tree_ij = [
+        merged_tree = [
                     0, [0,2,4],
                     (
                         1, [0,2],
@@ -2168,22 +2168,23 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
         ]
 
-        assert_junction_tree_equal(output, tree_ij)
+        assert_junction_tree_equal(output, merged_tree)
 
     def test_join_trees_with_multiple_cliques_with_both_nested(self):
-        tree_i = [4,[0,8], (5, [0], [0, [0,2,4], (1, [2], [2, [1,2]])])]
+        tree1 = [4,[0,8], (5, [0], [0, [0,2,4], (1, [2], [2, [1,2]])])]
         sepset = [3, [4]]
-        tree_j = [6, [3,5], (7, [5], [8, [4,5,6], (9, [6], [10, [6,7]])])]
+        tree2 = [6, [3,5], (7, [5], [8, [4,5,6], (9, [6], [10, [6,7]])])]
 
         output = bp.insert_sepset(
-                            tree_i,
-                            tree_i[0],
-                            tree_j,
-                            tree_j[0],
+                            tree1,
+                            0,
+                            tree2,
+                            8,
                             sepset[0],
                             sepset[1]
         )
-        tree_ij = [
+
+        merged_tree = [
                     4, [0,8],
                     (
                         5, [0],
@@ -2208,7 +2209,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                                     (
                                         7, [5],
                                         [
-                                            6, [3,5,8]
+                                            6, [3,5]
                                         ]
                                     )
                                 ]
@@ -2218,7 +2219,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 ]
 
 
-        assert_junction_tree_equal(output, tree_ij)
+        assert_junction_tree_equal(output, merged_tree)
 
 
     def test_join_cliques_into_junction_tree(self):
@@ -2227,17 +2228,29 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
             Example taken from section 4.4.3 (Huang and Darwiche, 1996)
 
-            factors: [
-                        ["A"], # 0
-                        ["B"], # 1
-                        ["C"], # 2
-                        ["D"], # 3
-                        ["E"], # 4
-                        ["F"], # 5
-                        ["G"], # 6
-                        ["H"]  # 7
-            ]
         """
+
+        var_sizes = {
+                        "A": 2,
+                        "B": 2,
+                        "C": 2,
+                        "D": 2,
+                        "E": 2,
+                        "F": 2,
+                        "G": 2,
+                        "H": 2
+        }
+
+        factors = [
+                    ["A"], # 0
+                    ["B"], # 1
+                    ["C"], # 2
+                    ["D"], # 3
+                    ["E"], # 4
+                    ["F"], # 5
+                    ["G"], # 6
+                    ["H"]  # 7
+        ]
 
         cliques = [
                     [0,1,3],#["A","B","D"]
@@ -2247,7 +2260,11 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     [3,4,5],#["D","E","F"],
                     [4,6,7],#["E","G","H"]
                 ]
-        jt0 = bp.construct_junction_tree(cliques)
+        forest = bp.construct_junction_tree(cliques, factors, var_sizes)
+
+        assert len(forest) == 1
+
+        jt0 = forest[0]
 
         # expected junction tree
 

@@ -419,20 +419,38 @@ def construct_junction_tree(cliques, factors, var_sizes):
             sepsets.append((sepset, (i,j)))
 
 
-    heap = build_sepset_heap(sepsets, factors, var_sizes)
+    heap = build_sepset_heap(sepsets, cliques, factors, var_sizes)
     num_selected = 0
-    while len(selected) < len(cliques) - 1:
+    while num_selected < len(cliques) - 1:
         entry = heapq.heappop(heap)
         ss_id = entry[2]
-        (c_i, c_j) = sepsets[ss_id]
-        # find tree (t_i) containing c_i
-        # find tree (t_j) containing c_j
-        # if t_i != t_j join t_i and t_j into t_ij
-            # and insert t_ij into forest and remove t_i and t_j
-            #insert_sepset(t_i, c_i, t_j, c_j, len(cliques) + num_selected, sepsets[ss_id])
-        # num_selected += 1
+        (cliq1_ix, cliq2_ix) = sepsets[ss_id]
+        tree1 = None
+        tree2 = None
+        for tree in forest:
+            # find tree (tree1) containing cliq1_ix
+            tree1 = tree1 if tree1 else (tree if find_subtree(tree,cliq1_ix) != [] else None)
+            # find tree (tree2) containing cliq2_ix
+            tree2 = tree2 if tree2 else (tree if find_subtree(tree,cliq2_ix) != [] else None)
 
-    return tree_struct
+        if tree1 != tree2:
+            # merge tree1 and tree2 into new_tree
+            new_tree = bp.insert_sepset(
+                                tree1,
+                                cliq1_ix,
+                                tree2,
+                                cliq2_ix,
+                                len(cliques) + num_selected,
+                                sepsets[ss_id]
+            )
+            # insert new_tree into forest
+            forest.append(new_tree)
+            # remove t_i and t_j
+            forest.remove(tree1)
+            forest.remove(tree2)
+            num_selected += 1
+
+    return forest
 
 def build_sepset_heap(sepsets, cliques, factors, var_sizes):
     """
@@ -451,28 +469,28 @@ def build_sepset_heap(sepsets, cliques, factors, var_sizes):
 
     heap = []
 
-    for i, (ss, (c_i, c_j)) in enumerate(sepsets):
+    for i, (ss, (cliq1_ix, cliq2_ix)) in enumerate(sepsets):
         mass = len(set(ss))
-        weight_i = np.prod([var_sizes[var] for fac_id in cliques[c_i] for var in factors[fac_id]])
-        weight_i = np.prod([var_sizes[var] for fac_id in cliques[c_j] for var in factors[fac_id]])
+        weight1 = np.prod([var_sizes[var] for fac_id in cliques[cliq1_ix] for var in factors[fac_id]])
+        weight2 = np.prod([var_sizes[var] for fac_id in cliques[cliq2_ix] for var in factors[fac_id]])
         # invert mass to use minheap
-        entry = [1.0/mass, weight_i + weight_j, i]
+        entry = [1.0/mass, weight1 + weight2, i]
         heapq.heappush(heap, entry)
 
     return heap
 
-def insert_sepset(tree_i, clique_i_ix, tree_j, clique_j_ix, sepset_ix, sepset):
+def insert_sepset(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
     """
     Input:
     ------
 
-    Tree structure (list) containing clique_i
+    Tree structure (list) containing clique_1
 
-    The clique id for clique_i
+    The clique id for clique_1
 
-    Tree structure (list) containing clique_j
+    Tree structure (list) containing clique_2
 
-    The clique id for clique_j
+    The clique id for clique_2
 
     The sepset id for the sepset to be inserted
 
@@ -481,20 +499,50 @@ def insert_sepset(tree_i, clique_i_ix, tree_j, clique_j_ix, sepset_ix, sepset):
     Output:
     -------
 
-    A tree structure (list) containing clique_i, clique_j, and sepset
+    A tree structure (list) containing clique_1, clique_2, and sepset
 
     """
 
-    t_i = copy.deepcopy(tree_i)
-    t_j = copy.deepcopy(tree_j)
+    t1 = copy.deepcopy(tree1)
+    t2 = copy.deepcopy(tree2)
 
-    t_ij = t_i + [(sepset_ix, sepset, tree_j)]
+    # change root of tree1 to clique1
+    t1 = change_root(t1, clique1_ix)
 
-    # combine t_j with sepset at clique_j position
-    # insert the combination into t_i after clique_i
-    # return the transformed t_i
+    # combine tree2 (rooted by clique2) with sepset
+    sepset_group = (sepset_ix, sepset, change_root(t2, clique2_ix))
 
-    return t_ij
+    # insert the whole sepset group into sub_tree's list of sepsets
+    t1.append(sepset_group)
+
+    # return the merged trees
+    return t1
+
+def find_subtree(tree, clique_ix):
+    """
+    Input:
+    ------
+
+    Tree (potentially) containing clique_ix
+
+    Output:
+    -------
+
+    A (new) tree rooted by clique_ix if clique_ix is in tree.
+    Otherwise return an empty tree ([])
+
+
+    TODO: Try to return a reference to the subtree rather than
+    a newly allocated version
+    """
+
+    return ([] if tree[0] != clique_ix else tree) + sum(
+        [
+            find_subtree(child_tree, clique_ix)
+            for child_tree in tree[2:]
+        ],
+        []
+    )
 
 def change_root(tree, clique_ix, p_tree=None):
     """
@@ -519,7 +567,7 @@ def change_root(tree, clique_ix, p_tree=None):
     if len(tree) < 2:
         raise ValueError("Must provide a valid tree")
     if len(tree) == 2:
-        return p_tree
+        return tree
     if tree[0] == clique_ix:
         if p_tree == None:
             # clique_ix is already root
@@ -551,16 +599,6 @@ def change_root(tree, clique_ix, p_tree=None):
     # no transformations took place
     return p_tree if p_tree else tree
 
-
-    # find child tree rooted by clique_ix
-    # remove parent separator (ps) of clique_ix's tree from list of separator's
-    #   of ps's parent clique (pc)
-    # make pc child of ps
-    # add ps to separator list of of tree rooted by clique_ix
-    # return tree rooted by clique_ix
-
-    # return tree rooted by clique_ix
-    return tree
 
 def get_maximum_weight_spanning_tree(tbd):
     """
@@ -647,7 +685,6 @@ def initialize(tree):
 
 def collect(tree, var_labels, potentials, visited, distributive_law):
     """ Used by Hugin algorithm to collect messages """
-    print(tree)
     clique_ix, clique_vars = tree[:2]
     # set clique_index in visited to 1
     visited[clique_ix] = 1
