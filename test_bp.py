@@ -1950,7 +1950,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [2, [2]]
         tree2 = [1, [2,3,4]]
 
-        output = bp.insert_sepset(
+        output = bp.merge_trees(
                             tree1,
                             tree1[0],
                             tree2,
@@ -1977,7 +1977,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [3, [4]]
         tree2 = [4, [3,4], (5, [3],[6, [1,2,3]])]
 
-        output = bp.insert_sepset(
+        output = bp.merge_trees(
                             tree1,
                             tree1[0],
                             tree2,
@@ -2009,7 +2009,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [3, [4]]
         tree2 = [4, [3,4], (5, [3],[6, [1,2,3]])]
 
-        output = bp.insert_sepset(
+        output = bp.merge_trees(
                             tree1,
                             tree1[0],
                             tree2,
@@ -2088,7 +2088,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [3, [4]]
         tree2 = [8, [4,5,6], (9, [6], [10, [6,7]])]
 
-        output = bp.insert_sepset(
+        output = bp.merge_trees(
                             tree1,
                             0,
                             tree2,
@@ -2132,7 +2132,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [3, [4]]
         tree2 = [6, [3,5,8], (7, [5], [8, [4,5,6], (9, [6], [10, [6,7]])])]
 
-        output = bp.insert_sepset(
+        output = bp.merge_trees(
                             tree1,
                             0,
                             tree2,
@@ -2175,7 +2175,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [3, [4]]
         tree2 = [6, [3,5], (7, [5], [8, [4,5,6], (9, [6], [10, [6,7]])])]
 
-        output = bp.insert_sepset(
+        output = bp.merge_trees(
                             tree1,
                             0,
                             tree2,

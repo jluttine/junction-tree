@@ -435,7 +435,7 @@ def construct_junction_tree(cliques, factors, var_sizes):
 
         if tree1 != tree2:
             # merge tree1 and tree2 into new_tree
-            new_tree = bp.insert_sepset(
+            new_tree = bp.merge_trees(
                                 tree1,
                                 cliq1_ix,
                                 tree2,
@@ -445,7 +445,7 @@ def construct_junction_tree(cliques, factors, var_sizes):
             )
             # insert new_tree into forest
             forest.append(new_tree)
-            # remove t_i and t_j
+            # remove tree1 and tree2
             forest.remove(tree1)
             forest.remove(tree2)
             num_selected += 1
@@ -479,7 +479,7 @@ def build_sepset_heap(sepsets, cliques, factors, var_sizes):
 
     return heap
 
-def insert_sepset(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
+def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
     """
     Input:
     ------
@@ -503,20 +503,25 @@ def insert_sepset(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
 
     """
 
-    t1 = copy.deepcopy(tree1)
     t2 = copy.deepcopy(tree2)
-
-    # change root of tree1 to clique1
-    t1 = change_root(t1, clique1_ix)
 
     # combine tree2 (rooted by clique2) with sepset
     sepset_group = (sepset_ix, sepset, change_root(t2, clique2_ix))
 
-    # insert the whole sepset group into sub_tree's list of sepsets
-    t1.append(sepset_group)
+    # merged tree
+    merged_tree = insert_sepset(tree1, clique1_ix, sepset_group)
 
     # return the merged trees
-    return t1
+    return merged_tree
+
+def insert_sepset(tree, clique_ix, sepset_group):
+    return [tree[0],tree[1]] + sum(
+        [
+            [(child_sepset[0], child_sepset[1], insert_sepset(child_sepset[2], clique_ix, sepset_group))]
+            for child_sepset in tree[2:]
+        ],
+        [] if tree[0] != clique_ix else [sepset_group]
+    )
 
 def find_subtree(tree, clique_ix):
     """
