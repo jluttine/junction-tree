@@ -553,7 +553,50 @@ def find_subtree(tree, clique_ix):
         []
     )
 
-def change_root(tree, clique_ix, parents=[], exclude_ix=None):
+def change_root(tree, clique_ix, child=[], sep=[]):
+    """
+    Input:
+    ------
+
+    Tree to be altered
+
+    Id of the clique that will become tree's root
+
+    Child tree to be added to new root of tree (constructed during recursion)
+
+    Separator connecting root to recursively constructed child tree
+
+    Output:
+    -------
+
+    Tree with clique_ix as root.
+
+    If clique_ix is already root of tree, tree is returned
+
+    If clique_ix not in tree, empty list is returned
+    """
+
+    if tree[0] == clique_ix:
+        if len(child) > 0:
+            tree.append((sep[0],sep[1],child))
+        return tree
+
+
+    return  sum(
+                [
+                    change_root(
+                                child_sepset[2],
+                                clique_ix,
+                                tree[:c_ix+2] + tree[c_ix+3:] + [(sep[0],sep[1],child)] if len(child) else tree[:c_ix+2] + tree[c_ix+3:],
+                                [child_sepset[0],child_sepset[1]]
+                    )
+                    for c_ix, child_sepset in enumerate(tree[2:])
+                ],
+                []
+            )
+
+
+'''def change_root(tree, clique_ix, parents=[], exclude_ix=None):
     """
     Input:
     ------
@@ -579,9 +622,9 @@ def change_root(tree, clique_ix, parents=[], exclude_ix=None):
     l = []
     for c_ix, child_sepset in enumerate(tree[2:]):
         if child_sepset[2][0] == clique_ix:
-            child_sepset[2].append((child_sepset[0], child_sepset[1], tree[:c_ix+2] + tree[c_ix+3:]))
-            l.extend(child_sepset[2])
-            '''if exclude_ix:
+            #child_sepset[2].append((child_sepset[0], child_sepset[1], tree[:c_ix+2] + tree[c_ix+3:]))
+            #l.extend(child_sepset[2])
+            if exclude_ix:
                 sub_tree = child_sepset[:exclude_ix+2] + child_sepset[exclude_ix+3:]
             else:
                 sub_tree = child_sepset[2]
@@ -597,13 +640,15 @@ def change_root(tree, clique_ix, parents=[], exclude_ix=None):
                                 )
                             )
             )
-            l.extend(sub_tree)'''
+            l.extend(sub_tree)
         else:
             parents.append(tree)
             l.extend(change_root(child_sepset[2], clique_ix, parents))
+            if len(l) == 0:
+                l.append(child_sepset)
     return l
 
-    '''return  sum(
+    return  sum(
                 [
                     child_sepset[2] + [(child_sepset[0], child_sepset[1], tree[:c_ix+2] + tree[c_ix+3:])]
                     #(child_sepset[:exclude_ix+2] + child_sepset[exclude_ix+3:] if exclude_ix else child_sepset[2]) + [(child_sepset[0], child_sepset[1], change_root(parents.pop(), tree[0], parents, c_ix))]
