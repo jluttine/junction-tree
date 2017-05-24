@@ -415,8 +415,9 @@ def construct_junction_tree(cliques, factors, var_sizes):
     sepsets = list()
     for i, X in enumerate(cliques):
         for j, Y in enumerate(cliques[i+1:]):
-            sepset = tuple(set(X+Y))
-            sepsets.append((sepset, (i,j)))
+            sepset = tuple(set(X).intersection(Y))
+            if len(sepset) > 0:
+                sepsets.append((sepset, (i,j+i+1)))
 
 
     heap = build_sepset_heap(sepsets, cliques, factors, var_sizes)
@@ -424,9 +425,9 @@ def construct_junction_tree(cliques, factors, var_sizes):
     while num_selected < len(cliques) - 1:
         entry = heapq.heappop(heap)
         ss_id = entry[2]
-        (cliq1_ix, cliq2_ix) = sepsets[ss_id]
-        tree1 = None
-        tree2 = None
+        (cliq1_ix, cliq2_ix) = sepsets[ss_id][1]
+
+        tree1, tree2 = None, None
         for tree in forest:
             # find tree (tree1) containing cliq1_ix
             tree1 = tree1 if tree1 else (tree if find_subtree(tree,cliq1_ix) != [] else None)
@@ -435,16 +436,18 @@ def construct_junction_tree(cliques, factors, var_sizes):
 
         if tree1 != tree2:
             # merge tree1 and tree2 into new_tree
-            new_tree = bp.merge_trees(
+            new_tree = merge_trees(
                                 tree1,
                                 cliq1_ix,
                                 tree2,
                                 cliq2_ix,
                                 len(cliques) + num_selected,
-                                sepsets[ss_id]
+                                list(sepsets[ss_id][0])
             )
+
             # insert new_tree into forest
             forest.append(new_tree)
+
             # remove tree1 and tree2
             forest.remove(tree1)
             forest.remove(tree2)
@@ -511,6 +514,7 @@ def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
     # merged tree
     merged_tree = insert_sepset(tree1, clique1_ix, sepset_group)
 
+
     # return the merged trees
     return merged_tree
 
@@ -520,7 +524,7 @@ def insert_sepset(tree, clique_ix, sepset_group):
             [(child_sepset[0], child_sepset[1], insert_sepset(child_sepset[2], clique_ix, sepset_group))]
             for child_sepset in tree[2:]
         ],
-        [] if tree[0] != clique_ix else [sepset_group]
+        [] if tree[0] != clique_ix else [(sepset_group)]
     )
 
 def find_subtree(tree, clique_ix):
@@ -549,7 +553,7 @@ def find_subtree(tree, clique_ix):
         []
     )
 
-def change_root(tree, clique_ix, p_tree=None):
+def change_root(tree, clique_ix, parents=[], exclude_ix=None):
     """
     Input:
     ------
@@ -558,8 +562,6 @@ def change_root(tree, clique_ix, p_tree=None):
 
     Id of the clique that will become tree's root
 
-    Parent tree of tree if tree is not root
-
     Output:
     -------
 
@@ -567,42 +569,49 @@ def change_root(tree, clique_ix, p_tree=None):
 
     If clique_ix not in tree or clique_ix is already
     root of tree, tree is returned
+
+    Note: Essentially, this function swaps
     """
-
-    if len(tree) < 2:
-        raise ValueError("Must provide a valid tree")
-    if len(tree) == 2:
-        return tree
     if tree[0] == clique_ix:
-        if p_tree == None:
-            # clique_ix is already root
-            return tree
-        # find separator between tree root and gp_tree root
-        for i, sep_group in enumerate(p_tree[2:]):
-            child_list = []
-            if sep_group[2][0] == tree[0]:
-                break
+        #return tree[:exclude_ix] + tree[exclude_ix+1:] if exclude_ix else tree
+        return tree
 
+    l = []
+    for c_ix, child_sepset in enumerate(tree[2:]):
+        if child_sepset[2][0] == clique_ix:
+            child_sepset[2].append((child_sepset[0], child_sepset[1], tree[:c_ix+2] + tree[c_ix+3:]))
+            l.extend(child_sepset[2])
+            '''if exclude_ix:
+                sub_tree = child_sepset[:exclude_ix+2] + child_sepset[exclude_ix+3:]
+            else:
+                sub_tree = child_sepset[2]
+            sub_tree.append(
+                            (
+                                child_sepset[0],
+                                child_sepset[1],
+                                change_root(
+                                            parents.pop() if len(parents) > 0 else tree,
+                                            tree[0],
+                                            parents,
+                                            c_ix
+                                )
+                            )
+            )
+            l.extend(sub_tree)'''
+        else:
+            parents.append(tree)
+            l.extend(change_root(child_sepset[2], clique_ix, parents))
+    return l
 
-        # make parent tree child of tree with clique_ix as root
-        return sep_group[2] + [
-                                    (
-                                        sep_group[0], sep_group[1],
-                                        # remove separator from parent tree
-                                        p_tree[:i+2] + p_tree[i+3:]
-                                    )
-                                ]
-
-    results = [
-                change_root(sep_group[2], clique_ix, tree)
-                for sep_group in tree[2:]
-            ]
-    for trans_tree in results:
-        if trans_tree != tree:
-            return trans_tree
-
-    # no transformations took place
-    return p_tree if p_tree else tree
+    '''return  sum(
+                [
+                    child_sepset[2] + [(child_sepset[0], child_sepset[1], tree[:c_ix+2] + tree[c_ix+3:])]
+                    #(child_sepset[:exclude_ix+2] + child_sepset[exclude_ix+3:] if exclude_ix else child_sepset[2]) + [(child_sepset[0], child_sepset[1], change_root(parents.pop(), tree[0], parents, c_ix))]
+                    if child_sepset[2][0] == clique_ix else change_root(child_sepset[2], clique_ix, parents.append(tree))
+                    for c_ix, child_sepset in enumerate(tree[2:])
+                ],
+                []
+            )'''
 
 
 def get_maximum_weight_spanning_tree(tbd):

@@ -22,18 +22,18 @@ def assert_junction_tree_equal(t1, t2):
 
 
     def __build_dict(tree):
-        # dict are: clique_ix -> (keys, neighbors)
+        # dict is: clique_keys -> set of each tuple of neighbor_keys
         d = {}
         stack = [tree]
-        d[tree[0]] = (tree[1],set())
+        d[tuple(tree[1])] = set()
         while stack:
             tree = stack.pop()
             for child in reversed(tree[2:]):
-                d[tree[0]][1].add(child[0])
+                d[tuple(tree[1])].add(tuple(child[1]))
                 # child clique entry initialized
-                d[child[2][0]] = (child[2][1], set([child[0]]))
+                d[tuple(child[2][1])] = set([tuple(child[1])])
                 # separator entered in dictionary
-                d[child[0]] = (child[1], set([tree[0],child[2][0]]))
+                d[tuple(child[1])] = set([tuple(tree[1]),tuple(child[2][1])])
                 stack.append(child[2])
 
         return d
@@ -2083,6 +2083,96 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert output == tree2
         assert_junction_tree_equal(tree1, output)
 
+
+        output = bp.change_root(tree1, 2)
+
+        tree3 = [
+                    2, [1,2],
+                    (
+                        1, [2],
+                        [
+                            0, [0,2,4],
+                            (
+                                5, [0],
+                                [
+                                    4,[0,8]
+                                ]
+                            )
+                        ]
+                    )
+                ]
+
+
+        assert output == tree3
+        assert_junction_tree_equal(tree1, output)
+
+        tree4 = [
+                    4,[0,8],
+                    (
+                        5, [0],
+                        [
+                            0, [0,2,4],
+                            (
+                                1, [2],
+                                [
+                                    2, [1,2]
+                                ]
+                            ),
+                            (
+                                3, [4],
+                                [
+                                    6, [5,9]
+                                ]
+                            )
+                        ]
+                    ),
+                    (
+                        7, [8],
+                        [
+                            8, [8, 10]
+                        ]
+                    )
+                ]
+
+
+        output = bp.change_root(tree4, 2)
+
+        tree5 = [
+                    2, [1,2],
+                    (
+                        1, [2],
+                        [
+                            0, [0,2,4],
+                            (
+                                5, [0],
+                                [
+                                    4,[0,8],
+                                    (
+                                        7, [8],
+                                        [
+                                            8, [8, 10]
+                                        ]
+                                    )
+                                ]
+                            ),
+                            (
+                                3, [4],
+                                [
+                                    6, [5,9]
+                                ]
+                            )
+                        ]
+                    )
+                ]
+
+        print(output)
+
+        assert output == tree5
+        assert_junction_tree_equal(tree4, output)
+
+        output = bp.change_root([0, [0, 1, 3], (6, [0, 3], [2, [0, 3, 4]])], 2)
+        assert_junction_tree_equal(output, [2, [0, 3, 4], (6, [0, 3], [0, [0, 1, 3]])])
+
     def test_join_trees_with_multiple_cliques_with_first_nested(self):
         tree1 = [4,[0,8], (5, [0], [0, [0,2,4], (1, [2], [2, [1,2]])])]
         sepset = [3, [4]]
@@ -2281,7 +2371,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     [
                         4,[3,4,5]
                     ]
-                )
+                ),
                 (
                     5, [0,4],
                     [
