@@ -404,10 +404,15 @@ def construct_junction_tree(cliques, factors, var_sizes):
     A list of maximal cliques where each maximal clique is a list of
     factor indices it contains
 
+    A list of factors from original factor graph
+
+    A dictionary of (variable name, variable size) pairs
+
     Output:
     -------
 
-    A list representing the junction tree structure constructed from the input cliques
+    A list of junction trees from the input cliques. In most cases,
+    there should only be a single tree in the returned list
     """
 
     forest = [[c_ix, clique] for c_ix, clique in enumerate(cliques)]
@@ -595,68 +600,6 @@ def change_root(tree, clique_ix, child=[], sep=[]):
                 []
             )
 
-
-'''def change_root(tree, clique_ix, parents=[], exclude_ix=None):
-    """
-    Input:
-    ------
-
-    Tree to be altered
-
-    Id of the clique that will become tree's root
-
-    Output:
-    -------
-
-    Tree with clique_ix as root.
-
-    If clique_ix not in tree or clique_ix is already
-    root of tree, tree is returned
-
-    Note: Essentially, this function swaps
-    """
-    if tree[0] == clique_ix:
-        #return tree[:exclude_ix] + tree[exclude_ix+1:] if exclude_ix else tree
-        return tree
-
-    l = []
-    for c_ix, child_sepset in enumerate(tree[2:]):
-        if child_sepset[2][0] == clique_ix:
-            #child_sepset[2].append((child_sepset[0], child_sepset[1], tree[:c_ix+2] + tree[c_ix+3:]))
-            #l.extend(child_sepset[2])
-            if exclude_ix:
-                sub_tree = child_sepset[:exclude_ix+2] + child_sepset[exclude_ix+3:]
-            else:
-                sub_tree = child_sepset[2]
-            sub_tree.append(
-                            (
-                                child_sepset[0],
-                                child_sepset[1],
-                                change_root(
-                                            parents.pop() if len(parents) > 0 else tree,
-                                            tree[0],
-                                            parents,
-                                            c_ix
-                                )
-                            )
-            )
-            l.extend(sub_tree)
-        else:
-            parents.append(tree)
-            l.extend(change_root(child_sepset[2], clique_ix, parents))
-            if len(l) == 0:
-                l.append(child_sepset)
-    return l
-
-    return  sum(
-                [
-                    child_sepset[2] + [(child_sepset[0], child_sepset[1], tree[:c_ix+2] + tree[c_ix+3:])]
-                    #(child_sepset[:exclude_ix+2] + child_sepset[exclude_ix+3:] if exclude_ix else child_sepset[2]) + [(child_sepset[0], child_sepset[1], change_root(parents.pop(), tree[0], parents, c_ix))]
-                    if child_sepset[2][0] == clique_ix else change_root(child_sepset[2], clique_ix, parents.append(tree))
-                    for c_ix, child_sepset in enumerate(tree[2:])
-                ],
-                []
-            )'''
 
 
 def get_maximum_weight_spanning_tree(tbd):
@@ -1070,3 +1013,14 @@ class JunctionTree(object):
 
     def get_struct(self):
         return self.struct
+
+    @staticmethod
+    def from_factor_graph(factor_graph):
+        var_sizes = factor_graph[0]
+        factors = factor_graph[1]
+        tri = find_triangulation(
+                            var_sizes=factor_graph[0],
+                            factors=factor_graph[1]
+        )
+        cliques = identify_cliques(triangulation)
+        forest = construct_junction_tree(cliques, factors, var_sizes)

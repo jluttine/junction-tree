@@ -2519,7 +2519,7 @@ class TestJunctionTreeInference(unittest.TestCase):
 
 
     def test_transformation(self):
-        tree = bp.convert(self.fg)
+        tree = JunctionTree.from_factor_graph(self.fg[0])
         assert_junction_tree_equal(self.jt, tree)
 
 
