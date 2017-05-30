@@ -147,6 +147,14 @@ def find_triangulation(factors, var_sizes):
     A list of edges (2-element sets) representing triangulation
     of factor graph
 
+
+    NOTE: This should actually be a list of variable lists added to each factor
+    to triangulate factor graph. If edges are implied based on variables shared
+    between factors, adding a variable to a factor is the same as an adding an
+    edge to each other factor containing that variable. During message passing
+    only the variables that are not shared between neighboring nodes are summed
+    over. So, clique ids in factor graph should correspond to the underlying
+    factors and separators just arbitrary ids larger than the number of factors.
     """
 
     tri = []
@@ -370,11 +378,11 @@ def identify_cliques(triangulation):
     -------
 
     A list of maximal cliques where each maximal clique is a list of
-    factor indices it contains:
+    key/variable indices it contains:
 
     [clique1, ..., cliqueK]
 
-    That is, if there are N factors, each clique contains some subset of
+    That is, if there are N keys/variables, each clique contains some subset of
     numbers from {0, ..., N-1} as a tuple/list.
 
     Notes
@@ -402,7 +410,7 @@ def construct_junction_tree(cliques, factors, var_sizes):
     ------
 
     A list of maximal cliques where each maximal clique is a list of
-    factor indices it contains
+    variable indices it contains
 
     A list of factors from original factor graph
 
@@ -976,10 +984,10 @@ class SumProduct():
 sum_product = SumProduct(np.einsum)
 
 class JunctionTree(object):
-    def __init__(self, _vars, tree=[]):
+    def __init__(self, _vars, trees=[]):
         self._vars = _vars
         self.labels = {vl:i for i, vl in enumerate(sorted(_vars.keys()))}
-        self.struct = tree
+        self.struct = trees
 
     def find_var(self, var_label):
         try:
@@ -1022,5 +1030,6 @@ class JunctionTree(object):
                             var_sizes=factor_graph[0],
                             factors=factor_graph[1]
         )
-        cliques = identify_cliques(triangulation)
-        forest = construct_junction_tree(cliques, factors, var_sizes)
+        cliques = identify_cliques(tri)
+        trees = construct_junction_tree(cliques, factors, var_sizes)
+        return JunctionTree(var_sizes, trees)

@@ -21,20 +21,21 @@ def assert_junction_tree_equal(t1, t2):
 
 
 
-    def __build_dict(tree):
+    def __build_dict(trees):
         # dict is: clique_keys -> set of each tuple of neighbor_keys
         d = {}
-        stack = [tree]
-        d[tuple(tree[1])] = set()
-        while stack:
-            tree = stack.pop()
-            for child in reversed(tree[2:]):
-                d[tuple(tree[1])].add(tuple(child[1]))
-                # child clique entry initialized
-                d[tuple(child[2][1])] = set([tuple(child[1])])
-                # separator entered in dictionary
-                d[tuple(child[1])] = set([tuple(tree[1]),tuple(child[2][1])])
-                stack.append(child[2])
+        for tree in trees:
+            stack = [tree]
+            d[tuple(tree[1])] = set()
+            while stack:
+                tree = stack.pop()
+                for child in reversed(tree[2:]):
+                    d[tuple(tree[1])].add(tuple(child[1]))
+                    # child clique entry initialized
+                    d[tuple(child[2][1])] = set([tuple(child[1])])
+                    # separator entered in dictionary
+                    d[tuple(child[1])] = set([tuple(tree[1]),tuple(child[2][1])])
+                    stack.append(child[2])
 
         return d
 
@@ -61,16 +62,24 @@ def assert_triangulated(factors, triangulation):
         cycle. (Huang and Darwiche, 1996)
 
         Only one such edge is required.
+
+        Triangulation is a list of variables to add to each factor to
+        triangulate factor graph
     '''
 
-    cycles = find_cycles(factors, 4)
-    for cycle in cycles:
+    assert len(factors) == len(triangulation)
+
+    #cycles = find_cycles(factors, 4)
+    pre_cycles = find_cycles(factors, 4)
+    post_cycles = find_cycles([a+b for a,b in zip(factors,triangulation)],4)
+    triangulation_edges = set([tuple(edge) for cycle in post_cycles for edge in cycle])
+    for cycle in pre_cycles:
         cycle_factors = set([fac for edge in cycle for fac in edge])
         # at least one chord of cycle should be in triangulation
         assert sum(
                     [
-                        1 for edge in triangulation
-                        if edge not in cycle and set(edge).issubset(cycle_factors)
+                        1 for edge in triangulation_edges
+                        if set(edge) not in cycle and set(edge).issubset(cycle_factors)
                     ]
         ) > 0
 
@@ -1850,15 +1859,17 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
     def test_assert_triangulated(self):
         factors = [
-                    [0, 1], # [A,B]
-                    [1], # [B]
-                    [1, 2], # [B,C]
-                    [0, 2] # [A,C]
+                    [0,1], # [A,B]
+                    [1,2], # [B,C]
+                    [2,3,4], # [C,D,E]
+                    [0, 2] # [A,E]
                 ]
-        tri0 = [set((0,1)),set((0,3)),set((1,2)),set((2,3))]
+        tri0 = [[],[],[],[]]
+        #tri0 = [set((0,1)),set((1,2)),set((2,3)),set((0,3))]
         self.assertRaises(AssertionError, assert_triangulated, factors, tri0)
 
-        tri1 = [set((0,1)),set((0,2)),set((0,3)),set((1,2)),set((2,3))]
+        tri1 = [[3],[],[],[]]
+        #tri1 = [set((0,1)),set((0,2)),set((0,3)),set((1,2)),set((2,3))]
         assert_triangulated(factors, tri1)
 
     def test_triangulate_factor_graph(self):
@@ -1902,16 +1913,25 @@ class TestJunctionTreeConstruction(unittest.TestCase):
             Example taken from section 4.4.3 (Huang and Darwiche, 1996)
 
             factors: [
-                        ["A"], # 0
-                        ["B"], # 1
-                        ["C"], # 2
-                        ["D"], # 3
-                        ["E"], # 4
-                        ["F"], # 5
-                        ["G"], # 6
-                        ["H"]  # 7
+                        ["A", "B"], #0
+                        ["A", "C"], #1
+                        ["B", "D"], #2
+                        ["C", "G"], #3
+                        ["C", "E"], #4
+                        ["G", "E", "H"], #5
+                        ["D", "E", "F"]  #6
             ]
         """
+
+        tri = [
+            ["A","B"], #0
+            ["A","C"], #1
+            ["A","B","D"], #2
+            ["C","G"], #3
+            ["A","C","E"], #4
+            ["G","E","H"], #5
+            ["D","E","F"]  #6
+        ]
         tri = [
                 # H eliminated
                 (7,4),
@@ -2398,40 +2418,42 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
 class TestJunctionTreeInference(unittest.TestCase):
     def setUp(self):
-        self.jt = [
-                    0, [0,3,4],
-                    (
-                        1, [0,3],
+        self.trees = [
                         [
-                            2, [0,1,3]
-                        ]
-                    ),
-                    (
-                        3, [3,4],
-                        [
-                            4,[3,4,5]
-                        ]
-                    ),
-                    (
-                        5, [0,4],
-                        [
-                            6, [0,2,4],
+                            0, [0,3,4],
                             (
-                                7, [2,4],
+                                1, [0,3],
                                 [
-                                    8, [2,4,6],
+                                    2, [0,1,3]
+                                ]
+                            ),
+                            (
+                                3, [3,4],
+                                [
+                                    4,[3,4,5]
+                                ]
+                            ),
+                            (
+                                5, [0,4],
+                                [
+                                    6, [0,2,4],
                                     (
-                                        9, [4,6],
+                                        7, [2,4],
                                         [
-                                            10, [4,6,7]
+                                            8, [2,4,6],
+                                            (
+                                                9, [4,6],
+                                                [
+                                                    10, [4,6,7]
+                                                ]
+                                            )
                                         ]
                                     )
                                 ]
+
                             )
                         ]
-
-                    )
-                ]
+                    ]
 
 
         _vars = {
@@ -2519,8 +2541,10 @@ class TestJunctionTreeInference(unittest.TestCase):
 
 
     def test_transformation(self):
-        tree = JunctionTree.from_factor_graph(self.fg[0])
-        assert_junction_tree_equal(self.jt, tree)
+        jt = JunctionTree.from_factor_graph(self.fg)
+        print(jt.get_struct())
+        print(self.trees)
+        assert_junction_tree_equal(self.trees, jt.get_struct())
 
 
     def test_initialize_potentials(self):
