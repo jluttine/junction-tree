@@ -69,10 +69,8 @@ def assert_triangulated(factors, triangulation):
 
     assert len(factors) == len(triangulation)
 
-    #cycles = find_cycles(factors, 4)
     pre_cycles = find_cycles(factors, 4)
-    post_cycles = find_cycles([a+b for a,b in zip(factors,triangulation)],4)
-    triangulation_edges = set([tuple(edge) for cycle in post_cycles for edge in cycle])
+    triangulation_edges = build_graph([a+b for a,b in zip(factors,triangulation)]).edges()
     for cycle in pre_cycles:
         cycle_factors = set([fac for edge in cycle for fac in edge])
         # at least one chord of cycle should be in triangulation
@@ -84,7 +82,7 @@ def assert_triangulated(factors, triangulation):
         ) > 0
 
 
-def find_cycles(factors, num):
+def build_graph(factors):
     G=nx.Graph()
     G.add_nodes_from(range(len(factors)))
 
@@ -93,6 +91,11 @@ def find_cycles(factors, num):
             # add edge to graph if any vars shared
             if not set(factors[i]).isdisjoint(factors[j]):
                 G.add_edge(i,j)
+    return G
+
+def find_cycles(factors, num):
+    G = build_graph(factors)
+
     cb = nx.cycle_basis(G)
     cb_edges = [zip(nodes,(nodes[1:]+nodes[:1])) for nodes in cb]
     graph_edges = [set(edge) for edge in G.edges()]
@@ -1859,17 +1862,15 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
     def test_assert_triangulated(self):
         factors = [
-                    [0,1], # [A,B]
-                    [1,2], # [B,C]
-                    [2,3,4], # [C,D,E]
-                    [0, 2] # [A,E]
+                    [0,1],
+                    [1,2],
+                    [2,3,4],
+                    [0,4]
                 ]
         tri0 = [[],[],[],[]]
-        #tri0 = [set((0,1)),set((1,2)),set((2,3)),set((0,3))]
         self.assertRaises(AssertionError, assert_triangulated, factors, tri0)
 
         tri1 = [[3],[],[],[]]
-        #tri1 = [set((0,1)),set((0,2)),set((0,3)),set((1,2)),set((2,3))]
         assert_triangulated(factors, tri1)
 
     def test_triangulate_factor_graph(self):
@@ -1877,32 +1878,44 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     "A": 2,
                     "B": 4,
                     "C": 3,
-                    "D": 5
+                    "D": 5,
+                    "E": 2
                 }
         factors = [
-                    ["A"],
-                    ["A", "C"],
-                    ["B", "C", "D"],
-                    ["A", "D"]
+                    ["A", "B"],
+                    ["B", "C"],
+                    ["C", "D", "E"],
+                    ["A", "E"]
                 ]
         values = [
-                    np.random.randn(2),
                     np.random.randn(2, 4),
-                    np.random.randn(4, 3, 5),
-                    np.random.randn(2, 5),
+                    np.random.randn(4, 3),
+                    np.random.randn(3, 5, 2),
+                    np.random.randn(2, 2),
                 ]
         fg = [_vars, factors, values]
         tri = bp.find_triangulation(fg[1], fg[0])
 
-        # triangulation should consist of 5 edges
+        # triangulation should consist of 4 lists with only
+        # one containing an element
+        assert len(tri) == 4
+        assert all([isinstance(elems, list) for elems in tri])
+        assert sum([len(elems) for elems in tri]) == 1
 
-        assert len(tri) == 5
+        # to triangulate we have a few options:
+        # add "C" or "D" or "E" to factor 0
+        if len(tri[0]) == 1:
+            assert any([var in ["C","D","E"] for var in tri[0]])
+        # add "A" or "E" to factor 1
+        if len(tri[1]) == 1:
+            assert any([var in ["A","E"] for var in tri[1]])
+        # add "A" or "B" to factor 2
+        if len(tri[2]) == 1:
+            assert any([var in ["A","B"] for var in tri[2]])
+        # add "B" or "C" to factor 3
+        if len(tri[3]) == 1:
+            assert any([var in ["B","C"] for var in tri[3]])
 
-        assert (0,3) in tri
-        assert (0,1) in tri
-        assert (1,2) in tri
-        assert (1,3) in tri
-        assert (2,3) in tri
 
         assert_triangulated(fg[1], tri)
 

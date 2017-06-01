@@ -144,8 +144,8 @@ def find_triangulation(factors, var_sizes):
     Output:
     -------
 
-    A list of edges (2-element sets) representing triangulation
-    of factor graph
+    A list with the same length as factors composed of lists of key/variable
+    representing triangulation of factor graph
 
 
     NOTE: This should actually be a list of variable lists added to each factor
@@ -157,7 +157,7 @@ def find_triangulation(factors, var_sizes):
     factors and separators just arbitrary ids larger than the number of factors.
     """
 
-    tri = []
+    tri = [[] for i in range(len(factors))]
     edges, neighbors = get_graph_structure(factors)
     heap, entry_finder = initialize_triangulation_heap(
                                             factors,
@@ -176,8 +176,18 @@ def find_triangulation(factors, var_sizes):
                                                         neighbors
         )
         rm_factor_ix = item[2]
-        tri.extend([(rm_factor_ix,n) for n in neighbors[rm_factor_ix] if len(_factors[n])])
-
+        factor = factors[rm_factor_ix]
+        new_vars = set()
+        # connect all unconnected neighbors of rm_factor_ix
+        for i, n1 in enumerate(neighbors[rm_factor_ix]):
+            for n2 in neighbors[rm_factor_ix][i+1:]:
+                if len(_factors[n1]) and len(_factors[n2]) and (n1,n2) not in edges:
+                    # check if var needs to be added to connect factors
+                    shared_vars = set(_factors[n1]+tri[n1]).intersection(_factors[n2]+tri[n2])
+                    if len(shared_vars) == 0:
+                        set_diff = set(_factors[n2]).difference(_factors[n1])
+                        # add a variable to n1 which is in n2 but not n1
+                        tri[n1].append(set_diff.pop())
 
     return tri
 
