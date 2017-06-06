@@ -375,7 +375,7 @@ def remove_next(heap, entry_finder, factors, var_sizes, edges, neighbors):
 
     return entry, heap, entry_finder, factors
 
-def identify_cliques(triangulation):
+def identify_cliques(factors, triangulation):
     """
     Input:
     ------
@@ -406,11 +406,16 @@ def identify_cliques(triangulation):
     """
     d = {}
 
-    for n1,n2 in triangulation:
-        d.setdefault(n1,[]).append(n2)
-    clusters = [set((k,*v)) for k,v in d.items()]
+    clusters = [f+t for f,t in zip(factors,triangulation)]
     # only retain clusters that are not a subset of another cluster
-    cliques = [list(c) for c in filter(lambda c1: not any(c2 < c2 for c2 in clusters), clusters)]
+    sets={frozenset(c) for c in clusters}
+    cliques=[]
+    for s1 in sets:
+        if any(s1 < s2 for s2 in sets):
+            continue
+        else:
+            cliques.append(list(s1))
+
 
     return cliques
 

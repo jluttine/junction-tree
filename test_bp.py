@@ -1925,58 +1925,42 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
             Example taken from section 4.4.3 (Huang and Darwiche, 1996)
 
-            factors: [
-                        ["A", "B"], #0
-                        ["A", "C"], #1
-                        ["B", "D"], #2
-                        ["C", "G"], #3
-                        ["C", "E"], #4
-                        ["G", "E", "H"], #5
-                        ["D", "E", "F"]  #6
-            ]
         """
 
-        tri = [
-            ["A","B"], #0
-            ["A","C"], #1
-            ["A","B","D"], #2
-            ["C","G"], #3
-            ["A","C","E"], #4
-            ["G","E","H"], #5
-            ["D","E","F"]  #6
-        ]
-        tri = [
-                # H eliminated
-                (7,4),
-                (7,6),
-                # G eliminated
-                (6,2),
-                (6,4),
-                # F eliminated
-                (5,3),
-                (5,4),
-                # C eliminated
-                (2,0),
-                (2,4),
-                # B eliminated
-                (1,0),
-                (1,3),
-                # D eliminated
-                (3,0),
-                (3,4),
-                # E eliminated
-                (4,0)
-                # A eliminated
+        # Factors based on moralized graph from example
+
+        factors = [
+                    ["A"], #0
+                    ["A", "B"], #1
+                    ["A", "C"], #2
+                    ["B", "D"], #3
+                    ["C", "E", "G"], #4
+                    ["G", "E", "H"], #5
+                    ["D", "E", "F"]  #6
         ]
 
-        cliques = bp.identify_cliques(tri)
+        tri = [
+            ["D","E"], #0
+            ["D"], #1
+            ["E"], #2
+            [], #3
+            [], #4
+            [], #5
+            [] #6
+        ]
 
-        assert set([4,6,7]) in [set(c) for c in cliques]
-        assert set([2,4,6]) in [set(c) for c in cliques]
-        assert set([3,4,5]) in [set(c) for c in cliques]
-        assert set([0,2,4]) in [set(c) for c in cliques]
-        assert set([0,1,3]) in [set(c) for c in cliques]
-        assert set([0,3,4]) in [set(c) for c in cliques]
+        cliques = bp.identify_cliques(factors, tri)
+
+        clique_sets = [set(c) for c in cliques]
+
+        assert len(clique_sets) == 6
+
+        assert set(["E","G","H"]) in clique_sets
+        assert set(["C","E","G"]) in clique_sets
+        assert set(["D","E","F"]) in clique_sets
+        assert set(["A","C","E"]) in clique_sets
+        assert set(["A","B","D"]) in clique_sets
+        assert set(["A","D","E"]) in clique_sets
 
     def test_join_trees_with_single_cliques(self):
         tree1 = [0, [0,1,2]]
