@@ -407,8 +407,9 @@ def identify_cliques(factors, triangulation):
     d = {}
 
     clusters = [f+t for f,t in zip(factors,triangulation)]
+
     # only retain clusters that are not a subset of another cluster
-    sets={frozenset(c) for c in clusters}
+    sets=[frozenset(c) for c in clusters]
     cliques=[]
     for s1 in sets:
         if any(s1 < s2 for s2 in sets):

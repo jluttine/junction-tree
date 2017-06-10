@@ -20,7 +20,6 @@ def assert_junction_tree_equal(t1, t2):
     """
 
 
-
     def __build_dict(trees):
         # dict is: clique_keys -> set of each tuple of neighbor_keys
         d = {}
@@ -1987,7 +1986,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
             ]
 
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal([output], [merged_tree])
 
     def test_join_tree_with_single_clique_to_multiclique_tree(self):
         tree1 = [0, [0,2,4]]
@@ -2018,7 +2017,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
         ]
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal([output], [merged_tree])
 
 
     def test_join_tree_with_multiple_cliques_to_tree_with_multiple_cliques(self):
@@ -2056,7 +2055,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
         ]
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal([output], [merged_tree])
 
     def test_change_root(self):
         tree1 = [
@@ -2100,7 +2099,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 ]
 
         assert output == tree2
-        assert_junction_tree_equal(tree1, output)
+        assert_junction_tree_equal([tree1], [output])
 
 
         output = bp.change_root(copy.deepcopy(tree1), 2)
@@ -2123,7 +2122,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
 
         assert output == tree3
-        assert_junction_tree_equal(tree1, output)
+        assert_junction_tree_equal([tree1], [output])
 
         tree4 = [
                     4,[0,8],
@@ -2189,7 +2188,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
                 ]
 
-        assert_junction_tree_equal(tree4, output)
+        assert_junction_tree_equal([tree4], [output])
 
     def test_join_trees_with_multiple_cliques_with_first_nested(self):
         tree1 = [4,[0,8], (5, [0], [0, [0,2,4], (1, [2], [2, [1,2]])])]
@@ -2232,7 +2231,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
                 ]
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal([output], [merged_tree])
 
 
     def test_join_trees_with_multiple_cliques_with_second_nested(self):
@@ -2276,7 +2275,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
         ]
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal([output], [merged_tree])
 
     def test_join_trees_with_multiple_cliques_with_both_nested(self):
         tree1 = [4,[0,8], (5, [0], [0, [0,2,4], (1, [2], [2, [1,2]])])]
@@ -2327,7 +2326,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 ]
 
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal([output], [merged_tree])
 
 
     def test_join_cliques_into_junction_tree(self):
@@ -2372,43 +2371,45 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         assert len(forest) == 1
 
-        jt0 = forest[0]
+        jt0 = forest
 
         # expected junction tree
 
         jt1 = [
-                0, [0,3,4],
-                (
-                    1, [0,3],
-                    [
-                        2, [0,1,3]
-                    ]
-                ),
-                (
-                    3, [3,4],
-                    [
-                        4,[3,4,5]
-                    ]
-                ),
-                (
-                    5, [0,4],
-                    [
-                        6, [0,2,4],
-                        (
-                            7, [2,4],
-                            [
-                                8, [2,4,6],
-                                (
-                                    9, [4,6],
-                                    [
-                                        10, [4,6,7]
-                                    ]
-                                )
-                            ]
-                        )
-                    ]
+                [
+                    0, [0,3,4],
+                    (
+                        1, [0,3],
+                        [
+                            2, [0,1,3]
+                        ]
+                    ),
+                    (
+                        3, [3,4],
+                        [
+                            4,[3,4,5]
+                        ]
+                    ),
+                    (
+                        5, [0,4],
+                        [
+                            6, [0,2,4],
+                            (
+                                7, [2,4],
+                                [
+                                    8, [2,4,6],
+                                    (
+                                        9, [4,6],
+                                        [
+                                            10, [4,6,7]
+                                        ]
+                                    )
+                                ]
+                            )
+                        ]
 
-                )
+                    )
+                ]
             ]
 
         assert_junction_tree_equal(jt0, jt1)
@@ -2539,8 +2540,6 @@ class TestJunctionTreeInference(unittest.TestCase):
 
     def test_transformation(self):
         jt = JunctionTree.from_factor_graph(self.fg)
-        print(jt.get_struct())
-        print(self.trees)
         assert_junction_tree_equal(self.trees, jt.get_struct())
 
 
