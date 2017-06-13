@@ -179,6 +179,8 @@ def find_triangulation(factors, var_sizes):
         factor = factors[rm_factor_ix]
         new_vars = set()
         # connect all unconnected neighbors of rm_factor_ix
+        print("%s" % rm_factor_ix)
+        print(neighbors[rm_factor_ix])
         for i, n1 in enumerate(neighbors[rm_factor_ix]):
             for n2 in neighbors[rm_factor_ix][i+1:]:
                 if len(_factors[n1]) and len(_factors[n2]) and (n1,n2) not in edges:
@@ -1046,6 +1048,9 @@ class JunctionTree(object):
                             var_sizes=factor_graph[0],
                             factors=factor_graph[1]
         )
-        cliques = identify_cliques(tri)
+        print(tri)
+        print(factors)
+        cliques = identify_cliques(factors, tri)
+        print(cliques)
         trees = construct_junction_tree(cliques, factors, var_sizes)
         return JunctionTree(var_sizes, trees)

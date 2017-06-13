@@ -70,6 +70,7 @@ def assert_triangulated(factors, triangulation):
 
     pre_cycles = find_cycles(factors, 4)
     triangulation_edges = build_graph([a+b for a,b in zip(factors,triangulation)]).edges()
+    print(triangulation_edges)
     for cycle in pre_cycles:
         cycle_factors = set([fac for edge in cycle for fac in edge])
         # at least one chord of cycle should be in triangulation
@@ -1918,6 +1919,85 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         assert_triangulated(fg[1], tri)
 
+    def test_triangulate_factor_graph2(self):
+        _vars = {
+            "A": 2,
+            "B": 2,
+            "C": 2,
+            "D": 2,
+            "E": 2,
+            "F": 2,
+            "G": 2,
+            "H": 2,
+        }
+
+        factors = [
+                    ["A", "B"], #0
+                    ["A", "C"], #1
+                    ["B", "D"], #2
+                    ["C", "E"], #3
+                    ["C", "G"], #4
+                    ["G", "E", "H"], #5
+                    ["D", "E", "F"]  #6
+        ]
+
+        tri = bp.find_triangulation(factors, _vars)
+        assert_triangulated(factors, tri)
+        cliques = bp.identify_cliques(factors, tri)
+
+        clique_sets = [set(c) for c in cliques]
+
+        assert len(clique_sets) == 6
+
+        assert set(["E","G","H"]) in clique_sets
+        assert set(["C","E","G"]) in clique_sets
+        assert set(["D","E","F"]) in clique_sets
+        assert set(["A","C","E"]) in clique_sets
+        assert set(["A","B","D"]) in clique_sets
+        assert set(["A","D","E"]) in clique_sets
+
+    def test_triangulate_factor_graph3(self):
+        '''
+            Example taken from here:
+
+            https://courses.cs.washington.edu/courses/cse515/11sp/class7-exactinfalgos.pdf
+        '''
+        
+        _vars = {
+            "C": 2,
+            "D": 2,
+            "I": 2,
+            "G": 2,
+            "S": 2,
+            "L": 2,
+            "J": 2,
+            "H": 2,
+        }
+
+        factors = [
+                    ["C","D"], #0
+                    ["D","I","G"], #1
+                    ["I","S"], #2
+                    ["G","H","J"], #3
+                    ["G","L"], #4
+                    ["S","L","J"], #5
+        ]
+
+        tri = bp.find_triangulation(factors, _vars)
+        assert_triangulated(factors, tri)
+        cliques = bp.identify_cliques(factors, tri)
+
+        clique_sets = [set(c) for c in cliques]
+
+        assert len(clique_sets) == 5
+
+        assert set(["C","D"]) in clique_sets
+        assert set(["G","I","D"]) in clique_sets
+        assert set(["G","S","I"]) in clique_sets
+        assert set(["G","J","S","L"]) in clique_sets
+        assert set(["H","G","J"]) in clique_sets
+
+
     def test_identify_cliques(self):
         """
             test_identify_cliques
@@ -2467,13 +2547,12 @@ class TestJunctionTreeInference(unittest.TestCase):
 
         factors = [
                     ["A"],
-                    ["A","B"],
-                    ["A","C"],
-                    ["B","D"],
-                    ["C","E"],
-                    ["D","E","F"],
-                    ["C","G"],
-                    ["E","G","H"],
+                    ["A", "B"],
+                    ["A", "C"],
+                    ["B", "D"],
+                    ["C", "E", "G"],
+                    ["G", "E", "H"],
+                    ["D", "E", "F"]
         ]
 
         values = [
