@@ -66,28 +66,31 @@ def assert_triangulated(factors, triangulation):
         make graph triangulated
     '''
 
-    cycles = find_cycles(factors, 4)
+    graph_edges, cycles = find_cycles(factors, 4)
 
     for cycle in cycles:
-        cycle_factors = set([fac for edge in cycle for fac in edge])
-        # at least one chord of cycle should be in triangulation
+        cycle_vars = set([var for edge in cycle for var in edge])
+
+        # at least one chord of cycle should be in triangulation or part of
+        # original graph
+
         assert sum(
                     [
-                        1 for edge in triangulation
-                        if edge not in cycle and set(edge).issubset(cycle_factors)
+                        1 for edge in triangulation + graph_edges
+                        if set(edge) not in cycle and set(edge).issubset(cycle_vars)
                     ]
         ) > 0
 
 
 def build_graph(factors):
     G=nx.Graph()
-    G.add_nodes_from(range(len(factors)))
 
-    for i in range(len(factors)):
-        for j in range(i+1,len(factors)):
-            # add edge to graph if any vars shared
-            if not set(factors[i]).isdisjoint(factors[j]):
-                G.add_edge(i,j)
+    for factor in factors:
+        factor_set = set(factor)
+        for v1 in factor:
+            for v2 in factor_set - set([v1]):
+                G.add_edge(v1,v2)
+
     return G
 
 def find_cycles(factors, num):
@@ -109,7 +112,7 @@ def find_cycles(factors, num):
     cycles = [np.array(graph_edges)[[np.nonzero(cycle)[0]]]
                 for cycle in gibbs_elem_cycles(bit_seqs) if sum(cycle) >= num]
 
-    return cycles
+    return G.edges(), cycles
 
 def gibbs_elem_cycles(fcs):
     '''
@@ -1614,11 +1617,11 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 ]
 
         edges = bp.factors_to_undirected_graph(factors)
-        assert ("A","C") in edges or ("C","A") in edges
-        assert ("A","D") in edges or ("D","A") in edges
-        assert ("B","C") in edges or ("C","B") in edges
-        assert ("B","D") in edges or ("D","B") in edges
-        assert ("C","D") in edges or ("D","C") in edges
+        assert frozenset(("A","C")) in edges
+        assert frozenset(("A","D")) in edges
+        assert frozenset(("B","C")) in edges
+        assert frozenset(("B","D")) in edges
+        assert frozenset(("C","D")) in edges
 
     def test_generate_deep_copy_of_factor_graph_nodes(self):
         _vars = {
@@ -1852,7 +1855,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         tri0 = []
         self.assertRaises(AssertionError, assert_triangulated, factors, tri0)
 
-        tri1 = [(0,3)]
+        tri1 = [(0,2)]
         assert_triangulated(factors, tri1)
 
     def test_triangulate_factor_graph(self):
@@ -1876,28 +1879,13 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     np.random.randn(2, 2),
                 ]
         fg = [_vars, factors, values]
-        tri = bp.find_triangulation(fg[1], fg[0])
+        tri, ics = bp.find_triangulation(fg[1], fg[0])
 
-        # triangulation should consist of 4 lists with only
-        # one containing an element
-        assert len(tri) == 4
-        assert all([isinstance(elems, list) for elems in tri])
-        assert sum([len(elems) for elems in tri]) == 1
-
-        # to triangulate we have a few options:
-        # add "C" or "D" or "E" to factor 0
-        if len(tri[0]) == 1:
-            assert any([var in ["C","D","E"] for var in tri[0]])
-        # add "A" or "E" to factor 1
-        if len(tri[1]) == 1:
-            assert any([var in ["A","E"] for var in tri[1]])
-        # add "A" or "B" to factor 2
-        if len(tri[2]) == 1:
-            assert any([var in ["A","B"] for var in tri[2]])
-        # add "B" or "C" to factor 3
-        if len(tri[3]) == 1:
-            assert any([var in ["B","C"] for var in tri[3]])
-
+        # triangulation should consist of 1 edge
+        assert len(tri) == 1
+        assert len(tri[0]) == 2
+        # to triangulate we have a few options
+        assert set(tri[0]) in [set(("A","C")),set(("A","D")),set(("B","D")),set(("B","E"))]
 
         assert_triangulated(fg[1], tri)
 
@@ -1923,20 +1911,13 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["D", "E", "F"]  #6
         ]
 
-        tri = bp.find_triangulation(factors, _vars)
+        tri, ics = bp.find_triangulation(factors, _vars)
         assert_triangulated(factors, tri)
-        cliques = bp.identify_cliques(factors, tri)
+        cliques = bp.identify_cliques(ics)
 
-        clique_sets = [set(c) for c in cliques]
 
-        assert len(clique_sets) == 6
+        assert len(cliques) == 6
 
-        assert set(["E","G","H"]) in clique_sets
-        assert set(["C","E","G"]) in clique_sets
-        assert set(["D","E","F"]) in clique_sets
-        assert set(["A","C","E"]) in clique_sets
-        assert set(["A","B","D"]) in clique_sets
-        assert set(["A","D","E"]) in clique_sets
 
     def test_triangulate_factor_graph3(self):
         '''
@@ -1965,9 +1946,9 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["S","L","J"], #5
         ]
 
-        tri = bp.find_triangulation(factors, _vars)
+        tri, ics = bp.find_triangulation(factors, _vars)
         assert_triangulated(factors, tri)
-        cliques = bp.identify_cliques(factors, tri)
+        cliques = bp.identify_cliques(ics)
 
         clique_sets = [set(c) for c in cliques]
 
@@ -2010,7 +1991,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
             [] #6
         ]
 
-        cliques = bp.identify_cliques(factors, tri)
+        cliques = bp.identify_cliques([f+t for f,t in zip(factors,tri)])
 
         clique_sets = [set(c) for c in cliques]
 

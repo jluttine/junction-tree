@@ -139,9 +139,8 @@ def factors_to_undirected_graph(factors):
     for factor in factors:
         factor_set = set(factor)
         for v1 in factor:
-            for v2 in factor_set - set(v1):
-                if (v2,v1) not in edges and (v1,v2) not in edges:
-                    edges[(v1,v2)] = None
+            for v2 in factor_set - set([v1]):
+                edges.setdefault(frozenset((v1,v2)), None)
 
     return edges
 
@@ -169,54 +168,42 @@ def find_triangulation(factors, var_sizes):
     Output:
     -------
 
-    A list with the same length as factors composed of lists of key/variable
-    representing triangulation of factor graph
+    A list of edges added to triangulate the undirected graph
 
+    A list of variable/key lists representing induced clusters from triangulation
 
-    NOTE: This should actually be a list of variable lists added to each factor
-    to triangulate factor graph. If edges are implied based on variables shared
-    between factors, adding a variable to a factor is the same as an adding an
-    edge to each other factor containing that variable. During message passing
-    only the variables that are not shared between neighboring nodes are summed
-    over. So, clique ids in factor graph should correspond to the underlying
-    factors and separators just arbitrary ids larger than the number of factors.
     """
 
-    tri = [[] for i in range(len(factors))]
-    edges, neighbors = get_graph_structure(factors)
+    tri = []
+    induced_clusters = []
+    edges = factors_to_undirected_graph(factors)
     heap, entry_finder = initialize_triangulation_heap(
-                                            factors,
                                             var_sizes,
-                                            edges,
-                                            neighbors
+                                            edges
     )
-    _factors = copy.deepcopy(factors)
-    for i in range(len(factors)):
-        item, heap, entry_finder, _factors = remove_next(
+    rem_vars = list(var_sizes.keys())
+    while len(rem_vars) > 0:
+        item, heap, entry_finder, rem_vars = remove_next(
                                                         heap,
                                                         entry_finder,
-                                                        _factors,
+                                                        rem_vars,
                                                         var_sizes,
-                                                        edges,
-                                                        neighbors
+                                                        edges
         )
-        rm_factor_ix = item[2]
-        factor = factors[rm_factor_ix]
-        new_vars = set()
-        # connect all unconnected neighbors of rm_factor_ix
-        print("%s" % rm_factor_ix)
-        print(neighbors[rm_factor_ix])
-        for i, n1 in enumerate(neighbors[rm_factor_ix]):
-            for n2 in neighbors[rm_factor_ix][i+1:]:
-                if len(_factors[n1]) and len(_factors[n2]) and (n1,n2) not in edges:
-                    # check if var needs to be added to connect factors
-                    shared_vars = set(_factors[n1]+tri[n1]).intersection(_factors[n2]+tri[n2])
-                    if len(shared_vars) == 0:
-                        set_diff = set(_factors[n2]).difference(_factors[n1])
-                        # add a variable to n1 which is in n2 but not n1
-                        tri[n1].append(set_diff.pop())
+        var = item[2]
 
-    return tri
+        rem_neighbors = [(set(edge) - set(var)).pop()
+                            for edge in edges if var in edge and len(set(rem_vars).intersection(edge)) == 1]
+
+        induced_clusters.append(rem_neighbors + [var])
+        # connect all unconnected neighbors of var
+        for i, n1 in enumerate(rem_neighbors):
+            for n2 in rem_neighbors[i+1:]:
+                if frozenset((n1,n2)) not in edges:
+                    edges[frozenset((n1,n2))] = None
+                    tri.append((n1,n2))
+
+    return tri, induced_clusters
 
 
 def triangulate(triangulation, arrays):
@@ -329,7 +316,7 @@ def update_heap(rem_vars, edges, var_sizes, heap=None, entry_finder=None):
         # determine how many of var's remaining neighbors need to be connected
         num_new_edges = sum(
                             [
-                                (n1,n2) not in edges and (n2,n1) not in edges
+                                frozenset((n1,n2)) not in edges
                                 for i, n1 in enumerate(rem_neighbors)
                                     for n2 in rem_neighbors[i+1:]
 
@@ -399,14 +386,12 @@ def remove_next(heap, entry_finder, remaining_vars, var_sizes, edges):
 
     return entry, heap, entry_finder, remaining_vars
 
-def identify_cliques(factors, triangulation):
+def identify_cliques(induced_clusters):
     """
     Input:
     ------
 
-    A list of edges representing the triangulation
-    assumes that the first factor id in edge pair is
-    the factor that was eliminated during triangulation
+    A list of clusters generated when finding graph triangulation
 
     Output:
     -------
@@ -428,12 +413,9 @@ def identify_cliques(factors, triangulation):
 
 
     """
-    d = {}
-
-    clusters = [f+t for f,t in zip(factors,triangulation)]
 
     # only retain clusters that are not a subset of another cluster
-    sets=[frozenset(c) for c in clusters]
+    sets=[frozenset(c) for c in induced_clusters]
     cliques=[]
     for s1 in sets:
         if any(s1 < s2 for s2 in sets):
