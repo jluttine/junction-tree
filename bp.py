@@ -119,6 +119,31 @@ import numpy as np
 import heapq
 import copy
 
+def factors_to_undirected_graph(factors):
+    """
+        Represent factor graph as undirected graph
+
+        Inputs:
+        -------
+
+        List of factors
+
+        Output:
+        -------
+
+        Undirected graph as dictionary of node adjacency lists
+    """
+
+    edges = {}
+
+    for factor in factors:
+        factor_set = set(factor)
+        for v1 in factor:
+            for v2 in factor_set - set(v1):
+                if (v2,v1) not in edges and (v1,v2) not in edges:
+                    edges[(v1,v2)] = None
+
+    return edges
 
 def find_triangulation(factors, var_sizes):
     """Triangulate given factor graph.
@@ -213,35 +238,30 @@ def triangulate(triangulation, arrays):
     """
     raise NotImplementedError()
 
-def initialize_triangulation_heap(factors, var_sizes, edges, neighbors):
+def initialize_triangulation_heap(var_sizes, edges):
     """
     Input:
     ------
-
-    A list of factors (where factors are lists of keys)
 
     A dictionary with variables as keys and variable size as values
 
     A list of pairs of of variables representing factor graph edges
 
-    A dictionary with factor ids as keys and a list of neighboring factor ids
 
     Output:
     -------
     A heap of entries where entry has structure:
     [
-        num edges added to factor graph by removal of factor,
+        num edges added to triangulated graph by removal of variable,
         induced cluster weight,
-        id of factor associated with other two elements
+        variable associated with other two elements
     ]
 
-    A dictionary with factor id as key and reference to entry
-    containing factor id as 3rd elements as value
+    A dictionary with variables as key and reference to entry
+    containing variables as 3rd elements as value
     """
 
-    edges, neighbors = get_graph_structure(factors)
-
-    heap, entry_finder = update_heap(factors, edges, neighbors, var_sizes)
+    heap, entry_finder = update_heap(var_sizes.keys(), edges, var_sizes)
 
     return heap, entry_finder
 
@@ -277,14 +297,14 @@ def get_graph_structure(factors):
 
     return edges, neighbors
 
-def update_heap(factors, edges, neighbors, var_sizes, heap=None, entry_finder=None):
+def update_heap(rem_vars, edges, var_sizes, heap=None, entry_finder=None):
     """
     Input:
     ------
 
-    list of factors
+    list of variables remaining
 
-    list of edges (factor ix pairs)
+    list of edges (variable pairs)
 
     dictionary of variables (variable is key, size is value)
 
@@ -302,44 +322,47 @@ def update_heap(factors, edges, neighbors, var_sizes, heap=None, entry_finder=No
 
     h = heap if heap else []
     entry_finder = entry_finder if entry_finder else {}
-    for i, fac in enumerate(factors):
-        if len(fac) > 0:
-            # determine how many of i's remaining neighbors need to be connected
-            num_new_edges = sum(
-                                [
-                                    (n1,n2) not in edges and (n2,n1) not in edges
-                                    for j, n1 in enumerate(neighbors[i])
-                                        for k, n2 in enumerate(neighbors[i][j+1:])
-                                            if len(factors[n1]) and len(factors[n2])
-                                ]
-            )
-            # weight of a cluster is the product of all variable values in cluster
-            weight = np.prod(
-                        [var_sizes[var] for var in fac] \
-                        + [var_sizes[var] for n in neighbors[i] for var in factors[n] if var]
-            )
-            entry = [num_new_edges, weight, i]
-            heapq.heappush(h, entry)
-            # invalidate previous entry if it exists
-            prev = entry_finder.get(i, None)
-            if prev:
-                # set entry to be removed
-                prev[2] = -1
-            entry_finder[i] = entry
+    for var in rem_vars:
+        rem_neighbors = [(set(edge) - set(var)).pop()
+                            for edge in edges if var in edge and len(set(rem_vars).intersection(edge)) == 2]
+
+        # determine how many of var's remaining neighbors need to be connected
+        num_new_edges = sum(
+                            [
+                                (n1,n2) not in edges and (n2,n1) not in edges
+                                for i, n1 in enumerate(rem_neighbors)
+                                    for n2 in rem_neighbors[i+1:]
+
+                            ]
+        )
+        # weight of a cluster is the product of all variable values in cluster
+        weight = var_sizes[var]*np.prod([var_sizes[n] for n in rem_neighbors])
+        entry = [num_new_edges, weight, var]
+        heapq.heappush(h, entry)
+        # invalidate previous entry if it exists
+        prev = entry_finder.get(var, None)
+        if prev:
+            # set entry to be removed
+            prev[2] = ""
+        entry_finder[var] = entry
 
     return h, entry_finder
 
 
-def remove_next(heap, entry_finder, factors, var_sizes, edges, neighbors):
+def remove_next(heap, entry_finder, remaining_vars, var_sizes, edges):
     """
     Input:
     ------
 
     heap containing remaining factors and weights
 
-    list of factors remaining in G' (len(factors) = N)
+    entry_finder dictionary with updated references to heap elements
+
+    list of variables remaining in G'
 
     variable sizes
+
+    list of edge pairs in original graph G
 
     Output:
     -------
@@ -350,32 +373,31 @@ def remove_next(heap, entry_finder, factors, var_sizes, edges, neighbors):
 
     entry_finder dictionary with updated references to heap elements
 
-    list of factors without most recently removed factor (len(factors) = N-1)
+    list of variables without most recently removed variable
     """
 
-    entry = (None, None, -1)
+    entry = (None, None, "")
 
-    while entry[2] == -1:
+    while entry[2] == "":
         entry = heapq.heappop(heap)
 
 
     # remove entry from entry_finder
     del entry_finder[entry[2]]
 
-    # set factor as removed from factor list
-    factors[entry[2]] = []
+    # remove variable from remaining variables list
+    remaining_vars.remove(entry[2])
 
     heap, entry_finder = update_heap(
-                                factors,
+                                remaining_vars,
                                 edges,
-                                neighbors,
                                 var_sizes,
                                 heap,
                                 entry_finder
     )
 
 
-    return entry, heap, entry_finder, factors
+    return entry, heap, entry_finder, remaining_vars
 
 def identify_cliques(factors, triangulation):
     """

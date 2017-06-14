@@ -62,22 +62,19 @@ def assert_triangulated(factors, triangulation):
 
         Only one such edge is required.
 
-        Triangulation is a list of variables to add to each factor to
-        triangulate factor graph
+        Triangulation is a list of edges added to underlying undirected graph to
+        make graph triangulated
     '''
 
-    assert len(factors) == len(triangulation)
+    cycles = find_cycles(factors, 4)
 
-    pre_cycles = find_cycles(factors, 4)
-    triangulation_edges = build_graph([a+b for a,b in zip(factors,triangulation)]).edges()
-    print(triangulation_edges)
-    for cycle in pre_cycles:
+    for cycle in cycles:
         cycle_factors = set([fac for edge in cycle for fac in edge])
         # at least one chord of cycle should be in triangulation
         assert sum(
                     [
-                        1 for edge in triangulation_edges
-                        if set(edge) not in cycle and set(edge).issubset(cycle_factors)
+                        1 for edge in triangulation
+                        if edge not in cycle and set(edge).issubset(cycle_factors)
                     ]
         ) > 0
 
@@ -1608,6 +1605,21 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         clique, _vars = bp.get_clique(tree, 2)
         assert clique == 2
 
+    def test_convert_factor_graph_to_undirected_graph(self):
+        factors = [
+                    ["A"],
+                    ["A", "C"],
+                    ["B", "C", "D"],
+                    ["A", "D"]
+                ]
+
+        edges = bp.factors_to_undirected_graph(factors)
+        assert ("A","C") in edges or ("C","A") in edges
+        assert ("A","D") in edges or ("D","A") in edges
+        assert ("B","C") in edges or ("C","B") in edges
+        assert ("B","D") in edges or ("D","B") in edges
+        assert ("C","D") in edges or ("D","C") in edges
+
     def test_generate_deep_copy_of_factor_graph_nodes(self):
         _vars = {
                     "A": 2,
@@ -1671,27 +1683,25 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["B", "C", "D"], # weight: 60
                     ["A", "D"] # weight: 10
                 ]
-        edges, neighbors = bp.get_graph_structure(factors)
+        edges = bp.factors_to_undirected_graph(factors)
         hp, ef = bp.initialize_triangulation_heap(
-                                                factors,
                                                 _vars,
-                                                edges,
-                                                neighbors
+                                                edges
         )
 
         assert len(hp) == 4
         '''
             Entries:
-            [0, 120, 0] # factor 0 has 2 neighbors (all nodes connected)
-            [1, 7200, 1] # factor 1 has 3 neighbors (0-2 edge added)
-            [0, 3600, 2] # factor 2 has 2 neighbors (all nodes connected)
-            [1, 7200, 3] # factor 3 has 3 neighbors (0-2 edge added)
+            [0, 30, "A"] # A has 2 neighbors (all vars connected)
+            [0, 60, "B"] # B has 2 neighbors (all vars connected)
+            [1, 120, "C"] # C has 3 neighbors (A-B edge added)
+            [1, 120, "D"] # C has 3 neighbors (A-B edge added)
         '''
 
-        assert heapq.heappop(hp) == [0, 120, 0]
-        assert heapq.heappop(hp) == [0, 3600, 2]
-        assert heapq.heappop(hp) == [1, 7200, 1]
-        assert heapq.heappop(hp) == [1, 7200, 3]
+        assert heapq.heappop(hp) == [0, 30, "A"]
+        assert heapq.heappop(hp) == [0, 60, "B"]
+        assert heapq.heappop(hp) == [1, 120, "C"]
+        assert heapq.heappop(hp) == [1, 120, "D"]
 
 
     def test_heap_update_after_node_removal(self):
@@ -1709,111 +1719,83 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["A", "D"]
                 ]
 
-        edges, neighbors = bp.get_graph_structure(factors)
+        edges = bp.factors_to_undirected_graph(factors)
         heap, entry_finder = bp.initialize_triangulation_heap(
-                                                        factors,
                                                         _vars,
                                                         edges,
-                                                        neighbors
         )
-        new_factors = copy.deepcopy(factors)
-        item, heap, entry_finder, factors = bp.remove_next(
+
+        item, heap, entry_finder, rem_vars = bp.remove_next(
                                                         heap,
                                                         entry_finder,
-                                                        new_factors,
+                                                        list(_vars.keys()),
                                                         _vars,
-                                                        edges,
-                                                        neighbors
+                                                        edges
         )
 
-        assert item == [0, 120, 0]
+        assert item == [0, 30, "A"]
 
 
         '''
-            factors = [
-                            [],
-                            ["A", "C"], # weight: 6
-                            ["B", "C", "D"], # weight: 60
-                            ["A", "D"] # weight: 10
-                    ]
             Entries:
-            [0, 3600, 1] # factor 1 has 2 neighbors (all nodes connected)
-            [0, 3600, 2] # factor 2 has 2 neighbors (all nodes connected)
-            [0, 3600, 3] # factor 3 has 2 neighbors (all nodes connected)
+            [0, 60, "B"] # B has 2 neighbors (all nodes connected)
+            [0, 60, "C"] # C has 2 neighbors (all nodes connected)
+            [0, 60, "D"] # D has 2 neighbors (all nodes connected)
         '''
-        chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != -1]
+        chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != ""]
         assert len(chk_heap) == 3
-        assert chk_heap[0] == [0, 3600, 1]
-        assert chk_heap[1] == [0, 3600, 2]
-        assert chk_heap[2] == [0, 3600, 3]
+        assert chk_heap[0] == [0, 60, "B"]
+        assert chk_heap[1] == [0, 60, "C"]
+        assert chk_heap[2] == [0, 60, "D"]
 
-        new_factors = copy.deepcopy(factors)
-        item, heap, entry_finder, factors = bp.remove_next(
+        item, heap, entry_finder, rem_vars = bp.remove_next(
                                                         heap,
                                                         entry_finder,
-                                                        new_factors,
+                                                        rem_vars,
                                                         _vars,
-                                                        edges,
-                                                        neighbors
+                                                        edges
         )
 
-        assert item == [0, 3600, 1]
+        assert item == [0, 60, "B"]
 
         '''
-            factors = [
-                            [],
-                            [],
-                            ["B", "C", "D"]
-                            ["A", "D"] # weight: 10
-                    ]
             Entries:
-            [0, 600, 2] # factor 2 has 1 neighbors (already connected)
-            [0, 600, 3] # factor 3 has 1 neighbors (already connected)
+            [0, 15, "C"] # C has 1 neighbor (already connected)
+            [0, 15, "D"] # D has 1 neighbor (already connected)
         '''
 
-        chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != -1]
+        chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != ""]
         assert len(chk_heap) == 2
-        assert chk_heap[0] == [0, 600, 2]
-        assert chk_heap[1] == [0, 600, 3]
+        assert chk_heap[0] == [0, 15, "C"]
+        assert chk_heap[1] == [0, 15, "D"]
 
-
-        new_factors = copy.deepcopy(factors)
-        item, heap, entry_finder, factors = bp.remove_next(
+        item, heap, entry_finder, rem_vars = bp.remove_next(
                                                         heap,
                                                         entry_finder,
-                                                        new_factors,
+                                                        rem_vars,
                                                         _vars,
                                                         edges,
-                                                        neighbors
         )
 
-        assert item == [0, 600, 2]
+        assert item == [0, 15, "C"]
 
         '''
-            factors = [
-                            [],
-                            [],
-                            [],
-                            ["A", "D"] # weight: 10
-                    ]
             Entries:
-            [0, 10, 3] # factor 3 has 0 neighbors (no connections possible)
+            [0, 5, "D"] # D has 0 neighbors (no connections possible)
         '''
 
-        chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != -1]
+        chk_heap = [entry for entry in heapq.nsmallest(len(heap), heap) if entry[2] != ""]
         assert len(chk_heap) == 1
-        assert chk_heap[0] == [0, 10, 3]
+        assert chk_heap[0] == [0, 5, "D"]
 
-        new_factors = copy.deepcopy(factors)
         item, heap, entry_finder, factors = bp.remove_next(
                                                         heap,
                                                         entry_finder,
-                                                        new_factors,
+                                                        rem_vars,
                                                         _vars,
-                                                        edges,
-                                                        neighbors
+                                                        edges
         )
-        assert item == [0, 10, 3]
+        assert item == [0, 5, "D"]
 
 
     def test_gibbs_algo_implementation(self):
@@ -1867,10 +1849,10 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     [2,3,4],
                     [0,4]
                 ]
-        tri0 = [[],[],[],[]]
+        tri0 = []
         self.assertRaises(AssertionError, assert_triangulated, factors, tri0)
 
-        tri1 = [[3],[],[],[]]
+        tri1 = [(0,3)]
         assert_triangulated(factors, tri1)
 
     def test_triangulate_factor_graph(self):
@@ -1962,7 +1944,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
             https://courses.cs.washington.edu/courses/cse515/11sp/class7-exactinfalgos.pdf
         '''
-        
+
         _vars = {
             "C": 2,
             "D": 2,
