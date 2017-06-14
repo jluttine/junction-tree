@@ -2513,7 +2513,8 @@ class TestJunctionTreeInference(unittest.TestCase):
                     ["A", "B"],
                     ["A", "C"],
                     ["B", "D"],
-                    ["C", "E", "G"],
+                    ["C", "E"],
+                    ["C", "G"],
                     ["G", "E", "H"],
                     ["D", "E", "F"]
         ]
@@ -2546,6 +2547,12 @@ class TestJunctionTreeInference(unittest.TestCase):
                             ),
                     np.array(
                                 [
+                                    [0.9,0.1],
+                                    [0.8,0.2]
+                                ]
+                            ),
+                    np.array(
+                                [
                                     [
                                         [0.01,0.99],
                                         [0.99,0.01]
@@ -2554,12 +2561,6 @@ class TestJunctionTreeInference(unittest.TestCase):
                                         [0.99,0.01],
                                         [0.99,0.01]
                                     ]
-                                ]
-                            ),
-                    np.array(
-                                [
-                                    [0.9,0.1],
-                                    [0.8,0.2]
                                 ]
                             ),
                     np.array(
