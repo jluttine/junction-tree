@@ -2371,6 +2371,146 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         assert_junction_tree_equal([output], [merged_tree])
 
+    def test_index_vars(self):
+        var_lookup = {
+                "A": 0,
+                "B": 1,
+                "C": 2,
+                "D": 4,
+                "E": 8,
+                "F": 9,
+                "G": 10
+        }
+        in_tree = [
+                    2, ["B","C"],
+                    (
+                        1, ["C"],
+                        [
+                            0, ["A","C","D"],
+                            (
+                                5, ["A"],
+                                [
+                                    4,["A","E"],
+                                    (
+                                        7, ["E"],
+                                        [
+                                            8, ["E","G"]
+                                        ]
+                                    )
+                                ]
+                            ),
+                            (
+                                3, ["D"],
+                                [
+                                    6, ["D","F"]
+                                ]
+                            )
+                        ]
+                    )
+                ]
+
+        out_tree = JunctionTree.map_vars(in_tree, var_lookup)
+
+        test_tree = [
+                    2, [1,2],
+                    (
+                        1, [2],
+                        [
+                            0, [0,2,4],
+                            (
+                                5, [0],
+                                [
+                                    4,[0,8],
+                                    (
+                                        7, [8],
+                                        [
+                                            8, [8, 10]
+                                        ]
+                                    )
+                                ]
+                            ),
+                            (
+                                3, [4],
+                                [
+                                    6, [4,9]
+                                ]
+                            )
+                        ]
+                    )
+                ]
+
+        assert_junction_tree_equal([out_tree], [test_tree])
+
+    def test_unindex_vars(self):
+        var_lookup = {
+                "A": 0,
+                "B": 1,
+                "C": 2,
+                "D": 4,
+                "E": 8,
+                "F": 9,
+                "G": 10
+        }
+
+        in_tree = [
+                    2, [1,2],
+                    (
+                        1, [2],
+                        [
+                            0, [0,2,4],
+                            (
+                                5, [0],
+                                [
+                                    4,[0,8],
+                                    (
+                                        7, [8],
+                                        [
+                                            8, [8, 10]
+                                        ]
+                                    )
+                                ]
+                            ),
+                            (
+                                3, [4],
+                                [
+                                    6, [4,9]
+                                ]
+                            )
+                        ]
+                    )
+                ]
+
+        out_tree = JunctionTree.map_vars(in_tree, {v:k for k, v in var_lookup.items()})
+
+        test_tree = [
+                    2, ["B","C"],
+                    (
+                        1, ["C"],
+                        [
+                            0, ["A","C","D"],
+                            (
+                                5, ["A"],
+                                [
+                                    4,["A","E"],
+                                    (
+                                        7, ["E"],
+                                        [
+                                            8, ["E","G"]
+                                        ]
+                                    )
+                                ]
+                            ),
+                            (
+                                3, ["D"],
+                                [
+                                    6, ["D","F"]
+                                ]
+                            )
+                        ]
+                    )
+                ]
+
+        assert_junction_tree_equal([out_tree], [test_tree])
 
     def test_join_cliques_into_junction_tree(self):
         """
@@ -2403,18 +2543,18 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         ]
 
         cliques = [
-                    [0,1,3],#["A","B","D"]
-                    [0,2,4],#["A","C","E"],
-                    [0,3,4],#["A","D","E"],
-                    [2,4,6],#["C","E","G"],
-                    [3,4,5],#["D","E","F"],
-                    [4,6,7],#["E","G","H"]
+                    ["A","B","D"],#[0,1,3]
+                    ["A","C","E"],#[0,2,4]
+                    ["A","D","E"],#[0,3,4]
+                    ["C","E","G"],#[2,4,6]
+                    ["D","E","F"],#[3,4,5]
+                    ["E","G","H"],#[4,6,7]
                 ]
-        forest = bp.construct_junction_tree(cliques, factors, var_sizes)
+        trees = bp.construct_junction_tree(cliques, var_sizes)
 
-        assert len(forest) == 1
+        assert len(trees) == 1
 
-        jt0 = forest
+        jt0 = JunctionTree(var_sizes, trees)
 
         # expected junction tree
 
@@ -2455,7 +2595,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 ]
             ]
 
-        assert_junction_tree_equal(jt0, jt1)
+        assert_junction_tree_equal(jt0.get_struct(), jt1)
 
 class TestJunctionTreeInference(unittest.TestCase):
     def setUp(self):

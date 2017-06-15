@@ -426,7 +426,7 @@ def identify_cliques(induced_clusters):
 
     return cliques
 
-def construct_junction_tree(cliques, factors, var_sizes):
+def construct_junction_tree(cliques, var_sizes):
     """
     Input:
     ------
@@ -455,7 +455,7 @@ def construct_junction_tree(cliques, factors, var_sizes):
                 sepsets.append((sepset, (i,j+i+1)))
 
 
-    heap = build_sepset_heap(sepsets, cliques, factors, var_sizes)
+    heap = build_sepset_heap(sepsets, cliques, var_sizes)
     num_selected = 0
     while num_selected < len(cliques) - 1:
         entry = heapq.heappop(heap)
@@ -490,7 +490,7 @@ def construct_junction_tree(cliques, factors, var_sizes):
 
     return forest
 
-def build_sepset_heap(sepsets, cliques, factors, var_sizes):
+def build_sepset_heap(sepsets, cliques, var_sizes):
     """
     Input:
     ------
@@ -509,8 +509,8 @@ def build_sepset_heap(sepsets, cliques, factors, var_sizes):
 
     for i, (ss, (cliq1_ix, cliq2_ix)) in enumerate(sepsets):
         mass = len(set(ss))
-        weight1 = np.prod([var_sizes[var] for fac_id in cliques[cliq1_ix] for var in factors[fac_id]])
-        weight2 = np.prod([var_sizes[var] for fac_id in cliques[cliq2_ix] for var in factors[fac_id]])
+        weight1 = np.prod([var_sizes[var] for var in cliques[cliq1_ix]])
+        weight2 = np.prod([var_sizes[var] for var in cliques[cliq2_ix]])
         # invert mass to use minheap
         entry = [1.0/mass, weight1 + weight2, i]
         heapq.heappush(heap, entry)
@@ -1009,6 +1009,9 @@ class JunctionTree(object):
     def __init__(self, _vars, trees=[]):
         self._vars = _vars
         self.labels = {vl:i for i, vl in enumerate(sorted(_vars.keys()))}
+        indexed_trees = []
+        for tree in trees:
+            indexed_trees.append(self.index_vars(tree))
         self.struct = trees
 
     def find_var(self, var_label):
@@ -1045,16 +1048,34 @@ class JunctionTree(object):
         return self.struct
 
     @staticmethod
+    def map_vars(tree, lookup):
+        cp_tree = copy.deepcopy(tree)
+
+        def __run(tree, lookup):
+            ix, keys = tree[0:2]
+            for i, k in enumerate(keys):
+                keys[i] = lookup[k]
+            separators = tree[2:]
+
+            for separator in separators:
+                separator_ix, separator_keys, c_tree = separator
+                for i, k in enumerate(separator_keys):
+                    separator_keys[i] = lookup[k]
+                __run(c_tree, lookup)
+
+        __run(cp_tree, lookup)
+        return cp_tree
+
+
+    @staticmethod
     def from_factor_graph(factor_graph):
         var_sizes = factor_graph[0]
         factors = factor_graph[1]
-        tri = find_triangulation(
+        tri,induced_clusters = find_triangulation(
                             var_sizes=factor_graph[0],
                             factors=factor_graph[1]
         )
-        print(tri)
-        print(factors)
-        cliques = identify_cliques(factors, tri)
-        print(cliques)
+
+        cliques = identify_cliques(induced_clusters)
         trees = construct_junction_tree(cliques, factors, var_sizes)
         return JunctionTree(var_sizes, trees)
