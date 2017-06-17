@@ -1136,12 +1136,17 @@ class JunctionTree(object):
         init_potentials(jt, factors, values)
         return jt
 
-    def propagate(self):
+    def propagate(self, data=None):
+        # May want more separation between potentials and JT structure
         if len(self.phi) == 0:
             raise ValueError("Cannot run propagation on tree without values")
 
+        new_phi = self.phi
+        if data:
+            likelihood, new_phi = observe(self, self.phi, data)
+
         for i, tree in enumerate(self.get_struct()):
-            new_phi = hugin(tree, self.get_label_order(), self.phi, sum_product)
+            new_phi = hugin(tree, self.get_label_order(), new_phi, sum_product)
             for clique_ix in self.tree_cliques[i]:
                 self.phi[clique_ix] = new_phi[clique_ix]
 
