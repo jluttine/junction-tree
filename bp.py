@@ -110,11 +110,6 @@ General guidelines:
 
 """
 
-"""
-According to Hugin reference (Section 3.1, p. 1083) Jensen (Junction Trees and Decomposable
-Hypergraphs - 1988) proved that a junction tree can be constructed by a maximal spanning tree algorithm
-"""
-
 import numpy as np
 import heapq
 import copy
@@ -131,7 +126,7 @@ def factors_to_undirected_graph(factors):
         Output:
         -------
 
-        Undirected graph as dictionary of node adjacency lists
+        Undirected graph as dictionary of edges
     """
 
     edges = {}
@@ -144,7 +139,8 @@ def factors_to_undirected_graph(factors):
 
     return edges
 
-def find_triangulation(factors, var_sizes):
+
+def find_triangulation(factors, key_sizes):
     """Triangulate given factor graph.
 
     TODO: Provide different algorithms.
@@ -153,7 +149,7 @@ def find_triangulation(factors, var_sizes):
     -------
 
     A list of factor where each factor is given as a
-    list of variable keys the factor contains:
+        list of keys the factor contains:
 
     [keys1, ..., keysN]
 
@@ -170,7 +166,7 @@ def find_triangulation(factors, var_sizes):
 
     A list of edges added to triangulate the undirected graph
 
-    A list of variable/key lists representing induced clusters from triangulation
+    A list of key lists representing induced clusters from triangulation
 
     """
 
@@ -178,25 +174,25 @@ def find_triangulation(factors, var_sizes):
     induced_clusters = []
     edges = factors_to_undirected_graph(factors)
     heap, entry_finder = initialize_triangulation_heap(
-                                            var_sizes,
+                                            key_sizes,
                                             edges
     )
-    rem_vars = list(var_sizes.keys())
-    while len(rem_vars) > 0:
-        item, heap, entry_finder, rem_vars = remove_next(
+    rem_keys = list(key_sizes.keys())
+    while len(rem_keys) > 0:
+        item, heap, entry_finder, rem_keys = remove_next(
                                                         heap,
                                                         entry_finder,
-                                                        rem_vars,
-                                                        var_sizes,
+                                                        rem_keys,
+                                                        key_sizes,
                                                         edges
         )
-        var = item[2]
+        key = item[2]
 
-        rem_neighbors = [(set(edge) - set(var)).pop()
-                            for edge in edges if var in edge and len(set(rem_vars).intersection(edge)) == 1]
+        rem_neighbors = [(set(edge) - set(key)).pop()
+                            for edge in edges if key in edge and len(set(rem_keys).intersection(edge)) == 1]
 
-        induced_clusters.append(rem_neighbors + [var])
-        # connect all unconnected neighbors of var
+        induced_clusters.append(rem_neighbors + [key])
+        # connect all unconnected neighbors of key
         for i, n1 in enumerate(rem_neighbors):
             for n2 in rem_neighbors[i+1:]:
                 if frozenset((n1,n2)) not in edges:
@@ -215,85 +211,56 @@ def triangulate(triangulation, arrays):
 
     Triangulation returned by find_triangulation.
 
-    List of arrays for the factors
+    List of key lists for the factors
 
     Output:
     -------
 
-    List of arrays for the cliques.
+    List of key lists for the cliques.
 
     """
     raise NotImplementedError()
 
-def initialize_triangulation_heap(var_sizes, edges):
+
+def initialize_triangulation_heap(key_sizes, edges):
     """
     Input:
     ------
 
-    A dictionary with variables as keys and variable size as values
+    A dictionary with key label as keys and variable size as values
 
-    A list of pairs of of variables representing factor graph edges
+    A list of pairs of keys representing factor graph edges
 
 
     Output:
     -------
     A heap of entries where entry has structure:
+
     [
-        num edges added to triangulated graph by removal of variable,
+        num edges added to triangulated graph by removal of key,
         induced cluster weight,
-        variable associated with other two elements
+        key associated with first two elements
     ]
 
-    A dictionary with variables as key and reference to entry
-    containing variables as 3rd elements as value
+    A dictionary with key label as key and reference
+        to heap entry for key
     """
 
-    heap, entry_finder = update_heap(var_sizes.keys(), edges, var_sizes)
+    heap, entry_finder = update_heap(key_sizes.keys(), edges, key_sizes)
 
     return heap, entry_finder
 
-def get_graph_structure(factors):
+
+def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
     """
     Input:
     ------
 
-    list of factors
+    list of keys remaining
 
-    Output:
-    -------
+    list of edges (key pairs)
 
-    edges of factor graph as paired factor indices
-
-    neighbors of factors as dictionary with factor index as keys
-    and list of neighbor factor indices as values
-    """
-
-    edges = {}
-    neighbors = {}
-    for i, fac1 in enumerate(factors):
-        for j, fac2 in enumerate(factors[i+1:]):
-            if not set(fac1).isdisjoint(fac2):
-                edges.update(
-                                {
-                                    (i,i+j+1): None,
-                                    (i+j+1,i): None
-                                }
-                )
-                neighbors.setdefault(i, []).append(i+j+1)
-                neighbors.setdefault(i+j+1, []).append(i)
-
-    return edges, neighbors
-
-def update_heap(rem_vars, edges, var_sizes, heap=None, entry_finder=None):
-    """
-    Input:
-    ------
-
-    list of variables remaining
-
-    list of edges (variable pairs)
-
-    dictionary of variables (variable is key, size is value)
+    dictionary of keys (key label is key, size is value)
 
     heap to be updated (None if new heap is to be created)
 
@@ -309,11 +276,11 @@ def update_heap(rem_vars, edges, var_sizes, heap=None, entry_finder=None):
 
     h = heap if heap else []
     entry_finder = entry_finder if entry_finder else {}
-    for var in rem_vars:
-        rem_neighbors = [(set(edge) - set(var)).pop()
-                            for edge in edges if var in edge and len(set(rem_vars).intersection(edge)) == 2]
+    for key in remaining_keys:
+        rem_neighbors = [(set(edge) - set(key)).pop()
+                            for edge in edges if key in edge and len(set(remaining_keys).intersection(edge)) == 2]
 
-        # determine how many of var's remaining neighbors need to be connected
+        # determine how many of key's remaining neighbors need to be connected
         num_new_edges = sum(
                             [
                                 frozenset((n1,n2)) not in edges
@@ -322,21 +289,21 @@ def update_heap(rem_vars, edges, var_sizes, heap=None, entry_finder=None):
 
                             ]
         )
-        # weight of a cluster is the product of all variable values in cluster
-        weight = var_sizes[var]*np.prod([var_sizes[n] for n in rem_neighbors])
-        entry = [num_new_edges, weight, var]
+        # weight of a cluster is the product of all key lenghts in cluster
+        weight = key_sizes[key]*np.prod([key_sizes[n] for n in rem_neighbors])
+        entry = [num_new_edges, weight, key]
         heapq.heappush(h, entry)
         # invalidate previous entry if it exists
-        prev = entry_finder.get(var, None)
+        prev = entry_finder.get(key, None)
         if prev:
             # set entry to be removed
             prev[2] = ""
-        entry_finder[var] = entry
+        entry_finder[key] = entry
 
     return h, entry_finder
 
 
-def remove_next(heap, entry_finder, remaining_vars, var_sizes, edges):
+def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
     """
     Input:
     ------
@@ -345,9 +312,9 @@ def remove_next(heap, entry_finder, remaining_vars, var_sizes, edges):
 
     entry_finder dictionary with updated references to heap elements
 
-    list of variables remaining in G'
+    list of keys remaining in G'
 
-    variable sizes
+    key sizes
 
     list of edge pairs in original graph G
 
@@ -360,7 +327,7 @@ def remove_next(heap, entry_finder, remaining_vars, var_sizes, edges):
 
     entry_finder dictionary with updated references to heap elements
 
-    list of variables without most recently removed variable
+    list of keys without most recently removed key
     """
 
     entry = (None, None, "")
@@ -372,19 +339,19 @@ def remove_next(heap, entry_finder, remaining_vars, var_sizes, edges):
     # remove entry from entry_finder
     del entry_finder[entry[2]]
 
-    # remove variable from remaining variables list
-    remaining_vars.remove(entry[2])
+    # remove key from remaining keys list
+    remaining_keys.remove(entry[2])
 
     heap, entry_finder = update_heap(
-                                remaining_vars,
+                                remaining_keys,
                                 edges,
-                                var_sizes,
+                                key_sizes,
                                 heap,
                                 entry_finder
     )
 
 
-    return entry, heap, entry_finder, remaining_vars
+    return entry, heap, entry_finder, remaining_keys
 
 def identify_cliques(induced_clusters):
     """
@@ -397,12 +364,12 @@ def identify_cliques(induced_clusters):
     -------
 
     A list of maximal cliques where each maximal clique is a list of
-    key/variable indices it contains:
+        key indices it contains:
 
     [clique1, ..., cliqueK]
 
-    That is, if there are N keys/variables, each clique contains some subset of
-    numbers from {0, ..., N-1} as a tuple/list.
+    That is, if there are N keys, each clique contains some subset of
+        numbers from {0, ..., N-1} as a tuple/list.
 
     Notes
     -----
@@ -426,26 +393,25 @@ def identify_cliques(induced_clusters):
 
     return cliques
 
-def construct_junction_tree(cliques, var_sizes):
+def construct_junction_tree(cliques, key_sizes):
     """
     Input:
     ------
 
     A list of maximal cliques where each maximal clique is a list of
-    variable indices it contains
+        key indices it contains
 
-    A list of factors from original factor graph
-
-    A dictionary of (variable name, variable size) pairs
+    A dictionary of (key label, key size) pairs
 
     Output:
     -------
 
-    A list of junction trees from the input cliques. In most cases,
-    there should only be a single tree in the returned list
+    A list of junction tree structures from the input cliques.
+        In most cases, there should only be a single tree in the
+        returned list
     """
 
-    forest = [[c_ix, clique] for c_ix, clique in enumerate(cliques)]
+    trees = [[c_ix, clique] for c_ix, clique in enumerate(cliques)]
     # set of candidate sepsets
     sepsets = list()
     for i, X in enumerate(cliques):
@@ -455,7 +421,7 @@ def construct_junction_tree(cliques, var_sizes):
                 sepsets.append((sepset, (i,j+i+1)))
 
 
-    heap = build_sepset_heap(sepsets, cliques, var_sizes)
+    heap = build_sepset_heap(sepsets, cliques, key_sizes)
     num_selected = 0
     while num_selected < len(cliques) - 1:
         entry = heapq.heappop(heap)
@@ -463,7 +429,7 @@ def construct_junction_tree(cliques, var_sizes):
         (cliq1_ix, cliq2_ix) = sepsets[ss_id][1]
 
         tree1, tree2 = None, None
-        for tree in forest:
+        for tree in trees:
             # find tree (tree1) containing cliq1_ix
             tree1 = tree1 if tree1 else (tree if find_subtree(tree,cliq1_ix) != [] else None)
             # find tree (tree2) containing cliq2_ix
@@ -481,22 +447,27 @@ def construct_junction_tree(cliques, var_sizes):
             )
 
             # insert new_tree into forest
-            forest.append(new_tree)
+            trees.append(new_tree)
 
             # remove tree1 and tree2
-            forest.remove(tree1)
-            forest.remove(tree2)
+            trees.remove(tree1)
+            trees.remove(tree2)
             num_selected += 1
 
-    return forest
+    return trees
 
-def build_sepset_heap(sepsets, cliques, var_sizes):
+
+def build_sepset_heap(sepsets, cliques, key_sizes):
     """
     Input:
     ------
 
     Set of candidate sepsets consisting of sets of factor ids and
         tuple of clique ids which produce sepset
+
+    Cliques of the tree
+
+    Dictionary of key label as key and key size as value
 
     Output:
     -------
@@ -509,8 +480,8 @@ def build_sepset_heap(sepsets, cliques, var_sizes):
 
     for i, (ss, (cliq1_ix, cliq2_ix)) in enumerate(sepsets):
         mass = len(set(ss))
-        weight1 = np.prod([var_sizes[var] for var in cliques[cliq1_ix]])
-        weight2 = np.prod([var_sizes[var] for var in cliques[cliq2_ix]])
+        weight1 = np.prod([key_sizes[key] for key in cliques[cliq1_ix]])
+        weight2 = np.prod([key_sizes[key] for key in cliques[cliq2_ix]])
         # invert mass to use minheap
         entry = [1.0/mass, weight1 + weight2, i]
         heapq.heappush(heap, entry)
@@ -554,6 +525,25 @@ def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
     return merged_tree
 
 def insert_sepset(tree, clique_ix, sepset_group):
+    """
+    Input:
+    ------
+
+    Tree structure in which to insert sepset
+
+    The clique id of the sepset's parent
+
+    The sepset group being inserted
+
+    Output:
+    -------
+
+    A new tree structure with the sepset inserted as a
+        child of clique
+
+    """
+
+
     return [tree[0],tree[1]] + sum(
         [
             [(child_sepset[0], child_sepset[1], insert_sepset(child_sepset[2], clique_ix, sepset_group))]
@@ -567,13 +557,15 @@ def find_subtree(tree, clique_ix):
     Input:
     ------
 
-    Tree (potentially) containing clique_ix
+    Tree (potentially) containing clique as root
+
+    The id of the clique serving as root of subtree
 
     Output:
     -------
 
     A (new) tree rooted by clique_ix if clique_ix is in tree.
-    Otherwise return an empty tree ([])
+        Otherwise return an empty tree ([])
 
 
     TODO: Try to return a reference to the subtree rather than
@@ -595,7 +587,7 @@ def change_root(tree, clique_ix, child=[], sep=[]):
 
     Tree to be altered
 
-    Id of the clique that will become tree's root
+    ID of the clique that will become tree's root
 
     Child tree to be added to new root of tree (constructed during recursion)
 
@@ -604,7 +596,8 @@ def change_root(tree, clique_ix, child=[], sep=[]):
     Output:
     -------
 
-    Tree with clique_ix as root.
+    Tree with clique_ix as root
+
 
     If clique_ix is already root of tree, tree is returned
 
@@ -629,16 +622,6 @@ def change_root(tree, clique_ix, child=[], sep=[]):
                 ],
                 []
             )
-
-
-
-def get_maximum_weight_spanning_tree(tbd):
-    """
-    Input: ?
-
-    Output: ?
-    """
-    raise NotImplementedError()
 
 
 def eliminate_variables(junction_tree):
@@ -692,51 +675,39 @@ def eliminate_variables(junction_tree):
     return __run(junction_tree, junction_tree[1])
 
 
-def initialize(tree):
-    """Given Junction tree, initialize separator arrays
 
-    TODO/FIXME: Perhaps this should be part of the junction tree constructor
-    function. That is, this shouldn't need to be run when array values change
-    but only once for a graph!
+def collect(tree, key_labels, potentials, visited, distributive_law):
+    """
+    Used by Hugin algorithm to collect messages
 
-    Input tree format:
+    Input:
+    ------
 
-    [array, keys, (separator1_keys, child_tree1), ..., (separatorN_keys, child_treeN)]
+    Output:
+    -------
 
-    Output tree format:
-
-    [array, keys, (separator1_array, separator1_keys, child_tree1), ... (separatorN_array, separatorN_keys, child_treeN)]
-
-    QUESTION: How to separate the graph structure and its junction tree from
-    the array values in each factor? Perhaps use a list of arrays and then the
-    tree just contains indices to find the correct array in that list?
 
     """
-    raise NotImplementedError()
-
-
-def collect(tree, var_labels, potentials, visited, distributive_law):
-    """ Used by Hugin algorithm to collect messages """
-    clique_ix, clique_vars = tree[:2]
+    clique_ix, clique_keys = tree[:2]
     # set clique_index in visited to 1
     visited[clique_ix] = 1
 
     # loop over neighbors of root of tree
     for neighbor in tree[2:]:
-        sep_ix, sep_vars, child = neighbor
+        sep_ix, sep_keys, child = neighbor
         # call collect on neighbor if not marked as visited
         if not visited[child[0]]:
             potentials = collect(
                             child,
-                            var_labels,
+                            key_labels,
                             potentials,
                             visited,
                             distributive_law
             )
             new_clique_pot, new_sep_pot = distributive_law.update(
                                         potentials[child[0]], child[1],
-                                        potentials[clique_ix], clique_vars,
-                                        potentials[sep_ix], sep_vars
+                                        potentials[clique_ix], clique_keys,
+                                        potentials[sep_ix], sep_keys
             )
             potentials[clique_ix] = new_clique_pot
             potentials[sep_ix] = new_sep_pot
@@ -745,27 +716,37 @@ def collect(tree, var_labels, potentials, visited, distributive_law):
     return potentials
 
 
-def distribute(tree, var_labels, potentials, visited, distributive_law):
-    """ Used by Hugin algorithm to distribute messages """
+def distribute(tree, key_labels, potentials, visited, distributive_law):
+    """
+    Used by Hugin algorithm to distribute messages
+
+    Input:
+    ------
+
+    Output:
+    -------
+
+    """
+
     # set clique_index in visited to 1
-    clique_ix, clique_vars = tree[:2]
+    clique_ix, clique_keys = tree[:2]
     visited[clique_ix] = 1
 
     # loop over neighbors of root of tree
     for neighbor in tree[2:]:
-        sep_ix, sep_vars, child = neighbor
+        sep_ix, sep_keys, child = neighbor
         # call distribute on neighbor if not marked as visited
         if not visited[child[0]]:
             new_clique_pot, new_sep_pot = distributive_law.update(
-                                        potentials[clique_ix], clique_vars,
+                                        potentials[clique_ix], clique_keys,
                                         potentials[child[0]], child[1],
-                                        potentials[sep_ix], sep_vars
+                                        potentials[sep_ix], sep_keys
             )
             potentials[child[0]] = new_clique_pot
             potentials[sep_ix] = new_sep_pot
             potentials = distribute(
                                 child,
-                                var_labels,
+                                key_labels,
                                 potentials,
                                 visited,
                                 distributive_law
@@ -775,13 +756,15 @@ def distribute(tree, var_labels, potentials, visited, distributive_law):
     return potentials
 
 
-def hugin(tree, var_labels, potentials, distributive_law):
-    """Run hugin algorithm by using the given distributive law.
+def hugin(tree, key_labels, potentials, distributive_law):
+    """
+    Run hugin algorithm by using the given distributive law.
 
-    Input tree format:
+    Input:
+    ------
 
-    [id, keys, (separator1_id, separator1_keys, child_tree1), ... (separatorN_id, separatorN_keys, child_treeN)]
-
+    Output:
+    -------
 
     See page 3:
     http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
@@ -792,7 +775,7 @@ def hugin(tree, var_labels, potentials, distributive_law):
     # call collect on root_index storing the result in new_potentials
     new_potentials = collect(
                         tree,
-                        var_labels,
+                        key_labels,
                         potentials,
                         visited,
                         distributive_law
@@ -804,93 +787,111 @@ def hugin(tree, var_labels, potentials, distributive_law):
     # return the result of a call to distribute on root index
     return distribute(
                     tree,
-                    var_labels,
+                    key_labels,
                     potentials,
                     visited,
                     distributive_law
     )
 
-def get_clique(tree, var_label):
+def get_clique(tree, key_label):
+    """
+
+    Input:
+    ------
+
+    Output:
+    -------
+
+
+    """
     ix, keys = tree[0:2]
     separators = tree[2:]
-    if var_label in keys:
+    if key_label in keys:
         return ix, keys
     if separators == (): # base case reached (leaf)
         return None
 
     for separator in separators:
         separator_ix, separator_keys, c_tree = separator
-        if var_label in separator_keys:
+        if key_label in separator_keys:
             return separator_ix, separator_keys
-        clique_info = get_clique(c_tree, var_label)
+        clique_info = get_clique(c_tree, key_label)
         if clique_info:
             return clique_info
 
     return None
 
-def compute_marginal(forest, potentials, v):
-    var_ix = forest.find_var(v)
-    for tree in forest.get_struct():
-        clique_ix, clique_keys = get_clique_of_var(tree, var_ix)
-        if clique_ix and clique_keys: break
+
+def compute_marginal(potential, clique_keys, key_ix):
+    """
+
+    Input:
+    ------
+
+    Output:
+    -------
+
+
+    """
+
+    if key_ix not in clique_keys:
+        return 0.0
+
+    # map keys to get around variable count limitation in einsum
+    m_keys = {k:i for i,k in enumerate(clique_keys)}
+
 
     return np.einsum(
-                        potentials[clique_ix],
-                        list(range(len(clique_keys))),
-                        [clique_keys.index(var_ix)]
+                        potential,
+                        [m_keys[k] for k in clique_keys],
+                        [m_keys[key_ix]]
     )
 
-def observe(forest, potentials, data):
-    var_sizes = forest.get_var_sizes()
-    # set values of ll based on data argument
-    ll = [
-                [1 if j == data[var_lbl] else 0 for j in range(0, var_sizes[var_lbl])]
-                    if var_lbl in data else [1]*var_sizes[var_lbl]
-                        for var_lbl in forest.get_labels()
-            ]
-
-    # alter potentials based on likelihoods
-    for var_lbl in data:
-
-        # find clique that contains var
-
-        for tree in forest.get_struct():
-            clique_ix, clique_keys = get_clique_of_var(
-                                                    tree,
-                                                    forest.find_var(var_lbl)
-            )
-            if clique_ix and clique_keys: break
-
-        # multiply clique's potential by likelihood
-        pot = potentials[clique_ix]
-        var_ix = forest.get_var_ix(clique_ix, var_lbl)
-        # reshape likelihood potential to allow multiplication with pot
-        ll_pot = np.array(ll[forest.find_var(var_lbl)]).reshape([1 if i!=var_ix else s for i, s in enumerate(pot.shape)])
-        potentials[clique_ix] = pot*ll_pot
-    return (ll,potentials)
-
-def copy_factor_graph(fg):
-    return copy.deepcopy(fg)
-
 def yield_id_and_keys(tree):
+    """
+
+    Input:
+    ------
+
+    Output:
+    -------
+
+
+    """
     yield tree[0]
     yield tree[1]
 
 def yield_clique_pairs(tree):
+    """
+
+    Input:
+    ------
+
+    Output:
+    -------
+
+
+    """
     for child in tree[2:]:
         yield (tree[0], tree[1], child[0], child[1])
 
 
-def bf_traverse(forest, clique_id=None, func=yield_id_and_keys):
-    """Breadth-first traversal of tree
+def bf_traverse(trees, clique_id=None, func=yield_id_and_keys):
+    """
+    Breadth-first traversal of tree
 
-    Early termination of search is performed
-    if clique_id provided
+    Early termination of search is performed if clique_id provided
 
-    Output: [id1, keys1, ..., idN, keysN] (or [id1, keys1, ..., cid, ckeys])
+    Input:
+    ------
+
+    Output:
+    -------
+
+    [id1, keys1, ..., idN, keysN] (or [id1, keys1, ..., cid, ckeys])
     """
 
-    for tree in forest:
+    for tree in trees:
         queue = [tree]
         while queue:
             tree = queue.pop(0)
@@ -899,16 +900,21 @@ def bf_traverse(forest, clique_id=None, func=yield_id_and_keys):
                 raise StopIteration
             queue.extend([child for child in tree[2:]])
 
-def df_traverse(forest, clique_id=None, func=yield_id_and_keys):
+def df_traverse(trees, clique_id=None, func=yield_id_and_keys):
     """Depth-first traversal of tree
 
-    Early termination of search is performed
-    if clique_id provided
+    Early termination of search is performed if clique_id provided
 
-    Output: [id1, keys1, ..., idN, keysN] (or [id1, keys1, ..., cid, ckeys])
+    Input:
+    ------
+
+    Output:
+    -------
+
+    [id1, keys1, ..., idN, keysN] (or [id1, keys1, ..., cid, ckeys])
     """
 
-    for tree in forest:
+    for tree in trees:
         stack = [tree]
         while stack:
             tree = stack.pop()
@@ -917,30 +923,54 @@ def df_traverse(forest, clique_id=None, func=yield_id_and_keys):
                 raise StopIteration
             stack.extend([child for child in reversed(tree[2:])])
 
-def get_clique_keys(tree, clique_id):
-    """Return keys for clique with clique_id
+def get_clique_keys(tree, clique_ix):
+    """
+    Return keys for clique with clique_id
         (if clique_id not in tree return None)
 
-    Output: clique_id_keys (or None)
-    """
-    flist = list(bf_traverse(tree, clique_id))
-    return flist[-1] if flist[-2] == clique_id else None
-
-def get_cliques(tree, var):
-    """ Return the (M) cliques which include var and all other variables
-        in clique
+    Input:
+    ------
 
     Output:
-    [clique_wvar_id1, clique_wvar_keys1, ..., clique_wvar_idM, clique_wvar_keysM]
+    -------
+
+    clique_id_keys (or None)
+
+    """
+    flist = list(bf_traverse(tree, clique_ix))
+    return flist[-1] if flist[-2] == clique_ix else None
+
+def get_cliques(tree, key):
+    """
+    Return the (M) cliques which include key and all other keys
+        in clique
+
+    Input:
+    ------
+
+    Output:
+    -------
+
+    [clique_wkey_id1, clique_wkey_keys1, ..., clique_wkey_idM, clique_wkey_keysM]
     """
 
     flist = list(bf_traverse(tree))
     return [
             (flist[i], flist[i+1])
-                for i in range(0, len(flist), 2) if var in flist[i+1]
+                for i in range(0, len(flist), 2) if key in flist[i+1]
     ]
 
-def get_clique_of_var(tree, v):
+def get_clique_of_key(tree, v):
+    """
+
+    Input:
+    ------
+
+    Output:
+    -------
+
+
+    """
     ix, keys = tree[0:2]
     separators = tree[2:]
     if v in keys:
@@ -952,7 +982,7 @@ def get_clique_of_var(tree, v):
         separator_ix, separator_keys, c_tree = separator
         if v in separator_keys:
             return separator_ix, separator_keys
-        clique_ix, clique_keys = get_clique_of_var(c_tree, v)
+        clique_ix, clique_keys = get_clique_of_key(c_tree, v)
         if clique_ix:
             return clique_ix, clique_keys
 
@@ -960,6 +990,16 @@ def get_clique_of_var(tree, v):
 
 
 def generate_potential_pairs(tree):
+    """
+
+    Input:
+    ------
+
+    Output:
+    -------
+
+
+    """
     return list(bf_traverse(tree, func=yield_clique_pairs))
 
 class SumProduct():
@@ -972,132 +1012,169 @@ class SumProduct():
         self.einsum = einsum
         return
 
+    def project(self, clique_pot, clique_keys, sep_keys):
+        """
 
-    def initialize(self, tbd):
-        raise NotImplementedError()
+        Input:
+        ------
 
-    def project(self, clique_pot, clique_vars, sep_vars):
+        Output:
+        -------
+
+
+        """
+        # map keys to get around variable count limitation in einsum
+        m_keys = {k:i for i,k in enumerate(set(clique_keys + sep_keys))}
         return self.einsum(
-            clique_pot, clique_vars, sep_vars
+            clique_pot,
+            [m_keys[k] for k in clique_keys],
+            [m_keys[k] for k in sep_keys]
         )
 
-    def absorb(self, clique_pot, clique_vars, sep_pot, new_sep_pot, sep_vars):
+    def absorb(self, clique_pot, clique_keys, sep_pot, new_sep_pot, sep_keys):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
         if np.all(sep_pot) == 0:
             return np.zeros_like(clique_pot)
 
+        # map keys to get around variable count limitation in einsum
+        m_keys = {k:i for i,k in enumerate(set(clique_keys + sep_keys))}
         return self.einsum(
-            new_sep_pot / sep_pot, sep_vars,
-            clique_pot, clique_vars,
-            clique_vars
+            new_sep_pot / sep_pot, [m_keys[k] for k in sep_keys],
+            clique_pot, [m_keys[k] for k in clique_keys],
+            [m_keys[k] for k in clique_keys]
         )
 
-    def update(self, clique_1_pot, clique_1_vars, clique_2_pot, clique_2_vars, sep_pot, sep_vars):
+    def update(self, clique1_pot, clique1_keys, clique2_pot, clique2_keys, sep_pot, sep_keys):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
         # See page 2:
         # http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
 
-        # Sum variables in A that are not in B
+
+        # Sum keys in A that are not in B
         new_sep_pot = self.project(
-                                clique_1_pot,
-                                list(range(len(clique_1_vars))),
-                                [clique_1_vars.index(s_i) for s_i in sep_vars]
+                                clique1_pot,
+                                clique1_keys,
+                                sep_keys
         )
 
         # Compensate the updated separator in the clique
-        new_clique_2_pot = self.absorb(
-                                clique_2_pot,
-                                list(range(len(clique_2_vars))),
+        new_clique2_pot = self.absorb(
+                                clique2_pot,
+                                clique2_keys,
                                 sep_pot,
                                 new_sep_pot,
-                                [clique_2_vars.index(s_i) for s_i in sep_vars]
+                                sep_keys
         )
 
-        return (new_clique_2_pot, new_sep_pot) # may return unchanged clique_a
+        return (new_clique2_pot, new_sep_pot) # may return unchanged clique_a
                                              # too if it helps elsewhere
 
 
 # Sum-product distributive law for NumPy
 sum_product = SumProduct(np.einsum)
 
-class PotentialList(object):
-    def __init__(self, tree, factors, values):
-        clique_id_keys = list(bf_traverse(tree.get_struct()))
-        clique_lookup = {}
-        potentials = [[]]*(int(len(clique_id_keys)/2))
-        labels = tree.get_labels()
-        var_sizes = tree.get_var_sizes()
-
-        for i in range(0, len(clique_id_keys), 2):
-            clique_ix = clique_id_keys[i]
-            clique_keys = clique_id_keys[i+1]
-            # initialize all potentials
-            clique_lookup[clique_ix] = clique_keys
-            potentials[clique_ix] = np.ones([var_sizes[labels[ix]] for ix in clique_keys])
-
-        for i, factor in enumerate(factors):
-            # convert factor to its indexed keys
-            factor_keys = set([tree.find_var(var) for var in factor])
-            # find clique to multiply factor into
-            for clique_ix, clique_keys in clique_lookup.items():
-                if factor_keys.issubset(clique_keys):
-                    # multiply factor into clique
-                    potentials[clique_ix] = np.einsum(
-                                                values[i],
-                                                list(factor_keys),
-                                                potentials[clique_ix],
-                                                clique_keys,
-                                                clique_keys
-                    )
-                    break
-
-        self.phi = potentials
-
-    @property
-    def potentials(self):
-        return self.phi
-
-    @potentials.setter
-    def potentials(self, phi):
-        self.phi = phi
-
-    def __len__(self):
-        len(self.phi)
 
 class JunctionTree(object):
-    def __init__(self, _vars, trees=[]):
-        self.var_sizes = _vars
-        self.labels = {vl:i for i, vl in enumerate(sorted(_vars.keys()))}
+    def __init__(self, key_sizes, trees=[]):
+        self.key_sizes = key_sizes
+        self.labels = {vl:i for i, vl in enumerate(sorted(key_sizes.keys()))}
         self.struct = []
         self.tree_cliques = []
         for tree in trees:
             clique_id_keys = list(bf_traverse([tree]))
             self.tree_cliques.append([clique_id_keys[i] for i in range(0, len(clique_id_keys), 2)])
-            self.struct.append(self.map_vars(tree, self.labels))
+            self.struct.append(self.map_keys(tree, self.labels))
         self.phi = []
 
-    def find_var(self, var_label):
+    def find_key(self, key_label):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
         try:
-            var_ix = self.labels[var_label]
-            return var_ix
+            key_ix = self.labels[key_label]
+            return key_ix
         except ValueError:
             return None
 
-    def get_var_ix(self, clique_ix, var_label):
+    def get_key_ix(self, clique_ix, key_label):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
         try:
             keys = get_clique_keys(self.get_struct(), clique_ix)
-            return keys.index(self.find_var(var_label))
+            return keys.index(self.find_key(key_label))
         except (AttributeError, ValueError):
             return None
 
-    def get_var_sizes(self):
-        return self.var_sizes
+    def get_key_sizes(self):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
+        return self.key_sizes
 
     def get_label_order(self):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
         return self.labels
 
     def get_labels(self):
-        '''
-        Returns variables in sorted order
-        '''
+        """
+        Returns key labels in sorted order
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+        """
         labels = [None]*len(self.labels)
         for k,i in self.labels.items():
             labels[i] = k
@@ -1105,13 +1182,43 @@ class JunctionTree(object):
         return labels
 
     def get_struct(self):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
         return self.struct
 
     def get_potentials(self):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
         return self.phi
 
     @staticmethod
-    def map_vars(tree, lookup):
+    def map_keys(tree, lookup):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
         cp_tree = copy.deepcopy(tree)
 
         def __run(tree, lookup):
@@ -1132,39 +1239,59 @@ class JunctionTree(object):
 
     @staticmethod
     def from_factor_graph(factor_graph):
-        var_sizes = factor_graph[0]
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
+        key_sizes = factor_graph[0]
         factors = factor_graph[1]
         values = factor_graph[2]
         tri,induced_clusters = find_triangulation(
-                            var_sizes=factor_graph[0],
+                            key_sizes=factor_graph[0],
                             factors=factor_graph[1]
         )
 
         cliques = identify_cliques(induced_clusters)
-        trees = construct_junction_tree(cliques, var_sizes)
-        jt = JunctionTree(var_sizes, trees)
+        trees = construct_junction_tree(cliques, key_sizes)
+        jt = JunctionTree(key_sizes, trees)
         phi = JunctionTree.init_potentials(jt, factors, values)
         return jt, phi
 
     @staticmethod
     def init_potentials(tree, factors, values):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
         clique_id_keys = list(bf_traverse(tree.get_struct()))
         clique_lookup = {}
         potentials = [[]]*(int(len(clique_id_keys)/2))
 
         labels = tree.get_labels()
-        var_sizes = tree.get_var_sizes()
+        key_sizes = tree.get_key_sizes()
 
         for i in range(0, len(clique_id_keys), 2):
             clique_ix = clique_id_keys[i]
             clique_keys = clique_id_keys[i+1]
             # initialize all potentials
             clique_lookup[clique_ix] = clique_keys
-            potentials[clique_ix] = np.ones([var_sizes[labels[ix]] for ix in clique_keys])
+            potentials[clique_ix] = np.ones([key_sizes[labels[ix]] for ix in clique_keys])
 
         for i, factor in enumerate(factors):
             # convert factor to its indexed keys
-            factor_keys = set([tree.find_var(var) for var in factor])
+            factor_keys = set([tree.find_key(key) for key in factor])
             # find clique to multiply factor into
             for clique_ix, clique_keys in clique_lookup.items():
                 if factor_keys.issubset(clique_keys):
@@ -1180,8 +1307,56 @@ class JunctionTree(object):
 
         return(potentials)
 
+    def observe(self, potentials, data):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
+        key_sizes = self.get_key_sizes()
+        # set values of ll based on data argument
+        ll = [
+                    [1 if j == data[key_lbl] else 0 for j in range(0, key_sizes[key_lbl])]
+                        if key_lbl in data else [1]*key_sizes[key_lbl]
+                            for key_lbl in self.get_labels()
+                ]
+
+        # alter potentials based on likelihoods
+        for key_lbl in data:
+
+            # find clique that contains key
+
+            for tree in self.get_struct():
+                clique_ix, clique_keys = get_clique_of_key(
+                                                        tree,
+                                                        self.find_key(key_lbl)
+                )
+                if clique_ix and clique_keys: break
+
+            # multiply clique's potential by likelihood
+            pot = potentials[clique_ix]
+            key_ix = self.get_key_ix(clique_ix, key_lbl)
+            # reshape likelihood potential to allow multiplication with pot
+            ll_pot = np.array(ll[self.find_key(key_lbl)]).reshape([1 if i!=key_ix else s for i, s in enumerate(pot.shape)])
+            potentials[clique_ix] = pot*ll_pot
+        return (ll,potentials)
 
     def propagate(self, potentials, in_place=True, data=None):
+        """
+
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
         new_potentials = potentials if in_place else copy.deepcopy(potentials)
         if data:
             likelihood, new_potentials = observe(self, new_potentials, data)
@@ -1192,8 +1367,23 @@ class JunctionTree(object):
             #    [clique_ix] = new_phi[clique_ix]
         return(new_potentials)
 
-    def marginalize(self, potentials, var_label):
-        if var_label not in self.var_sizes:
-            raise ValueError("Variable %s not in tree" % var_label)
+    def marginalize(self, potentials, key_label):
+        """
 
-        return compute_marginal(self, potentials, var_label)
+        Input:
+        ------
+
+        Output:
+        -------
+
+
+        """
+        if key_label not in self.key_sizes:
+            raise ValueError("Key %s not in tree" % key_label)
+
+        key_ix = self.find_key(key_label)
+        for tree in self.get_struct():
+            clique_ix, clique_keys = get_clique_of_key(tree, key_ix)
+            if clique_ix and clique_keys: break
+
+        return compute_marginal(potentials[clique_ix], clique_keys, key_ix)

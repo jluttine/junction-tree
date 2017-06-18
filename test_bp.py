@@ -208,12 +208,12 @@ def brute_force_sum_product(tree, potentials):
 
     return __run(tree, potentials, f)
 
-def assert_sum_product(forest, potentials):
+def assert_sum_product(junction_tree, potentials):
     """ Test hugin vs brute force sum-product """
-    for tree in forest.get_struct():
+    for tree in junction_tree.get_struct():
         assert_potentials_equal(
             brute_force_sum_product(tree, potentials),
-            bp.hugin(tree, forest.get_label_order(), potentials, bp.sum_product)
+            bp.hugin(tree, junction_tree.get_label_order(), potentials, bp.sum_product)
         )
 
 def assert_junction_tree_consistent(tree, potentials):
@@ -858,7 +858,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = bp.observe(jt, phi, data)
+        likelihood, phi0 = jt.observe(phi, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -887,7 +887,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                                         )
 
         # test that no change made to potential values for unobserved variables
-        for var in jt.get_var_sizes():
+        for var in jt.get_key_sizes():
             if var not in data.keys():
                 # we have not observed a value for this var
                 for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
@@ -952,7 +952,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data0 = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = bp.observe(jt, phi, data0)
+        likelihood, phi0 = jt.observe(phi, data0)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -963,7 +963,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data = {0: 1, 1: 2, 2: 3, 4: 0}
 
-        likelihood, phi2 = bp.observe(jt, phi1, data)
+        likelihood, phi2 = jt.observe(phi1, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -992,7 +992,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                                         )
 
         # test that no change made to potential values for unobserved variables
-        for var in jt.get_var_sizes():
+        for var in jt.get_key_sizes():
             if var not in data.keys():
                 # we have not observed a value for this var
                 for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
@@ -1056,7 +1056,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data0 = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = bp.observe(jt, phi, data0)
+        likelihood, phi0 = jt.observe(phi, data0)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1068,7 +1068,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         data = {0: 1, 1: 2, 2: 3, 3: 2, 4: 0}
 
 
-        likelihood, phi2 = bp.observe(jt, phi1, data)
+        likelihood, phi2 = jt.observe(phi1, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1097,7 +1097,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                                         )
 
         # test that no change made to potential values for unobserved variables
-        for var in jt.get_var_sizes():
+        for var in jt.get_key_sizes():
             if var not in data.keys():
                 # we have not observed a value for this var
                 for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
@@ -1165,7 +1165,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         ]
         data0 = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = bp.observe(jt, phi, data0)
+        likelihood, phi0 = jt.observe(phi, data0)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1176,7 +1176,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data = {0: 2, 2: 3, 4: 0}
 
-        likelihood, phi2 = bp.observe(jt, phi1, data, "retract")
+        likelihood, phi2 = jt.observe(phi1, data, "retract")
         np.testing.assert_array_equal(likelihood[0], np.array([0,0,1,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1205,7 +1205,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                                         )
 
         # test that no change made to potential values for unobserved variables
-        for var in jt.get_var_sizes():
+        for var in jt.get_key_sizes():
             if var not in data.keys():
                 # we have not observed a value for this var
                 for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
@@ -1607,7 +1607,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         # need to set evidence here: Q=0, G=0, F=1
         data = {"Q":0, "G":0, "F":1}
-        likelihood, phi1 = bp.observe(jt, phi0, data)
+        likelihood, phi1 = jt.observe(phi0, data)
 
         phi2 = bp.collect(
                         jt.get_struct()[0],
@@ -1616,8 +1616,9 @@ class TestHUGINFunctionality(unittest.TestCase):
                         [0]*len(phi1),
                         bp.sum_product
         )
-
-        np.allclose(bp.compute_marginal(jt, phi2, "H"), np.array([0.4, 0.6])) == True
+        key_ix = jt.find_key("H")
+        clique_ix, clique_keys = bp.get_clique_of_key(jt.get_struct()[0], key_ix)
+        np.allclose(bp.compute_marginal(phi2[clique_ix], clique_keys, key_ix), np.array([0.4, 0.6])) == True
 
 
 
@@ -1654,29 +1655,6 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert frozenset(("B","D")) in edges
         assert frozenset(("C","D")) in edges
 
-    def test_generate_deep_copy_of_factor_graph_nodes(self):
-        _vars = {
-                    "A": 2,
-                    "B": 4,
-                    "C": 3,
-                    "D": 5
-                }
-        factors = [
-                    ["A"],
-                    ["A", "C"],
-                    ["B", "C", "D"],
-                    ["A", "D"]
-                ]
-        values = [
-                    np.random.randn(2),
-                    np.random.randn(2, 4),
-                    np.random.randn(4, 3, 5),
-                    np.random.randn(2, 5),
-                ]
-
-        fg = [_vars, factors, values]
-        fg2 = bp.copy_factor_graph(fg)
-        assert_factor_graph_equal(fg, fg2)
 
     def test_store_nodes_in_heap(self):
         heap = []
@@ -2440,7 +2418,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
                 ]
 
-        out_tree = JunctionTree.map_vars(in_tree, var_lookup)
+        out_tree = JunctionTree.map_keys(in_tree, var_lookup)
 
         test_tree = [
                     2, [1,2],
@@ -2511,7 +2489,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
                 ]
 
-        out_tree = JunctionTree.map_vars(in_tree, {v:k for k, v in var_lookup.items()})
+        out_tree = JunctionTree.map_keys(in_tree, {v:k for k, v in var_lookup.items()})
 
         test_tree = [
                     2, ["B","C"],
