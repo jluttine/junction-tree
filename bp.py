@@ -828,20 +828,17 @@ def get_clique(tree, var_label):
 
     return None
 
-def marginalize(forest, potentials, v):
+def compute_marginal(forest, potentials, v):
     var_ix = forest.find_var(v)
     for tree in forest.get_struct():
         clique_ix, clique_keys = get_clique_of_var(tree, var_ix)
         if clique_ix and clique_keys: break
 
-    return compute_marginal(
+    return np.einsum(
                         potentials[clique_ix],
                         list(range(len(clique_keys))),
                         [clique_keys.index(var_ix)]
     )
-
-def compute_marginal(arr, _vars, _vars_ss):
-    return np.einsum(arr, _vars, _vars_ss)
 
 def observe(forest, potentials, data):
     var_sizes = forest.get_var_sizes()
@@ -961,37 +958,6 @@ def get_clique_of_var(tree, v):
 
     return None, None
 
-def init_potentials(tree, factors, values):
-    clique_id_keys = list(bf_traverse(tree.get_struct()))
-    clique_lookup = {}
-    potentials = [[]]*(int(len(clique_id_keys)/2))
-    labels = tree.get_labels()
-    var_sizes = tree.get_var_sizes()
-
-    for i in range(0, len(clique_id_keys), 2):
-        clique_ix = clique_id_keys[i]
-        clique_keys = clique_id_keys[i+1]
-        # initialize all potentials
-        clique_lookup[clique_ix] = clique_keys
-        potentials[clique_ix] = np.ones([var_sizes[labels[ix]] for ix in clique_keys])
-
-    for i, factor in enumerate(factors):
-        # convert factor to its indexed keys
-        factor_keys = set([tree.find_var(var) for var in factor])
-        # find clique to multiply factor into
-        for clique_ix, clique_keys in clique_lookup.items():
-            if factor_keys.issubset(clique_keys):
-                # multiply factor into clique
-                potentials[clique_ix] = np.einsum(
-                                            values[i],
-                                            list(factor_keys),
-                                            potentials[clique_ix],
-                                            clique_keys,
-                                            clique_keys
-                )
-                break
-
-    tree.phi = potentials
 
 def generate_potential_pairs(tree):
     return list(bf_traverse(tree, func=yield_clique_pairs))
@@ -1051,6 +1017,50 @@ class SumProduct():
 
 # Sum-product distributive law for NumPy
 sum_product = SumProduct(np.einsum)
+
+class PotentialList(object):
+    def __init__(self, tree, factors, values):
+        clique_id_keys = list(bf_traverse(tree.get_struct()))
+        clique_lookup = {}
+        potentials = [[]]*(int(len(clique_id_keys)/2))
+        labels = tree.get_labels()
+        var_sizes = tree.get_var_sizes()
+
+        for i in range(0, len(clique_id_keys), 2):
+            clique_ix = clique_id_keys[i]
+            clique_keys = clique_id_keys[i+1]
+            # initialize all potentials
+            clique_lookup[clique_ix] = clique_keys
+            potentials[clique_ix] = np.ones([var_sizes[labels[ix]] for ix in clique_keys])
+
+        for i, factor in enumerate(factors):
+            # convert factor to its indexed keys
+            factor_keys = set([tree.find_var(var) for var in factor])
+            # find clique to multiply factor into
+            for clique_ix, clique_keys in clique_lookup.items():
+                if factor_keys.issubset(clique_keys):
+                    # multiply factor into clique
+                    potentials[clique_ix] = np.einsum(
+                                                values[i],
+                                                list(factor_keys),
+                                                potentials[clique_ix],
+                                                clique_keys,
+                                                clique_keys
+                    )
+                    break
+
+        self.phi = potentials
+
+    @property
+    def potentials(self):
+        return self.phi
+
+    @potentials.setter
+    def potentials(self, phi):
+        self.phi = phi
+
+    def __len__(self):
+        len(self.phi)
 
 class JunctionTree(object):
     def __init__(self, _vars, trees=[]):
@@ -1133,25 +1143,57 @@ class JunctionTree(object):
         cliques = identify_cliques(induced_clusters)
         trees = construct_junction_tree(cliques, var_sizes)
         jt = JunctionTree(var_sizes, trees)
-        init_potentials(jt, factors, values)
-        return jt
+        phi = JunctionTree.init_potentials(jt, factors, values)
+        return jt, phi
 
-    def propagate(self, data=None):
-        # May want more separation between potentials and JT structure
-        if len(self.phi) == 0:
-            raise ValueError("Cannot run propagation on tree without values")
+    @staticmethod
+    def init_potentials(tree, factors, values):
+        clique_id_keys = list(bf_traverse(tree.get_struct()))
+        clique_lookup = {}
+        potentials = [[]]*(int(len(clique_id_keys)/2))
 
-        new_phi = self.phi
+        labels = tree.get_labels()
+        var_sizes = tree.get_var_sizes()
+
+        for i in range(0, len(clique_id_keys), 2):
+            clique_ix = clique_id_keys[i]
+            clique_keys = clique_id_keys[i+1]
+            # initialize all potentials
+            clique_lookup[clique_ix] = clique_keys
+            potentials[clique_ix] = np.ones([var_sizes[labels[ix]] for ix in clique_keys])
+
+        for i, factor in enumerate(factors):
+            # convert factor to its indexed keys
+            factor_keys = set([tree.find_var(var) for var in factor])
+            # find clique to multiply factor into
+            for clique_ix, clique_keys in clique_lookup.items():
+                if factor_keys.issubset(clique_keys):
+                    # multiply factor into clique
+                    potentials[clique_ix] = np.einsum(
+                                                values[i],
+                                                list(factor_keys),
+                                                potentials[clique_ix],
+                                                clique_keys,
+                                                clique_keys
+                    )
+                    break
+
+        return(potentials)
+
+
+    def propagate(self, potentials, in_place=True, data=None):
+        new_potentials = potentials if in_place else copy.deepcopy(potentials)
         if data:
-            likelihood, new_phi = observe(self, self.phi, data)
+            likelihood, new_potentials = observe(self, new_potentials, data)
 
         for i, tree in enumerate(self.get_struct()):
-            new_phi = hugin(tree, self.get_label_order(), new_phi, sum_product)
-            for clique_ix in self.tree_cliques[i]:
-                self.phi[clique_ix] = new_phi[clique_ix]
+            new_potentials = hugin(tree, self.get_label_order(), new_potentials, sum_product)
+            #for clique_ix in self.tree_cliques[i]:
+            #    [clique_ix] = new_phi[clique_ix]
+        return(new_potentials)
 
-    def __getitem__(self, var_label):
+    def marginalize(self, potentials, var_label):
         if var_label not in self.var_sizes:
             raise ValueError("Variable %s not in tree" % var_label)
 
-        return marginalize(self, self.phi, var_label)
+        return compute_marginal(self, potentials, var_label)

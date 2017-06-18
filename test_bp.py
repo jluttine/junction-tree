@@ -259,7 +259,7 @@ def potentials_consistent(pot1, vars1, pot2, vars2):
     )
 
     return np.allclose(
-                bp.compute_marginal(
+                np.einsum(
                     c_pot,
                     c_vars,
                     np.intersect1d(c_vars, s_vars).tolist()
@@ -344,7 +344,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                         ])
         # https://obilaniu6266h16.wordpress.com/2016/02/04/einstein-summation-in-numpy/
         # marginal probability of A, P(A)
-        assert np.allclose(bp.compute_marginal(phiABD, [0,1,2], [0]), np.array([0.500, 0.500]))
+        assert np.allclose(np.einsum(phiABD, [0,1,2], [0]), np.array([0.500, 0.500]))
         # marginal probability of D, P(D)
         assert np.allclose(np.array([0.32,0.68]), np.array([0.320, 0.680]))
 
@@ -1617,7 +1617,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                         bp.sum_product
         )
 
-        np.allclose(bp.marginalize(jt, phi2, "H"), np.array([0.4, 0.6])) == True
+        np.allclose(bp.compute_marginal(jt, phi2, "H"), np.array([0.4, 0.6])) == True
 
 
 
@@ -2753,22 +2753,22 @@ class TestJunctionTreeInference(unittest.TestCase):
 
 
     def test_transformation(self):
-        jt = JunctionTree.from_factor_graph(self.fg)
-        jt.propagate()
+        jt, init_phi = JunctionTree.from_factor_graph(self.fg)
+        phi = jt.propagate(init_phi)
         np.testing.assert_allclose(
-                                jt["A"],
+                                jt.marginalize(phi, "A"),
                                 np.array([0.500,0.500])
         )
         np.testing.assert_allclose(
-                                jt["D"],
+                                jt.marginalize(phi, "D"),
                                 np.array([0.320,0.680])
         )
 
     def test_initialize_potentials(self):
         jt = JunctionTree(self.var_sizes,self.trees)
-        bp.init_potentials(jt, self.fg[1], self.fg[2])
+        init_phi = JunctionTree.init_potentials(jt, self.fg[1], self.fg[2])
         assert_potentials_equal(
-                                    jt.get_potentials()[6:8], # clusters ACE and CE
+                                    init_phi[6:8], # clusters ACE and CE
                                     [
                                         np.array(
                                                     [
@@ -2793,23 +2793,30 @@ class TestJunctionTreeInference(unittest.TestCase):
 
     def test_global_propagation(self):
         jt = JunctionTree(self.var_sizes,self.trees)
-        init_phi = bp.init_potentials(jt, self.fg[1], self.fg[2])
-        phi = bp.hugin(jt.get_struct()[0], jt.get_label_order(), jt.get_potentials(), bp.sum_product)
-        assert_potentials_equal([phi[2]], [
-                                            np.array(
-                                                        [
-                                                            [
-                                                                [0.150,0.150],
-                                                                [0.020,0.180]
-                                                            ],
-                                                            [
-                                                                [0.125,0.125],
-                                                                [0.025,0.225]
-                                                            ]
-                                                        ]
-                                                    )
-                                            ]
-                                        )
+        init_phi = JunctionTree.init_potentials(jt, self.fg[1], self.fg[2])
+        phi = bp.hugin(
+                    jt.get_struct()[0],
+                    jt.get_label_order(),
+                    init_phi,
+                    bp.sum_product
+        )
+        assert_potentials_equal(
+                                [phi[2]],
+                                [
+                                    np.array(
+                                                [
+                                                    [
+                                                        [0.150,0.150],
+                                                        [0.020,0.180]
+                                                    ],
+                                                    [
+                                                        [0.125,0.125],
+                                                        [0.025,0.225]
+                                                    ]
+                                                ]
+                                            )
+                                    ]
+        )
 
 class TestJTTraversal(unittest.TestCase):
     def setUp(self):
