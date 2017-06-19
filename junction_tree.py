@@ -10,7 +10,7 @@ class JunctionTree(object):
         self.tree_cliques = []
         for tree in trees:
             clique_id_keys = list(bp.bf_traverse([tree]))
-            self.tree_cliques.append([clique_id_keys[i] for i in range(0, len(clique_id_keys), 2)])
+            self.tree_cliques.append([(clique_id_keys[i], clique_id_keys[i+1]) for i in range(0, len(clique_id_keys), 2)])
             self.struct.append(self.map_keys(tree, self.labels))
 
     def find_key(self, key_label):
@@ -274,7 +274,8 @@ class JunctionTree(object):
         Output:
         -------
 
-        Updated list of (consistent) potentials
+        Updated list of (consistent) potentials and
+            normalization constants for each tree
 
         """
         new_potentials = potentials if in_place else copy.deepcopy(potentials)
@@ -283,11 +284,10 @@ class JunctionTree(object):
 
         for i, tree in enumerate(self.get_struct()):
             new_potentials = bp.hugin(tree, self.get_label_order(), new_potentials, bp.sum_product)
-            #for clique_ix in self.tree_cliques[i]:
-            #    [clique_ix] = new_phi[clique_ix]
-        return(new_potentials)
 
-    def marginalize(self, potentials, key_label):
+        return new_potentials
+
+    def marginalize(self, potentials, key_label, normalize=False):
         """
         Marginalize key from consistent potentials
 
@@ -298,19 +298,36 @@ class JunctionTree(object):
 
         Key to marginalize
 
+        Normalize value?
+
         Output:
         -------
 
-        Marginalized value of key
-
+        Marginalized value of key (unnormalized by default)
 
         """
         if key_label not in self.key_sizes:
             raise ValueError("Key %s not in tree" % key_label)
 
         key_ix = self.find_key(key_label)
-        for tree in self.get_struct():
+        for i, tree in enumerate(self.get_struct()):
             clique_ix, clique_keys = bp.get_clique_of_key(tree, key_ix)
             if clique_ix and clique_keys: break
 
-        return bp.compute_marginal(potentials[clique_ix], clique_keys, key_ix)
+        value = bp.compute_marginal(
+                            potentials[clique_ix],
+                            clique_keys,
+                            key_ix
+        )
+
+        Z = 1.0 if not normalize else np.sum(
+                                            [
+                                                bp.compute_marginal(
+                                                    potentials[clique_ix],
+                                                    clique_keys,
+                                                    key_ix
+                                                ) for key_ix in clique_keys
+                                            ]
+                                        ) + value
+
+        return value/Z
