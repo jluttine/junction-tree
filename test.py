@@ -2725,7 +2725,6 @@ class TestJunctionTreeInference(unittest.TestCase):
                                         ]
                                     ]
                                 )
-
                 ]
 
         self.fg = [self.var_sizes,self.factors,self.values]
@@ -2773,12 +2772,7 @@ class TestJunctionTreeInference(unittest.TestCase):
     def test_global_propagation(self):
         jt = JunctionTree(self.var_sizes,self.trees)
         init_phi = JunctionTree.init_potentials(jt, self.fg[1], self.fg[2])
-        phi = bp.hugin(
-                    jt.get_struct()[0],
-                    jt.get_label_order(),
-                    init_phi,
-                    bp.sum_product
-        )
+        phi = jt.propagate(init_phi)
         assert_potentials_equal(
                                 [phi[2]],
                                 [
@@ -2796,6 +2790,14 @@ class TestJunctionTreeInference(unittest.TestCase):
                                             )
                                     ]
         )
+
+    def test_global_propagation_with_observations(self):
+        jt, init_phi = JunctionTree.from_factor_graph(self.fg)
+        phi = jt.propagate(init_phi)
+        data = {"A": 0, "F": 1, "H": 1}
+        phi = jt.propagate(init_phi, data=data)
+        assert np.all(jt.marginalize(phi, "D") > 0)
+
 
 class TestJTTraversal(unittest.TestCase):
     def setUp(self):

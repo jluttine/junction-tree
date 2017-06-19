@@ -1,93 +1,5 @@
 """Belief propagation, junction trees etc
 
-Everything in this file is just rough sketching and ideas at the moment.
-Probably many things will change when implementing and learning.
-
-
-Factor graphs:
---------------
-
-A factor graph is given as a list of keys that tell which variables are in the
-factor. (A key corresponds to a variable.)
-
-[keys1, ..., keysN]  # a list of N factors
-
-The index in the list can be used as an ID for the factor, that is, the first
-factor in the list has ID 0 and the last factor has ID N-1.
-
-A companion list (of numpy arrays) of the same length as the factor list is
-provided as a representation for the factor values
-
-[values1, ..., valuesN]
-
-Also, the size of each of the M variables can be given as a dictionary:
-
-{
-    key1: size1,
-    ...
-    keyM: sizeM
-}
-
-Here, size is an integer telling the size of the variable. It is the same as
-the length of the corresponding axis in the array later.
-
-No moralization function should be needed.
-
-
-Generic trees (recursive definition):
--------------------------------------
-
-[index, keys, child_tree1, ..., child_treeN]
-
-The index can, for instance, refer to the index of the factor?
-
-
-Junction trees:
----------------
-
-
-[index, keys, (separator1_keys, child_tree1), ..., (separatorN_keys, child_treeN)]
-
-
-Junction trees:
-
-[
-    index, keys
-    (
-        separator1_index, separator1_keys
-        child_tree1
-    ),
-    ...,
-    (
-        separatorN_index, separatorN_keys
-        child_treeN
-    )
-]
-
-Potentials in (junction) trees:
--------------------------------
-
-A list/dictionary of arrays. The node IDs in the tree graphs map
-to the arrays in this data structure in order to get the numeric
-arrays in the execution phase. The numeric arrays are not needed
-in the compilation phase.
-
-
-Idea:
-
-Junction tree construction constructs a function which can then be used
-multiple times to create the junction tree for particular array values in the
-factor graph. This allows one to compile the junction tree only once and then
-use the result for varying values in the factors (but with the same graph
-structure, obviously). That is, the junction tree construction depends only on
-the factor graph structure and the array shapes, but not the values in the
-arrays.
-
-
-One junction tree algorithm reference:
-http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
-
-
 General guidelines:
 
 - Use functional approach:
@@ -1074,8 +986,10 @@ def get_clique_of_key(tree, key):
     First clique ID/clique keys which contains key (or (None,None) pair)
 
     """
+
     ix, keys = tree[0:2]
     separators = tree[2:]
+
     if key in keys:
         return ix, keys
     if separators == (): # base case reached (leaf)
@@ -1086,7 +1000,7 @@ def get_clique_of_key(tree, key):
         if key in separator_keys:
             return separator_ix, separator_keys
         clique_ix, clique_keys = get_clique_of_key(c_tree, key)
-        if clique_ix:
+        if clique_ix != None:
             return clique_ix, clique_keys
 
     return None, None
