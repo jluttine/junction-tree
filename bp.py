@@ -116,17 +116,17 @@ import copy
 
 def factors_to_undirected_graph(factors):
     """
-        Represent factor graph as undirected graph
+    Represent factor graph as undirected graph
 
-        Inputs:
-        -------
+    Inputs:
+    -------
 
-        List of factors
+    List of factors
 
-        Output:
-        -------
+    Output:
+    -------
 
-        Undirected graph as dictionary of edges
+    Undirected graph as dictionary of edges
     """
 
     edges = {}
@@ -141,7 +141,8 @@ def factors_to_undirected_graph(factors):
 
 
 def find_triangulation(factors, key_sizes):
-    """Triangulate given factor graph.
+    """
+    Triangulate given factor graph.
 
     TODO: Provide different algorithms.
 
@@ -202,28 +203,10 @@ def find_triangulation(factors, key_sizes):
     return tri, induced_clusters
 
 
-def triangulate(triangulation, arrays):
-    """
-    Apply pre-computed triangulation
-
-    Inputs:
-    -------
-
-    Triangulation returned by find_triangulation.
-
-    List of key lists for the factors
-
-    Output:
-    -------
-
-    List of key lists for the cliques.
-
-    """
-    raise NotImplementedError()
-
-
 def initialize_triangulation_heap(key_sizes, edges):
     """
+    Creates heap used for graph triangulation
+
     Input:
     ------
 
@@ -253,6 +236,8 @@ def initialize_triangulation_heap(key_sizes, edges):
 
 def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
     """
+    Updates entries in heap
+
     Input:
     ------
 
@@ -305,6 +290,8 @@ def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
 
 def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
     """
+    Removes next entry from heap
+
     Input:
     ------
 
@@ -355,6 +342,8 @@ def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
 
 def identify_cliques(induced_clusters):
     """
+    Generate maximal cliques from induced clusters
+
     Input:
     ------
 
@@ -395,6 +384,8 @@ def identify_cliques(induced_clusters):
 
 def construct_junction_tree(cliques, key_sizes):
     """
+    Construct junction tree from input cliques
+
     Input:
     ------
 
@@ -459,6 +450,9 @@ def construct_junction_tree(cliques, key_sizes):
 
 def build_sepset_heap(sepsets, cliques, key_sizes):
     """
+    Build sepset heap to be used for building junction tree
+        from cliques
+
     Input:
     ------
 
@@ -490,6 +484,8 @@ def build_sepset_heap(sepsets, cliques, key_sizes):
 
 def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
     """
+    Merge two trees into one separated by sepset
+
     Input:
     ------
 
@@ -526,6 +522,8 @@ def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
 
 def insert_sepset(tree, clique_ix, sepset_group):
     """
+    Inserts sepset into tree as child of clique
+
     Input:
     ------
 
@@ -554,6 +552,8 @@ def insert_sepset(tree, clique_ix, sepset_group):
 
 def find_subtree(tree, clique_ix):
     """
+    Find subtree rooted by clique
+
     Input:
     ------
 
@@ -582,6 +582,8 @@ def find_subtree(tree, clique_ix):
 
 def change_root(tree, clique_ix, child=[], sep=[]):
     """
+    Restructures tree so that clique becomes root
+
     Input:
     ------
 
@@ -683,8 +685,20 @@ def collect(tree, key_labels, potentials, visited, distributive_law):
     Input:
     ------
 
+    The tree structure of the junction tree
+
+    List of key labels
+
+    List of clique potentials
+
+    List of boolean entries representing visited status of cliques
+
+    Distributive law for performing sum product calculations
+
     Output:
     -------
+
+    Updated potentials for collect phase of propagation
 
 
     """
@@ -723,8 +737,20 @@ def distribute(tree, key_labels, potentials, visited, distributive_law):
     Input:
     ------
 
+    The tree structure of the junction tree
+
+    List of key labels
+
+    List of clique potentials
+
+    List of boolean entries representing visited status of cliques
+
+    Distributive law for performing sum product calculations
+
     Output:
     -------
+
+    List of updated potentials for distribute phase of propagation
 
     """
 
@@ -763,8 +789,19 @@ def hugin(tree, key_labels, potentials, distributive_law):
     Input:
     ------
 
+    The tree structure of the junction tree
+
+    List of key labels
+
+    List of (inconsistent) clique potentials
+
+    Distributive law for performing sum product calculations
+
+
     Output:
     -------
+
+    List of (consistent) clique potentials
 
     See page 3:
     http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
@@ -795,13 +832,19 @@ def hugin(tree, key_labels, potentials, distributive_law):
 
 def get_clique(tree, key_label):
     """
+    Finds a clique containing key with label key_label
 
     Input:
     ------
 
+    The tree structure of the junction tree
+
+    Label for key
+
     Output:
     -------
 
+    Clique ID/clique keys pair or None if key not in any cliques
 
     """
     ix, keys = tree[0:2]
@@ -824,13 +867,21 @@ def get_clique(tree, key_label):
 
 def compute_marginal(potential, clique_keys, key_ix):
     """
+    Compute marginal over potential for key
 
     Input:
     ------
 
+    Potential to use for marginalization
+
+    List of keys included in clique
+
+    Key to use for marginalization
+
     Output:
     -------
 
+    Marginal value of key
 
     """
 
@@ -849,13 +900,17 @@ def compute_marginal(potential, clique_keys, key_ix):
 
 def yield_id_and_keys(tree):
     """
+    Function making it possible to yield id and keys of tree's root
 
     Input:
     ------
 
+    The tree structure of the junction tree
+
     Output:
     -------
 
+    Clique ID and clique keys of tree root
 
     """
     yield tree[0]
@@ -864,19 +919,25 @@ def yield_id_and_keys(tree):
 def yield_clique_pairs(tree):
     """
 
+    Function making it possible to yield clique id/keys and
+        child separators
+
     Input:
     ------
+
+    The tree structure of the junction tree
 
     Output:
     -------
 
+    Tuples of root clique id/keys and child separator ids/keys
 
     """
     for child in tree[2:]:
         yield (tree[0], tree[1], child[0], child[1])
 
 
-def bf_traverse(trees, clique_id=None, func=yield_id_and_keys):
+def bf_traverse(trees, clique_ix=None, func=yield_id_and_keys):
     """
     Breadth-first traversal of tree
 
@@ -885,8 +946,17 @@ def bf_traverse(trees, clique_id=None, func=yield_id_and_keys):
     Input:
     ------
 
+    List of tree structures to traverse
+
+    (Optional) Clique ID used to terminate traversal
+
+    (Optional) Function controlling output
+
     Output:
     -------
+
+    Depends on func argument. Default is list of clique
+        ids and corresponding keys
 
     [id1, keys1, ..., idN, keysN] (or [id1, keys1, ..., cid, ckeys])
     """
@@ -896,22 +966,35 @@ def bf_traverse(trees, clique_id=None, func=yield_id_and_keys):
         while queue:
             tree = queue.pop(0)
             yield from func(tree)
-            if tree[0] == clique_id:
+            if tree[0] == clique_ix:
                 raise StopIteration
             queue.extend([child for child in tree[2:]])
 
-def df_traverse(trees, clique_id=None, func=yield_id_and_keys):
-    """Depth-first traversal of tree
+
+def df_traverse(trees, clique_ix=None, func=yield_id_and_keys):
+    """
+    Depth-first traversal of tree
 
     Early termination of search is performed if clique_id provided
 
     Input:
     ------
 
+    List of tree structures to traverse
+
+    (Optional) Clique ID used to terminate traversal
+
+    (Optional) Function controlling output
+
+
     Output:
     -------
 
+    Depends on func argument. Default is list of clique
+        ids and corresponding keys
+
     [id1, keys1, ..., idN, keysN] (or [id1, keys1, ..., cid, ckeys])
+
     """
 
     for tree in trees:
@@ -919,37 +1002,49 @@ def df_traverse(trees, clique_id=None, func=yield_id_and_keys):
         while stack:
             tree = stack.pop()
             yield from func(tree)
-            if tree[0] == clique_id:
+            if tree[0] == clique_ix:
                 raise StopIteration
             stack.extend([child for child in reversed(tree[2:])])
 
+
 def get_clique_keys(tree, clique_ix):
     """
-    Return keys for clique with clique_id
-        (if clique_id not in tree return None)
+    Return keys for clique with ID clique_ix
+        (if clique_ix not in tree return None)
 
     Input:
     ------
 
+    Tree structure to traverse
+
+    Clique ID to find
+
     Output:
     -------
 
-    clique_id_keys (or None)
+    A list containing clique_id/clique keys (or None)
 
     """
     flist = list(bf_traverse(tree, clique_ix))
     return flist[-1] if flist[-2] == clique_ix else None
 
+
 def get_cliques(tree, key):
     """
-    Return the (M) cliques which include key and all other keys
-        in clique
+    Return the (M) cliques (clique id/clique keys pairs) which
+        include key and all other keys in clique
 
     Input:
     ------
 
+    Tree structure to traverse
+
+    Key to find
+
     Output:
     -------
+
+    List of clique ids and corresponding keys containing key
 
     [clique_wkey_id1, clique_wkey_keys1, ..., clique_wkey_idM, clique_wkey_keysM]
     """
@@ -960,29 +1055,35 @@ def get_cliques(tree, key):
                 for i in range(0, len(flist), 2) if key in flist[i+1]
     ]
 
-def get_clique_of_key(tree, v):
+def get_clique_of_key(tree, key):
     """
+    Returns a clique ID/keys containing key (if exists)
 
     Input:
     ------
 
+    Tree structure of the junction tree
+
+    Key to find
+
     Output:
     -------
 
+    First clique ID/clique keys which contains key (or (None,None) pair)
 
     """
     ix, keys = tree[0:2]
     separators = tree[2:]
-    if v in keys:
+    if key in keys:
         return ix, keys
     if separators == (): # base case reached (leaf)
         return None, None
 
     for separator in separators:
         separator_ix, separator_keys, c_tree = separator
-        if v in separator_keys:
+        if key in separator_keys:
             return separator_ix, separator_keys
-        clique_ix, clique_keys = get_clique_of_key(c_tree, v)
+        clique_ix, clique_keys = get_clique_of_key(c_tree, key)
         if clique_ix:
             return clique_ix, clique_keys
 
@@ -991,13 +1092,26 @@ def get_clique_of_key(tree, v):
 
 def generate_potential_pairs(tree):
     """
+    Returns cliques and child separators
 
     Input:
     ------
 
+    Tree structure of the junction tree
+
     Output:
     -------
 
+    List of clique id/keys, child sep id/keys tuples
+
+    [
+        (clique_id0, clique_keys0, child0_sep_id0, child0_sep_keys0),
+        (clique_id0, clique_keys0, child1_sep_id0, child1_sep_keys0),
+        (clique_id1, clique_keys1, child0_sep_id1, child0_sep_keys1),
+        ...
+        (clique_idN, clique_keysN, child(M-1)_sep_idN, child(M-1)_sep_keysN),
+        (clique_idN, clique_keysN, childM_sep_idN, childM_sep_keysN)
+    ]
 
     """
     return list(bf_traverse(tree, func=yield_clique_pairs))
@@ -1014,13 +1128,22 @@ class SumProduct():
 
     def project(self, clique_pot, clique_keys, sep_keys):
         """
+        Compute sepset potential by summing over keys
+            in clique not shared by separator
 
         Input:
         ------
 
+        Clique potential
+
+        Clique keys
+
+        Separator keys
+
         Output:
         -------
 
+        Updated separator potential
 
         """
         # map keys to get around variable count limitation in einsum
@@ -1033,13 +1156,27 @@ class SumProduct():
 
     def absorb(self, clique_pot, clique_keys, sep_pot, new_sep_pot, sep_keys):
         """
+        Compute new clique potential as product of old clique potential
+            and quotient of new separator potential and old separator
+            potential
 
         Input:
         ------
 
+        Clique potential to be updated
+
+        Clique keys
+
+        Old separator potential
+
+        New separator potential
+
+        Separator keys
+
         Output:
         -------
 
+        Updated clique potential
 
         """
         if np.all(sep_pot) == 0:
@@ -1055,13 +1192,28 @@ class SumProduct():
 
     def update(self, clique1_pot, clique1_keys, clique2_pot, clique2_keys, sep_pot, sep_keys):
         """
+        A single update (message pass) from clique1 to clique2
+            through separator
 
         Input:
         ------
 
+        Clique1 potential
+
+        Clique1 keys
+
+        Clique2 potential
+
+        Clique2 keys
+
+        Separator potential
+
+        Separator keys
+
         Output:
         -------
 
+        Updated clique2 potential and updated separator potential
 
         """
         # See page 2:
@@ -1102,17 +1254,20 @@ class JunctionTree(object):
             clique_id_keys = list(bf_traverse([tree]))
             self.tree_cliques.append([clique_id_keys[i] for i in range(0, len(clique_id_keys), 2)])
             self.struct.append(self.map_keys(tree, self.labels))
-        self.phi = []
 
     def find_key(self, key_label):
         """
+        Return index of key in tree keys
 
         Input:
         ------
 
+        Key label as provided when junction tree constructed
+
         Output:
         -------
 
+        Key index (or None if key not in tree)
 
         """
         try:
@@ -1123,13 +1278,19 @@ class JunctionTree(object):
 
     def get_key_ix(self, clique_ix, key_label):
         """
+        Returns index of key in clique's set of keys
 
         Input:
         ------
 
+        Clique ID
+
+        Key label
+
         Output:
         -------
 
+        Index of key in clique's keys
 
         """
         try:
@@ -1140,39 +1301,22 @@ class JunctionTree(object):
 
     def get_key_sizes(self):
         """
-
-        Input:
-        ------
-
-        Output:
-        -------
-
+        Returns dictionary of key labels as keys
+            and key size as values
 
         """
         return self.key_sizes
 
     def get_label_order(self):
         """
-
-        Input:
-        ------
-
-        Output:
-        -------
-
-
+        Return dictionary of key label as key
+            and index as value
         """
         return self.labels
 
     def get_labels(self):
         """
         Returns key labels in sorted order
-
-        Input:
-        ------
-
-        Output:
-        -------
 
         """
         labels = [None]*len(self.labels)
@@ -1183,40 +1327,28 @@ class JunctionTree(object):
 
     def get_struct(self):
         """
-
-        Input:
-        ------
-
-        Output:
-        -------
-
+        Return structure of junction tree
 
         """
         return self.struct
 
-    def get_potentials(self):
-        """
-
-        Input:
-        ------
-
-        Output:
-        -------
-
-
-        """
-        return self.phi
 
     @staticmethod
     def map_keys(tree, lookup):
         """
+        Map keys of cliques to index values
 
         Input:
         ------
 
+        Tree structure
+
+        Lookup dictonary with key label as key and
+            key index (in junction tree) as value
+
         Output:
         -------
-
+        Return tree with re-indexed clique keys
 
         """
         cp_tree = copy.deepcopy(tree)
@@ -1240,12 +1372,18 @@ class JunctionTree(object):
     @staticmethod
     def from_factor_graph(factor_graph):
         """
+        Construct a junction tree from factor graph
 
         Input:
         ------
 
+        Factor graph as list of key sizes, list of
+            factors (keys), and list of factor potentials
+
         Output:
         -------
+
+        Resulting JunctionTree and initial potentials
 
 
         """
@@ -1266,13 +1404,21 @@ class JunctionTree(object):
     @staticmethod
     def init_potentials(tree, factors, values):
         """
+        Creates initial potentials based on factors
 
         Input:
         ------
 
+        Tree structure of the junction tree
+
+        List of factors (key lists)
+
+        List of factor potentials
+
         Output:
         -------
 
+        Initial potentials
 
         """
         clique_id_keys = list(bf_traverse(tree.get_struct()))
@@ -1309,13 +1455,21 @@ class JunctionTree(object):
 
     def observe(self, potentials, data):
         """
+        Return updated clique potentials based on observed data
 
         Input:
         ------
 
+        List of potentials
+
+        Dictionary of key label as key and key assignment as value
+
         Output:
         -------
 
+        List of likelihood potentials
+
+        List of updated clique potentials
 
         """
         key_sizes = self.get_key_sizes()
@@ -1348,13 +1502,21 @@ class JunctionTree(object):
 
     def propagate(self, potentials, in_place=True, data=None):
         """
+        Return consistent potentials
 
         Input:
         ------
 
+        List of inconsistent potentials
+
+        Boolean to do updates in place
+
+        Dictionary of key label as key and key assignment as value
+
         Output:
         -------
 
+        Updated list of (consistent) potentials
 
         """
         new_potentials = potentials if in_place else copy.deepcopy(potentials)
@@ -1369,12 +1531,19 @@ class JunctionTree(object):
 
     def marginalize(self, potentials, key_label):
         """
+        Marginalize key from consistent potentials
 
         Input:
         ------
 
+        List of consistent potentials
+
+        Key to marginalize
+
         Output:
         -------
+
+        Marginalized value of key
 
 
         """

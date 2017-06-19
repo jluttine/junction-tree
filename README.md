@@ -1,6 +1,18 @@
 # junction-tree
 Implementation of discrete factor graph inference utilizing the Junction Tree algorithm
 
+Usage:
+
+Junction Tree construction
+
+Potential Initialization
+
+Global Propagation
+
+Observing Data
+
+Marginalization
+
 References:
 
 S. M. Aji and R. J. McEliece, "The generalized distributive law," in IEEE Transactions on Information Theory, vol. 46, no. 2, pp. 325-343, Mar 2000. doi: 10.1109/18.825794
