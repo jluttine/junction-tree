@@ -195,16 +195,17 @@ class JunctionTree(object):
 
         for i, factor in enumerate(factors):
             # convert factor to its indexed keys
-            factor_keys = set([tree.find_key(key) for key in factor])
+            factor_keys = [tree.find_key(key) for key in factor]
             # find clique to multiply factor into
             for clique_ix, clique_keys in clique_lookup.items():
-                if factor_keys.issubset(clique_keys):
+                if set(factor_keys).issubset(clique_keys):
+
                     # multiply factor into clique
                     potentials[clique_ix] = np.einsum(
-                                                values[i],
-                                                list(factor_keys),
                                                 potentials[clique_ix],
                                                 clique_keys,
+                                                values[i],
+                                                factor_keys,
                                                 clique_keys
                     )
                     break

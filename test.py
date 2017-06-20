@@ -8,6 +8,7 @@ import heapq
 import copy
 from junction_tree import JunctionTree
 from sum_product import SumProduct
+import math
 
 
 # Tests here using pytest
@@ -1960,15 +1961,13 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert_triangulated(factors, tri)
         cliques = bp.identify_cliques(ics)
 
-        clique_sets = [set(c) for c in cliques]
+        assert len(cliques) == 5
 
-        assert len(clique_sets) == 5
-
-        assert set(["C","D"]) in clique_sets
-        assert set(["G","I","D"]) in clique_sets
-        assert set(["G","S","I"]) in clique_sets
-        assert set(["G","J","S","L"]) in clique_sets
-        assert set(["H","G","J"]) in clique_sets
+        assert ["C","D"] in cliques
+        assert ["D","G","I"] in cliques
+        assert ["G","I","S"] in cliques
+        assert ["G","J","L","S"] in cliques
+        assert ["G","H","J"] in cliques
 
 
     def test_identify_cliques(self):
@@ -2003,16 +2002,14 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         cliques = bp.identify_cliques([f+t for f,t in zip(factors,tri)])
 
-        clique_sets = [set(c) for c in cliques]
+        assert len(cliques) == 6
 
-        assert len(clique_sets) == 6
-
-        assert set(["E","G","H"]) in clique_sets
-        assert set(["C","E","G"]) in clique_sets
-        assert set(["D","E","F"]) in clique_sets
-        assert set(["A","C","E"]) in clique_sets
-        assert set(["A","B","D"]) in clique_sets
-        assert set(["A","D","E"]) in clique_sets
+        assert ["E","G","H"] in cliques
+        assert ["C","E","G"] in cliques
+        assert ["D","E","F"] in cliques
+        assert ["A","C","E"] in cliques
+        assert ["A","B","D"] in cliques
+        assert ["A","D","E"] in cliques
 
     def test_join_trees_with_single_cliques(self):
         tree1 = [0, [0,1,2]]
@@ -2731,15 +2728,82 @@ class TestJunctionTreeInference(unittest.TestCase):
 
 
     def test_transformation(self):
+        jt0 = JunctionTree(self.var_sizes, self.trees)
+        init_phi = JunctionTree.init_potentials(jt0, self.factors, self.values)
+        phi0 = jt0.propagate(init_phi)
         jt, init_phi = JunctionTree.from_factor_graph(self.fg)
         phi = jt.propagate(init_phi)
+
+        # check that marginal values are same with different tree structures
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "A"),
+                                jt0.marginalize(phi0, "A")
+        )
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "B"),
+                                jt0.marginalize(phi0, "B")
+        )
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "C"),
+                                jt0.marginalize(phi0, "C")
+        )
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "D"),
+                                jt0.marginalize(phi0, "D")
+        )
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "E"),
+                                jt0.marginalize(phi0, "E")
+        )
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "G"),
+                                jt0.marginalize(phi0, "G")
+        )
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "F"),
+                                jt0.marginalize(phi0, "F")
+        )
+
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "H"),
+                                jt0.marginalize(phi0, "H")
+        )
+
+        # check that marginal values are correct
         np.testing.assert_allclose(
                                 jt.marginalize(phi, "A"),
                                 np.array([0.500,0.500])
         )
         np.testing.assert_allclose(
+                                jt.marginalize(phi, "B"),
+                                np.array([0.550,0.450])
+        )
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "C"),
+                                np.array([0.550,0.450])
+        )
+        np.testing.assert_allclose(
                                 jt.marginalize(phi, "D"),
                                 np.array([0.320,0.680])
+        )
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "E"),
+                                np.array([0.535,0.465])
+        )
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "G"),
+                                np.array([0.855,0.145])
+                                #np.array([0.585,0.415])
+        )
+
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "F"),
+                                np.array([0.824,0.176])
+        )
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "H"),
+                                np.array([ 0.104,  0.896])
+                                #np.array([0.176,0.823])
         )
 
     def test_initialize_potentials(self):
@@ -2797,7 +2861,134 @@ class TestJunctionTreeInference(unittest.TestCase):
         data = {"A": 0, "F": 1, "H": 1}
         phi = jt.propagate(init_phi, data=data)
         assert np.all(jt.marginalize(phi, "D") > 0)
+        np.testing.assert_allclose(
+                        jt.marginalize(phi, "A", normalize=True),
+                        np.array([1,0])
+        )
 
+
+    def test_inference(self):
+        #http://pages.cs.wisc.edu/~dpage/cs731/lecture5.ppt
+        key_sizes = {
+                        "A": 2,
+                        "B": 2,
+                        "C": 2,
+                        "D": 2,
+                        "E": 2,
+                        "F": 2
+                    }
+        factors = [
+                    ["A"],
+                    ["B","A"],
+                    ["C","A"],
+                    ["B","D"],
+                    ["C","E"],
+                    ["D","E","F"]
+        ]
+        values = [
+                    np.array([0.9,0.1]),
+                    np.array(
+                                [
+                                    [0.1,0.9],
+                                    [0.9,0.1]
+                                ]
+                    ),
+                    np.array(
+                                [
+                                    [0.8,0.3],
+                                    [0.2,0.7]
+                                ]
+                    ),
+                    np.array(
+                                [
+                                    [0.3,0.7],
+                                    [0.6,0.4]
+                                ]
+                    ),
+                    np.array(
+                                [
+                                    [0.6,0.4],
+                                    [0.5,0.5]
+                                ]
+                    ),
+                    np.array(
+                                [
+                                    [
+                                        [0.2,0.8],
+                                        [0.6,0.4]
+                                    ],
+                                    [
+                                        [0.5,0.5],
+                                        [0.9,0.1]
+                                    ]
+                                ]
+                    )
+        ]
+
+        trees = [
+                    [
+                        0, ["C","D","E"],
+                        (
+                            1, ["D","E"],
+                            [
+                                2, ["D","E","F"]
+                            ]
+                        ),
+                        (
+                            3, ["C","D"],
+                            [
+                                4, ["B","C","D"],
+                                (
+                                    5, ["B","C"],
+                                    [
+                                        6, ["A","B","C"]
+                                    ]
+                                )
+                            ]
+                        )
+                    ]
+        ]
+
+        fg = [key_sizes,factors,values]
+        jt = JunctionTree(key_sizes, trees)
+        init_phi = JunctionTree.init_potentials(jt, fg[1], fg[2])
+
+        phi = jt.propagate(init_phi)
+        assert math.isclose(phi[6][0,0,0], 0.072, abs_tol=0.01)
+        assert math.isclose(phi[6][0,0,1], 0.018, abs_tol=0.01)
+        assert math.isclose(phi[6][0,1,0], 0.648, abs_tol=0.01)
+        assert math.isclose(phi[6][0,1,1], 0.162, abs_tol=0.01)
+        assert math.isclose(phi[6][1,0,0], 0.027, abs_tol=0.01)
+        assert math.isclose(phi[6][1,0,1], 0.063, abs_tol=0.01)
+        assert math.isclose(phi[6][1,1,0], 0.003, abs_tol=0.01)
+        assert math.isclose(phi[6][1,1,1], 0.007, abs_tol=0.01)
+
+        assert math.isclose(phi[4][0,0,0], 0.030, abs_tol=0.01)
+        assert math.isclose(phi[4][0,0,1], 0.069, abs_tol=0.01)
+        assert math.isclose(phi[4][0,1,0], 0.024, abs_tol=0.01)
+        assert math.isclose(phi[4][0,1,1], 0.057, abs_tol=0.01)
+        assert math.isclose(phi[4][1,0,0], 0.391, abs_tol=0.01)
+        assert math.isclose(phi[4][1,0,1], 0.260, abs_tol=0.01)
+        assert math.isclose(phi[4][1,1,0], 0.101, abs_tol=0.01)
+        assert math.isclose(phi[4][1,1,1], 0.068, abs_tol=0.01)
+
+        assert math.isclose(phi[2][0,0,0], 0.063, abs_tol=0.01)
+        assert math.isclose(phi[2][0,0,1], 0.252, abs_tol=0.01)
+        assert math.isclose(phi[2][0,1,0], 0.139, abs_tol=0.01)
+        assert math.isclose(phi[2][0,1,1], 0.092, abs_tol=0.01)
+        assert math.isclose(phi[2][1,0,0], 0.130, abs_tol=0.01)
+        assert math.isclose(phi[2][1,0,1], 0.130, abs_tol=0.01)
+        assert math.isclose(phi[2][1,1,0], 0.175, abs_tol=0.01)
+        assert math.isclose(phi[2][1,1,1], 0.019, abs_tol=0.01)
+
+        assert math.isclose(phi[0][0,0,0], 0.252, abs_tol=0.01)
+        assert math.isclose(phi[0][0,0,1], 0.168, abs_tol=0.01)
+        assert math.isclose(phi[0][0,1,0], 0.198, abs_tol=0.01)
+        assert math.isclose(phi[0][0,1,1], 0.132, abs_tol=0.01)
+        assert math.isclose(phi[0][1,0,0], 0.063, abs_tol=0.01)
+        assert math.isclose(phi[0][1,0,1], 0.063, abs_tol=0.01)
+        assert math.isclose(phi[0][1,1,0], 0.062, abs_tol=0.01)
+        assert math.isclose(phi[0][1,1,1], 0.062, abs_tol=0.01)
 
 class TestJTTraversal(unittest.TestCase):
     def setUp(self):

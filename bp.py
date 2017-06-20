@@ -291,7 +291,7 @@ def identify_cliques(induced_clusters):
         if any(s1 < s2 for s2 in sets):
             continue
         else:
-            cliques.append(list(s1))
+            cliques.append(sorted(s1))
 
 
     return cliques
@@ -731,15 +731,48 @@ def hugin(tree, key_labels, potentials, distributive_law):
                         visited,
                         distributive_law
     )
+    '''print("")
+    print(new_potentials[0][0,0,0])
+    print(new_potentials[0][0,0,1])
+    print(new_potentials[0][0,1,0])
+    print(new_potentials[0][0,1,1])
+    print(new_potentials[0][1,0,0])
+    print(new_potentials[0][1,0,1])
+    print(new_potentials[0][1,1,0])
+    print(new_potentials[0][1,1,1])
+
+    print("")
+    print(new_potentials[1][0,0])
+    print(new_potentials[1][0,1])
+    print(new_potentials[1][1,0])
+    print(new_potentials[1][1,1])
+
+    print("")
+    print(new_potentials[3][0,0])
+    print(new_potentials[3][0,1])
+    print(new_potentials[3][1,0])
+    print(new_potentials[3][1,1])
+
+
+    print("")
+    print(new_potentials[4][0,0,0])
+    print(new_potentials[4][0,0,1])
+    print(new_potentials[4][0,1,0])
+    print(new_potentials[4][0,1,1])
+    print(new_potentials[4][1,0,0])
+    print(new_potentials[4][1,0,1])
+    print(new_potentials[4][1,1,0])
+    print(new_potentials[4][1,1,1])'''
+
 
     # initialize visited array again
-    visited = [0]*len(potentials)
+    visited = [0]*len(new_potentials)
 
     # return the result of a call to distribute on root index
     return distribute(
                     tree,
                     key_labels,
-                    potentials,
+                    new_potentials,
                     visited,
                     distributive_law
     )
