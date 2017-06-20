@@ -2662,8 +2662,9 @@ class TestJunctionTreeInference(unittest.TestCase):
                     ["B", "D"],
                     ["C", "E"],
                     ["C", "G"],
-                    ["G", "E", "H"],
-                    ["D", "E", "F"]
+                    ["D", "E", "F"],
+                    ["E", "G", "H"],
+
         ]
 
         self.values = [
@@ -2798,11 +2799,13 @@ class TestJunctionTreeInference(unittest.TestCase):
 
         np.testing.assert_allclose(
                                 jt.marginalize(phi, "F"),
-                                np.array([0.824,0.176])
+                                np.array([0.824,0.176]),
+                                atol=0.01
         )
         np.testing.assert_allclose(
                                 jt.marginalize(phi, "H"),
-                                np.array([ 0.104,  0.896])
+                                np.array([ 0.104,  0.896]),
+                                atol=0.01
                                 #np.array([0.176,0.823])
         )
 
