@@ -2794,7 +2794,6 @@ class TestJunctionTreeInference(unittest.TestCase):
         np.testing.assert_allclose(
                                 jt.marginalize(phi, "G"),
                                 np.array([0.855,0.145])
-                                #np.array([0.585,0.415])
         )
 
         np.testing.assert_allclose(
@@ -2806,7 +2805,6 @@ class TestJunctionTreeInference(unittest.TestCase):
                                 jt.marginalize(phi, "H"),
                                 np.array([ 0.104,  0.896]),
                                 atol=0.01
-                                #np.array([0.176,0.823])
         )
 
     def test_initialize_potentials(self):
@@ -2859,15 +2857,68 @@ class TestJunctionTreeInference(unittest.TestCase):
         )
 
     def test_global_propagation_with_observations(self):
-        jt, init_phi = JunctionTree.from_factor_graph(self.fg)
+        key_sizes = {
+                        "cloudy": 2,
+                        "sprinkler": 2,
+                        "rain": 2,
+                        "wet_grass": 2
+                    }
+
+        factors = [
+                    ["cloudy"],
+                    ["cloudy", "sprinkler"],
+                    ["cloudy", "rain"],
+                    ["rain", "sprinkler", "wet_grass"]
+        ]
+
+        values = [
+                    np.array([0.5,0.5]),
+                    np.array(
+                                [
+                                    [0.5,0.5],
+                                    [0.9,0.1]
+                                ]
+                            ),
+                    np.array(
+                                [
+                                    [0.8,0.2],
+                                    [0.2,0.8]
+                                ]
+                            ),
+                    np.array(
+                                [
+                                    [
+                                        [1,0],
+                                        [0.1,0.9]
+                                    ],
+                                    [
+                                        [0.1,0.9],
+                                        [0.01,0.99]
+                                    ]
+                                ]
+                    )
+        ]
+
+        fg = [key_sizes, factors, values]
+        jt, init_phi = JunctionTree.from_factor_graph(fg)
         phi = jt.propagate(init_phi)
-        data = {"A": 0, "F": 1, "H": 1}
-        phi = jt.propagate(init_phi, data=data)
-        assert np.all(jt.marginalize(phi, "D") > 0)
+        # grass is wet
+        phi = jt.propagate(init_phi, data={"wet_grass":1})
         np.testing.assert_allclose(
-                        jt.marginalize(phi, "A", normalize=True),
-                        np.array([1,0])
+                                jt.marginalize(phi, "sprinkler", normalize=True),
+                                np.array([0.57024,0.42976]),
+                                atol=0.01
         )
+
+        # grass is wet and it is raining
+        phi = jt.propagate(init_phi, data={"wet_grass":1, "raining": 1})
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, "sprinkler", normalize=True),
+                                np.array([0.8055,0.1945]),
+                                atol=0.01
+        )
+
+
 
 
     def test_inference(self):
