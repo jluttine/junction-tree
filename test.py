@@ -2857,6 +2857,7 @@ class TestJunctionTreeInference(unittest.TestCase):
         )
 
     def test_global_propagation_with_observations(self):
+        #http://mensxmachina.org/files/software/demos/jtreedemo.html
         key_sizes = {
                         "cloudy": 2,
                         "sprinkler": 2,
