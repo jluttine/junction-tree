@@ -152,7 +152,6 @@ class JunctionTree(object):
                             key_sizes=factor_graph[0],
                             factors=factor_graph[1]
         )
-
         cliques = bp.identify_cliques(induced_clusters)
         trees = bp.construct_junction_tree(cliques, key_sizes)
         jt = JunctionTree(key_sizes, trees)
@@ -199,14 +198,16 @@ class JunctionTree(object):
             # find clique to multiply factor into
             for clique_ix, clique_keys in clique_lookup.items():
                 if set(factor_keys).issubset(clique_keys):
-
+                    # map keys to get around variable count limitation in einsum
+                    m_keys = {k:i for i,k in enumerate(clique_keys)}
+                    mapped_clique_keys = [m_keys[k] for k in clique_keys]
                     # multiply factor into clique
                     potentials[clique_ix] = np.einsum(
                                                 potentials[clique_ix],
-                                                clique_keys,
+                                                mapped_clique_keys,
                                                 values[i],
-                                                factor_keys,
-                                                clique_keys
+                                                [m_keys[k] for k in factor_keys],
+                                                mapped_clique_keys
                     )
                     break
 
@@ -233,28 +234,35 @@ class JunctionTree(object):
         """
         key_sizes = self.get_key_sizes()
         # set values of ll based on data argument
-        ll = [
-                    [1 if j == data[key_lbl] else 0 for j in range(0, key_sizes[key_lbl])]
+        ll = {
+                    key_lbl:[1 if j == data[key_lbl] else 0 for j in range(0, key_sizes[key_lbl])]
                         if key_lbl in data else [1]*key_sizes[key_lbl]
                             for key_lbl in self.get_labels()
-                ]
+                }
 
         # alter potentials based on likelihoods
         for key_lbl in data:
             # find clique that contains key
+            key_ix = self.find_key(key_lbl)
             for tree in self.get_struct():
                 clique_ix, clique_keys = bp.get_clique_of_key(
                                                         tree,
-                                                        self.find_key(key_lbl)
+                                                        key_ix
                 )
                 if clique_ix and clique_keys: break
+            # map keys to get around variable count limitation in einsum
+            m_keys = {k:i for i,k in enumerate(clique_keys)}
+            mapped_clique_keys = [m_keys[k] for k in clique_keys]
 
             # multiply clique's potential by likelihood
-            pot = potentials[clique_ix]
-            key_ix = self.get_key_ix(clique_ix, key_lbl)
-            # reshape likelihood potential to allow multiplication with pot
-            ll_pot = np.array(ll[self.find_key(key_lbl)]).reshape([1 if i!=key_ix else s for i, s in enumerate(pot.shape)])
-            potentials[clique_ix] = pot*ll_pot
+            potentials[clique_ix] = np.einsum(
+                                        potentials[clique_ix],
+                                        mapped_clique_keys,
+                                        ll[key_lbl],
+                                        [m_keys[key_ix]],
+                                        mapped_clique_keys
+            )
+
         return (ll,potentials)
 
     def propagate(self, potentials, in_place=True, data=None):
@@ -286,7 +294,7 @@ class JunctionTree(object):
 
         return new_potentials
 
-    def marginalize(self, potentials, key_label, normalize=False):
+    def marginalize(self, potentials, key_labels, normalize=False):
         """
         Marginalize key from consistent potentials
 
@@ -305,10 +313,15 @@ class JunctionTree(object):
         Marginalized value of key (unnormalized by default)
 
         """
-        if key_label not in self.key_sizes:
-            raise ValueError("Key %s not in tree" % key_label)
+        if len(key_labels) > 1:
+            raise NotImplementedError
 
-        key_ix = self.find_key(key_label)
+        for key_label in key_labels:
+            if key_label not in self.key_sizes:
+                raise ValueError("Key %s not in tree" % key_label)
+
+
+        key_ix = self.find_key(key_labels[0])
         for i, tree in enumerate(self.get_struct()):
             clique_ix, clique_keys = bp.get_clique_of_key(tree, key_ix)
             if clique_ix and clique_keys: break
@@ -319,14 +332,6 @@ class JunctionTree(object):
                             key_ix
         )
 
-        Z = 1.0 if not normalize else np.sum(
-                                            [
-                                                bp.compute_marginal(
-                                                    potentials[clique_ix],
-                                                    clique_keys,
-                                                    key_ix
-                                                ) for key_ix in clique_keys
-                                            ]
-                                        ) + value
+        Z = 1.0 if not normalize else np.sum(value)
 
         return value/Z

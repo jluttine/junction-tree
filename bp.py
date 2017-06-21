@@ -103,8 +103,14 @@ def find_triangulation(factors, key_sizes):
         )
         key = item[2]
 
-        rem_neighbors = [(set(edge) - set(key)).pop()
-                            for edge in edges if key in edge and len(set(rem_keys).intersection(edge)) == 1]
+        # find neighbors that are in remaining keys
+        rem_neighbors = []
+        for edge in edges:
+            if key in edge:
+                neighbor = set(rem_keys).intersection(edge)
+                if len(neighbor) == 1:
+                    rem_neighbors.append(neighbor.pop())
+
 
         induced_clusters.append(rem_neighbors + [key])
         # connect all unconnected neighbors of key
@@ -236,12 +242,12 @@ def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
     while entry[2] == "":
         entry = heapq.heappop(heap)
 
-
     # remove entry from entry_finder
     del entry_finder[entry[2]]
 
     # remove key from remaining keys list
     remaining_keys.remove(entry[2])
+
 
     heap, entry_finder = update_heap(
                                 remaining_keys,
@@ -731,39 +737,6 @@ def hugin(tree, key_labels, potentials, distributive_law):
                         visited,
                         distributive_law
     )
-    '''print("")
-    print(new_potentials[0][0,0,0])
-    print(new_potentials[0][0,0,1])
-    print(new_potentials[0][0,1,0])
-    print(new_potentials[0][0,1,1])
-    print(new_potentials[0][1,0,0])
-    print(new_potentials[0][1,0,1])
-    print(new_potentials[0][1,1,0])
-    print(new_potentials[0][1,1,1])
-
-    print("")
-    print(new_potentials[1][0,0])
-    print(new_potentials[1][0,1])
-    print(new_potentials[1][1,0])
-    print(new_potentials[1][1,1])
-
-    print("")
-    print(new_potentials[3][0,0])
-    print(new_potentials[3][0,1])
-    print(new_potentials[3][1,0])
-    print(new_potentials[3][1,1])
-
-
-    print("")
-    print(new_potentials[4][0,0,0])
-    print(new_potentials[4][0,0,1])
-    print(new_potentials[4][0,1,0])
-    print(new_potentials[4][0,1,1])
-    print(new_potentials[4][1,0,0])
-    print(new_potentials[4][1,0,1])
-    print(new_potentials[4][1,1,0])
-    print(new_potentials[4][1,1,1])'''
-
 
     # initialize visited array again
     visited = [0]*len(new_potentials)

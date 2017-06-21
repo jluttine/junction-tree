@@ -2527,7 +2527,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         """
 
-        var_sizes = {
+        key_sizes = {
                         "A": 2,
                         "B": 2,
                         "C": 2,
@@ -2557,11 +2557,11 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["D","E","F"],#[3,4,5]
                     ["E","G","H"],#[4,6,7]
                 ]
-        trees = bp.construct_junction_tree(cliques, var_sizes)
+        trees = bp.construct_junction_tree(cliques, key_sizes)
 
         assert len(trees) == 1
 
-        jt0 = JunctionTree(var_sizes, trees)
+        jt0 = JunctionTree(key_sizes, trees)
 
         # expected junction tree
 
@@ -2604,6 +2604,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         assert_junction_tree_equal(jt0.get_struct(), jt1)
 
+
 class TestJunctionTreeInference(unittest.TestCase):
     def setUp(self):
         self.trees = [
@@ -2644,7 +2645,7 @@ class TestJunctionTreeInference(unittest.TestCase):
                     ]
 
 
-        self.var_sizes = {
+        self.key_sizes = {
                             "A": 2,
                             "B": 2,
                             "C": 2,
@@ -2725,11 +2726,11 @@ class TestJunctionTreeInference(unittest.TestCase):
                                 )
                 ]
 
-        self.fg = [self.var_sizes,self.factors,self.values]
+        self.fg = [self.key_sizes,self.factors,self.values]
 
 
     def test_transformation(self):
-        jt0 = JunctionTree(self.var_sizes, self.trees)
+        jt0 = JunctionTree(self.key_sizes, self.trees)
         init_phi = JunctionTree.init_potentials(jt0, self.factors, self.values)
         phi0 = jt0.propagate(init_phi)
         jt, init_phi = JunctionTree.from_factor_graph(self.fg)
@@ -2737,78 +2738,78 @@ class TestJunctionTreeInference(unittest.TestCase):
 
         # check that marginal values are same with different tree structures
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "A"),
-                                jt0.marginalize(phi0, "A")
+                                jt.marginalize(phi, ["A"]),
+                                jt0.marginalize(phi0, ["A"])
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "B"),
-                                jt0.marginalize(phi0, "B")
+                                jt.marginalize(phi, ["B"]),
+                                jt0.marginalize(phi0, ["B"])
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "C"),
-                                jt0.marginalize(phi0, "C")
+                                jt.marginalize(phi, ["C"]),
+                                jt0.marginalize(phi0, ["C"])
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "D"),
-                                jt0.marginalize(phi0, "D")
+                                jt.marginalize(phi, ["D"]),
+                                jt0.marginalize(phi0, ["D"])
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "E"),
-                                jt0.marginalize(phi0, "E")
+                                jt.marginalize(phi, ["E"]),
+                                jt0.marginalize(phi0, ["E"])
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "G"),
-                                jt0.marginalize(phi0, "G")
+                                jt.marginalize(phi, ["G"]),
+                                jt0.marginalize(phi0, ["G"])
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "F"),
-                                jt0.marginalize(phi0, "F")
+                                jt.marginalize(phi, ["F"]),
+                                jt0.marginalize(phi0, ["F"])
         )
 
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "H"),
-                                jt0.marginalize(phi0, "H")
+                                jt.marginalize(phi, ["H"]),
+                                jt0.marginalize(phi0, ["H"])
         )
 
         # check that marginal values are correct
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "A"),
+                                jt.marginalize(phi, ["A"]),
                                 np.array([0.500,0.500])
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "B"),
+                                jt.marginalize(phi, ["B"]),
                                 np.array([0.550,0.450])
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "C"),
+                                jt.marginalize(phi, ["C"]),
                                 np.array([0.550,0.450])
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "D"),
+                                jt.marginalize(phi, ["D"]),
                                 np.array([0.320,0.680])
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "E"),
+                                jt.marginalize(phi, ["E"]),
                                 np.array([0.535,0.465])
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "G"),
+                                jt.marginalize(phi, ["G"]),
                                 np.array([0.855,0.145])
         )
 
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "F"),
+                                jt.marginalize(phi, ["F"]),
                                 np.array([0.824,0.176]),
                                 atol=0.01
         )
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "H"),
+                                jt.marginalize(phi, ["H"]),
                                 np.array([ 0.104,  0.896]),
                                 atol=0.01
         )
 
     def test_initialize_potentials(self):
-        jt = JunctionTree(self.var_sizes,self.trees)
+        jt = JunctionTree(self.key_sizes,self.trees)
         init_phi = JunctionTree.init_potentials(jt, self.fg[1], self.fg[2])
         assert_potentials_equal(
                                     init_phi[6:8], # clusters ACE and CE
@@ -2835,7 +2836,7 @@ class TestJunctionTreeInference(unittest.TestCase):
                                 )
 
     def test_global_propagation(self):
-        jt = JunctionTree(self.var_sizes,self.trees)
+        jt = JunctionTree(self.key_sizes,self.trees)
         init_phi = JunctionTree.init_potentials(jt, self.fg[1], self.fg[2])
         phi = jt.propagate(init_phi)
         assert_potentials_equal(
@@ -2902,20 +2903,26 @@ class TestJunctionTreeInference(unittest.TestCase):
 
         fg = [key_sizes, factors, values]
         jt, init_phi = JunctionTree.from_factor_graph(fg)
-        phi = jt.propagate(init_phi)
+
         # grass is wet
-        phi = jt.propagate(init_phi, data={"wet_grass":1})
+        phi = jt.propagate(init_phi, in_place=False, data={"wet_grass":1})
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "sprinkler", normalize=True),
+                                jt.marginalize(phi, ["sprinkler"], normalize=True),
                                 np.array([0.57024,0.42976]),
                                 atol=0.01
         )
 
         # grass is wet and it is raining
-        phi = jt.propagate(init_phi, data={"wet_grass":1, "raining": 1})
+        # no need to calculate init_phi in place because init_phi not used again
+        phi = jt.propagate(init_phi, data={"wet_grass":1, "rain": 1})
         np.testing.assert_allclose(
-                                jt.marginalize(phi, "sprinkler", normalize=True),
+                                jt.marginalize(phi, ["sprinkler"], normalize=True),
                                 np.array([0.8055,0.1945]),
+                                atol=0.01
+        )
+        np.testing.assert_allclose(
+                                jt.marginalize(phi, ["rain"], normalize=True),
+                                np.array([0,1]),
                                 atol=0.01
         )
 
