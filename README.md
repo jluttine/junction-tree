@@ -190,7 +190,7 @@ new_potentials = jt.propagate(init_potentials, data=data)
 From a collection of consistent clique potentials, the marginal value of variables of interest can be calculated
 
 ```
-value = jt.marginalize(new_potentials, "D")
+value = jt.marginalize(new_potentials, ["D"])
 ```
 
 
