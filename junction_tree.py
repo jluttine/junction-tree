@@ -288,6 +288,8 @@ class JunctionTree(object):
 
         List of updated clique potentials
 
+        Shrink mapping of clique to reduced key set
+
         """
         key_sizes = self.get_key_sizes()
         # set values of ll based on data argument
@@ -297,8 +299,19 @@ class JunctionTree(object):
                             for key_lbl in self.sorted_labels
                 }
 
+        # shrink mapping filled with (array indexer, shrunk key) pairs for
+        # each potential
+        shrink_mapping = [
+                            (
+                                [slice(None)]*len(potentials[i].shape),
+                                list(self.clique_keys[i])
+                            )
+                            for i in range(len(potentials))
+                        ]
+
+
         # alter potentials based on likelihoods
-        for key_lbl in data:
+        for key_lbl,val in data.items():
             # find clique that contains key
             key_ix = self.find_key(key_lbl)
             for tree in self.get_struct():
@@ -319,8 +332,19 @@ class JunctionTree(object):
                                         [m_keys[key_ix]],
                                         mapped_clique_keys
             )
+            # remove key_ix from key set for all clique's containing key
+            for clique_ix in self.keys_to_cliques[key_ix]:
+                shrink_mapping[clique_ix][1].remove(key_ix)
+                # update key to have observed value in array indexer
+                keys = self.clique_keys[clique_ix]
+                c_key_ix = keys.index(key_ix)
+                shrink_mapping[clique_ix][0][c_key_ix] = val
 
-        return (ll,potentials)
+        # convert array indexer to tuple
+        for i in range(len(shrink_mapping)):
+            shrink_mapping[i] = (tuple(shrink_mapping[i][0]), shrink_mapping[i][1])
+
+        return (ll, potentials, shrink_mapping)
 
     def propagate(self, potentials, in_place=True, data=None):
         """
@@ -344,7 +368,7 @@ class JunctionTree(object):
         """
         new_potentials = potentials if in_place else copy.deepcopy(potentials)
         if data:
-            likelihood, new_potentials = self.observe(new_potentials, data=data)
+            likelihood, new_potentials, shrink_mapping = self.observe(new_potentials, data=data)
 
         for i, tree in enumerate(self.get_struct()):
             new_potentials = bp.hugin(

@@ -871,12 +871,30 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = jt.observe(phi, data)
+        likelihood, phi0, shrink_mapping = jt.observe(phi, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+
+        assert len(shrink_mapping) == len(phi0)
+
+        # check dimensions and keys potentials after observing evidence
+        assert shrink_mapping[0] == ((1,3,0),[])
+        assert type(phi0[0][shrink_mapping[0][0]]) == np.float64
+        assert shrink_mapping[1] == ((1,3),[])
+        assert type(phi0[1][shrink_mapping[1][0]]) == np.float64
+        assert shrink_mapping[2] == ((1,slice(None),3),[1])
+        assert phi0[2][shrink_mapping[2][0]].shape == (8,)
+        assert shrink_mapping[3] == ((0,),[])
+        assert type(phi0[3][shrink_mapping[3][0]]) == np.float64
+        assert shrink_mapping[4] == ((slice(None),0),[3])
+        assert phi0[4][shrink_mapping[4][0]].shape == (3,)
+        assert shrink_mapping[5] == ((slice(None),),[3])
+        assert phi0[5][shrink_mapping[5][0]].shape == (3,)
+        assert shrink_mapping[6] == ((slice(None),3,slice(None)),[1,3])
+        assert phi0[6][shrink_mapping[6][0]].shape == (8,3)
 
         phi1 = bp.hugin(
                     jt.get_struct()[0],
@@ -972,12 +990,30 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data0 = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = jt.observe(phi, data0)
+        likelihood, phi0, shrink_mapping = jt.observe(phi, data0)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+
+        assert len(shrink_mapping) == len(phi0)
+
+        # check dimensions and keys potentials after observing evidence
+        assert shrink_mapping[0] == ((1,3,0),[])
+        assert type(phi0[0][shrink_mapping[0][0]]) == np.float64
+        assert shrink_mapping[1] == ((1,3),[])
+        assert type(phi0[1][shrink_mapping[1][0]]) == np.float64
+        assert shrink_mapping[2] == ((1,slice(None),3),[1])
+        assert phi0[2][shrink_mapping[2][0]].shape == (8,)
+        assert shrink_mapping[3] == ((0,),[])
+        assert type(phi0[3][shrink_mapping[3][0]]) == np.float64
+        assert shrink_mapping[4] == ((slice(None),0),[3])
+        assert phi0[4][shrink_mapping[4][0]].shape == (3,)
+        assert shrink_mapping[5] == ((slice(None),),[3])
+        assert phi0[5][shrink_mapping[5][0]].shape == (3,)
+        assert shrink_mapping[6] == ((slice(None),3,slice(None)),[1,3])
+        assert phi0[6][shrink_mapping[6][0]].shape == (8,3)
 
         phi1 = bp.hugin(
                     jt.get_struct()[0],
@@ -990,12 +1026,31 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data = {0: 1, 1: 2, 2: 3, 4: 0}
 
-        likelihood, phi2 = jt.observe(phi1, data)
+        likelihood, phi2, shrink_mapping = jt.observe(phi1, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+
+        assert len(shrink_mapping) == len(phi2)
+
+        # check dimensions and keys potentials after observing evidence
+        assert shrink_mapping[0] == ((1,3,0),[])
+        assert type(phi2[0][shrink_mapping[0][0]]) == np.float64
+        assert shrink_mapping[1] == ((1,3),[])
+        assert type(phi2[1][shrink_mapping[1][0]]) == np.float64
+        assert shrink_mapping[2] == ((1,2,3),[])
+        assert type(phi2[2][shrink_mapping[2][0]]) == np.float64
+        assert shrink_mapping[3] == ((0,),[])
+        assert type(phi2[3][shrink_mapping[3][0]]) == np.float64
+        assert shrink_mapping[4] == ((slice(None),0),[3])
+        assert phi2[4][shrink_mapping[4][0]].shape == (3,)
+        assert shrink_mapping[5] == ((slice(None),),[3])
+        assert phi2[5][shrink_mapping[5][0]].shape == (3,)
+        assert shrink_mapping[6] == ((2,3,slice(None)),[3])
+        assert phi2[6][shrink_mapping[6][0]].shape == (3,)
+
 
         phi3 = bp.hugin(
                     jt.get_struct()[0],
@@ -1090,12 +1145,30 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data0 = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = jt.observe(phi, data0)
+        likelihood, phi0, shrink_mapping = jt.observe(phi, data0)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+
+        assert len(shrink_mapping) == len(phi0)
+
+        # check dimensions and keys potentials after observing evidence
+        assert shrink_mapping[0] == ((1,3,0),[])
+        assert type(phi0[0][shrink_mapping[0][0]]) == np.float64
+        assert shrink_mapping[1] == ((1,3),[])
+        assert type(phi0[1][shrink_mapping[1][0]]) == np.float64
+        assert shrink_mapping[2] == ((1,slice(None),3),[1])
+        assert phi0[2][shrink_mapping[2][0]].shape == (8,)
+        assert shrink_mapping[3] == ((0,),[])
+        assert type(phi0[3][shrink_mapping[3][0]]) == np.float64
+        assert shrink_mapping[4] == ((slice(None),0),[3])
+        assert phi0[4][shrink_mapping[4][0]].shape == (3,)
+        assert shrink_mapping[5] == ((slice(None),),[3])
+        assert phi0[5][shrink_mapping[5][0]].shape == (3,)
+        assert shrink_mapping[6] == ((slice(None),3,slice(None)),[1,3])
+        assert phi0[6][shrink_mapping[6][0]].shape == (8,3)
 
         phi1 = bp.hugin(
                     jt.get_struct()[0],
@@ -1109,12 +1182,31 @@ class TestHUGINFunctionality(unittest.TestCase):
         data = {0: 1, 1: 2, 2: 3, 3: 2, 4: 0}
 
 
-        likelihood, phi2 = jt.observe(phi1, data)
+        likelihood, phi2, shrink_mapping = jt.observe(phi1, data)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
         np.testing.assert_array_equal(likelihood[3], np.array([0,0,1]))
         np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
+
+        assert len(shrink_mapping) == len(phi2)
+
+        # check dimensions and keys potentials after observing evidence
+        assert shrink_mapping[0] == ((1,3,0),[])
+        assert type(phi2[0][shrink_mapping[0][0]]) == np.float64
+        assert shrink_mapping[1] == ((1,3),[])
+        assert type(phi2[1][shrink_mapping[1][0]]) == np.float64
+        assert shrink_mapping[2] == ((1,2,3),[])
+        assert type(phi2[2][shrink_mapping[2][0]]) == np.float64
+        assert shrink_mapping[3] == ((0,),[])
+        assert type(phi2[3][shrink_mapping[3][0]]) == np.float64
+        assert shrink_mapping[4] == ((2,0),[])
+        assert type(phi2[4][shrink_mapping[4][0]]) == np.float64
+        assert shrink_mapping[5] == ((2,),[])
+        assert type(phi2[5][shrink_mapping[5][0]]) == np.float64
+        assert shrink_mapping[6] == ((2,3,2),[])
+        assert type(phi2[6][shrink_mapping[6][0]]) == np.float64
+
         phi3 = bp.hugin(
                     jt.get_struct()[0],
                     jt.get_label_order(),
@@ -1212,7 +1304,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         ]
         data0 = {0: 1, 2: 3, 4: 0}
 
-        likelihood, phi0 = jt.observe(phi, data0)
+        likelihood, phi0, shrink_mapping = jt.observe(phi, data0)
         np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1230,7 +1322,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         data = {0: 2, 2: 3, 4: 0}
 
-        likelihood, phi2 = jt.observe(phi1, data, "retract")
+        likelihood, phi2, shrink_mapping = jt.observe(phi1, data, "retract")
         np.testing.assert_array_equal(likelihood[0], np.array([0,0,1,0]))
         np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
         np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
@@ -1668,7 +1760,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         # need to set evidence here: Q=0, G=0, F=1
         data = {"Q":0, "G":0, "F":1}
-        likelihood, phi1 = jt.observe(phi0, data)
+        likelihood, phi1, shrink_mapping = jt.observe(phi0, data)
 
         phi2 = bp.collect(
                         jt.get_struct()[0],
@@ -1683,6 +1775,52 @@ class TestHUGINFunctionality(unittest.TestCase):
         np.allclose(bp.compute_marginal(phi2[clique_ix], clique_keys, [key_ix]), np.array([0.4, 0.6])) == True
 
 
+    def test_evidence_shrinking(self):
+        A = np.random.rand(3,4,2) # vars: a,b,c
+        a = [0]*3
+        a[2]=1
+        b = [0]*4
+        b[2]=1
+        c=[0]*2
+        c[0]=1
+
+        # update potential A based on observing a=2
+        A_updated = bp.sum_product.einsum(A, [0,1,2], a, [0], [0,1,2])
+
+        # shrinking from evidence
+        # set the axis representing a (ax=0) to the value of a
+        A_updated_es = A_updated[2,:,:]
+        assert A_updated_es.shape == (4,2)
+
+        # imagine we have another potential sharing vars b and c
+        B = np.random.rand(4,2) # vars: a,c
+        B_updated = bp.sum_product.einsum(A_updated, [0,1,2], B, [1,2], [1,2])
+
+        B_updated_es = bp.sum_product.einsum(A_updated_es, [1,2], B, [1,2], [1,2])
+
+        np.testing.assert_allclose(
+                                B_updated,
+                                B_updated_es
+        )
+
+        # what happens if the only shared variables between potentials is
+        # the single variable in potential
+
+        C = np.random.rand(3)
+        C_updated = bp.sum_product.einsum(C, [0], a, [0], [0])
+        C_updated_es = C_updated[2]
+
+        np.testing.assert_allclose(
+                        bp.sum_product.einsum(A_updated, [0,1,2], C_updated, [0], []),
+                        bp.sum_product.einsum(A_updated_es, [1,2], C_updated_es, [], [])
+        )
+        np.testing.assert_allclose(
+                        bp.sum_product.einsum(A_updated, [0,1,2], C_updated, [0], [1,2]),
+                        bp.sum_product.einsum(A_updated_es, [1,2], C_updated_es, [], [1,2])
+        )
+
+        # evidence shrinking can be incorporated by removing axis corresponding to observed
+        # variable
 
 class TestJunctionTreeConstruction(unittest.TestCase):
     # just view the factors with respect to the variables which are the inputs

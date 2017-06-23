@@ -1056,4 +1056,8 @@ def generate_potential_pairs(tree):
 
 
 # Sum-product distributive law for NumPy
-sum_product = SumProduct(np.einsum,optimize=True)
+sum_product = SumProduct(np.einsum)
+# setting optimize to true allows einsum to benefit from speed up due to
+# contraction order optimization but at the cost of memory usage
+# need to evaulate tradeoff within library
+#sum_product = SumProduct(np.einsum,optimize=True)
