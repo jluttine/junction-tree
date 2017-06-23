@@ -385,9 +385,11 @@ class JunctionTree(object):
 
 
         key_ix = self.find_key(key_labels[0])
-        for i, tree in enumerate(self.get_struct()):
-            clique_ix, clique_keys = bp.get_clique_of_key(tree, key_ix)
-            if clique_ix and clique_keys: break
+        clique_ix = self.keys_to_cliques[key_ix][0]
+        clique_keys = self.clique_keys[clique_ix]
+        #for i, tree in enumerate(self.get_struct()):
+        #    clique_ix, clique_keys = bp.get_clique_of_key(tree, key_ix)
+        #    if clique_ix and clique_keys: break
 
 
         # map keys to get around variable count limitation in einsum
