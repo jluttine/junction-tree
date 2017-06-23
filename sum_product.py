@@ -31,12 +31,11 @@ class SumProduct():
         Updated separator potential
 
         """
-        # map keys to get around variable count limitation in einsum
-        m_keys = {k:i for i,k in enumerate(set(clique_keys + sep_keys))}
+
         return self.einsum(
             clique_pot,
-            [m_keys[k] for k in clique_keys],
-            [m_keys[k] for k in sep_keys]
+            clique_keys,
+            sep_keys
         )
 
     def absorb(self, clique_pot, clique_keys, sep_pot, new_sep_pot, sep_keys):
@@ -67,15 +66,14 @@ class SumProduct():
         if np.all(sep_pot) == 0:
             return np.zeros_like(clique_pot)
 
-        # map keys to get around variable count limitation in einsum
-        m_keys = {k:i for i,k in enumerate(set(clique_keys + sep_keys))}
+
         return self.einsum(
-            new_sep_pot / sep_pot, [m_keys[k] for k in sep_keys],
-            clique_pot, [m_keys[k] for k in clique_keys],
-            [m_keys[k] for k in clique_keys]
+            new_sep_pot / sep_pot, sep_keys,
+            clique_pot, clique_keys,
+            clique_keys
         )
 
-    def update(self, clique1_pot, clique1_keys, clique2_pot, clique2_keys, sep_pot, sep_keys):
+    def update(self, clique1_pot, clique1_keys, clique2_pot, clique2_keys, sep_pot, sep1_keys, sep2_keys):
         """
         A single update (message pass) from clique1 to clique2
             through separator
@@ -93,7 +91,9 @@ class SumProduct():
 
         Separator potential
 
-        Separator keys
+        Separator keys mapped to clique1 keys
+
+        Separator keys mapped to clique2 keys
 
         Output:
         -------
@@ -109,7 +109,7 @@ class SumProduct():
         new_sep_pot = self.project(
                                 clique1_pot,
                                 clique1_keys,
-                                sep_keys
+                                sep1_keys
         )
 
         # Compensate the updated separator in the clique
@@ -118,7 +118,7 @@ class SumProduct():
                                 clique2_keys,
                                 sep_pot,
                                 new_sep_pot,
-                                sep_keys
+                                sep2_keys
         )
 
         return (new_clique2_pot, new_sep_pot) # may return unchanged clique_a

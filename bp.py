@@ -320,6 +320,7 @@ def construct_junction_tree(cliques, key_sizes):
     A list of junction tree structures from the input cliques.
         In most cases, there should only be a single tree in the
         returned list
+
     """
 
     trees = [[c_ix, clique] for c_ix, clique in enumerate(cliques)]
@@ -334,10 +335,11 @@ def construct_junction_tree(cliques, key_sizes):
 
     heap = build_sepset_heap(sepsets, cliques, key_sizes)
     num_selected = 0
+
     while num_selected < len(cliques) - 1:
         entry = heapq.heappop(heap)
-        ss_id = entry[2]
-        (cliq1_ix, cliq2_ix) = sepsets[ss_id][1]
+        ss_ix = entry[2]
+        (cliq1_ix, cliq2_ix) = sepsets[ss_ix][1]
 
         tree1, tree2 = None, None
         for tree in trees:
@@ -347,14 +349,15 @@ def construct_junction_tree(cliques, key_sizes):
             tree2 = tree2 if tree2 else (tree if find_subtree(tree,cliq2_ix) != [] else None)
 
         if tree1 != tree2:
+            ss_tree_ix = len(cliques) + num_selected
             # merge tree1 and tree2 into new_tree
             new_tree = merge_trees(
                                 tree1,
                                 cliq1_ix,
                                 tree2,
                                 cliq2_ix,
-                                len(cliques) + num_selected,
-                                list(sepsets[ss_id][0])
+                                ss_tree_ix,
+                                list(sepsets[ss_ix][0])
             )
 
             # insert new_tree into forest
@@ -598,7 +601,7 @@ def eliminate_variables(junction_tree):
 
 
 
-def collect(tree, key_labels, potentials, visited, distributive_law):
+def collect(tree, key_labels, potentials, visited, distributive_law, clique_separator_mappings):
     """
     Used by Hugin algorithm to collect messages
 
@@ -614,6 +617,8 @@ def collect(tree, key_labels, potentials, visited, distributive_law):
     List of boolean entries representing visited status of cliques
 
     Distributive law for performing sum product calculations
+
+    Dictionary of clique/sepset mappings
 
     Output:
     -------
@@ -636,12 +641,16 @@ def collect(tree, key_labels, potentials, visited, distributive_law):
                             key_labels,
                             potentials,
                             visited,
-                            distributive_law
+                            distributive_law,
+                            clique_separator_mappings
             )
+            mapped_clique1_keys, mapped_separator1_keys = clique_separator_mappings[(child[0],sep_ix)]
+            mapped_clique2_keys, mapped_separator2_keys = clique_separator_mappings[(clique_ix,sep_ix)]
             new_clique_pot, new_sep_pot = distributive_law.update(
-                                        potentials[child[0]], child[1],
-                                        potentials[clique_ix], clique_keys,
-                                        potentials[sep_ix], sep_keys
+                                        potentials[child[0]], mapped_clique1_keys,
+                                        potentials[clique_ix], mapped_clique2_keys,
+                                        potentials[sep_ix], mapped_separator1_keys,
+                                        mapped_separator2_keys
             )
             potentials[clique_ix] = new_clique_pot
             potentials[sep_ix] = new_sep_pot
@@ -650,7 +659,7 @@ def collect(tree, key_labels, potentials, visited, distributive_law):
     return potentials
 
 
-def distribute(tree, key_labels, potentials, visited, distributive_law):
+def distribute(tree, key_labels, potentials, visited, distributive_law, clique_separator_mappings):
     """
     Used by Hugin algorithm to distribute messages
 
@@ -666,6 +675,8 @@ def distribute(tree, key_labels, potentials, visited, distributive_law):
     List of boolean entries representing visited status of cliques
 
     Distributive law for performing sum product calculations
+
+    Dictionary of clique/sepset mappings
 
     Output:
     -------
@@ -683,10 +694,13 @@ def distribute(tree, key_labels, potentials, visited, distributive_law):
         sep_ix, sep_keys, child = neighbor
         # call distribute on neighbor if not marked as visited
         if not visited[child[0]]:
+            mapped_clique1_keys, mapped_separator1_keys = clique_separator_mappings[(clique_ix,sep_ix)]
+            mapped_clique2_keys, mapped_separator2_keys = clique_separator_mappings[(child[0],sep_ix)]
             new_clique_pot, new_sep_pot = distributive_law.update(
-                                        potentials[clique_ix], clique_keys,
-                                        potentials[child[0]], child[1],
-                                        potentials[sep_ix], sep_keys
+                                        potentials[clique_ix], mapped_clique1_keys,
+                                        potentials[child[0]], mapped_clique2_keys,
+                                        potentials[sep_ix], mapped_separator1_keys,
+                                        mapped_separator2_keys
             )
             potentials[child[0]] = new_clique_pot
             potentials[sep_ix] = new_sep_pot
@@ -695,14 +709,15 @@ def distribute(tree, key_labels, potentials, visited, distributive_law):
                                 key_labels,
                                 potentials,
                                 visited,
-                                distributive_law
+                                distributive_law,
+                                clique_separator_mappings
             )
 
     # return the updated potentials
     return potentials
 
 
-def hugin(tree, key_labels, potentials, distributive_law):
+def hugin(tree, key_labels, potentials, distributive_law, clique_sepset_mappings):
     """
     Run hugin algorithm by using the given distributive law.
 
@@ -716,6 +731,8 @@ def hugin(tree, key_labels, potentials, distributive_law):
     List of (inconsistent) clique potentials
 
     Distributive law for performing sum product calculations
+
+    Dictionary of clique/sepset mappings
 
 
     Output:
@@ -735,7 +752,8 @@ def hugin(tree, key_labels, potentials, distributive_law):
                         key_labels,
                         potentials,
                         visited,
-                        distributive_law
+                        distributive_law,
+                        clique_sepset_mappings
     )
 
     # initialize visited array again
@@ -747,7 +765,8 @@ def hugin(tree, key_labels, potentials, distributive_law):
                     key_labels,
                     new_potentials,
                     visited,
-                    distributive_law
+                    distributive_law,
+                    clique_sepset_mappings
     )
 
 def get_clique(tree, key_label):
@@ -808,14 +827,11 @@ def compute_marginal(potential, clique_keys, key_ix):
     if key_ix not in clique_keys:
         return 0.0
 
-    # map keys to get around variable count limitation in einsum
-    m_keys = {k:i for i,k in enumerate(clique_keys)}
-
 
     return np.einsum(
                         potential,
-                        [m_keys[k] for k in clique_keys],
-                        [m_keys[key_ix]]
+                        clique_keys,
+                        [key_ix]
     )
 
 def yield_id_and_keys(tree):
