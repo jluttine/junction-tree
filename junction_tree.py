@@ -259,7 +259,7 @@ class JunctionTree(object):
                     mapper = mapped_keys[clique_ix][0]
 
                     # multiply factor into clique
-                    potentials[clique_ix] = np.einsum(
+                    potentials[clique_ix] = bp.sum_product.einsum(
                                                 potentials[clique_ix],
                                                 mapped_clique_keys,
                                                 values[i],
@@ -312,7 +312,7 @@ class JunctionTree(object):
             mapped_clique_keys = [m_keys[k] for k in clique_keys]
 
             # multiply clique's potential by likelihood
-            potentials[clique_ix] = np.einsum(
+            potentials[clique_ix] = bp.sum_product.einsum(
                                         potentials[clique_ix],
                                         mapped_clique_keys,
                                         ll[key_lbl],
@@ -387,9 +387,6 @@ class JunctionTree(object):
         key_ix = self.find_key(key_labels[0])
         clique_ix = self.keys_to_cliques[key_ix][0]
         clique_keys = self.clique_keys[clique_ix]
-        #for i, tree in enumerate(self.get_struct()):
-        #    clique_ix, clique_keys = bp.get_clique_of_key(tree, key_ix)
-        #    if clique_ix and clique_keys: break
 
 
         # map keys to get around variable count limitation in einsum

@@ -200,7 +200,7 @@ def brute_force_sum_product(tree, potentials):
 
     # Function to compute the sum-product with brute force einsum
     arrays_keys = get_arrays_and_keys(tree, potentials)
-    f = lambda output_keys: np.einsum(*(arrays_keys + [output_keys]))
+    f = lambda output_keys: bp.sum_product.einsum(*(arrays_keys + [output_keys]))
 
     def __run(tree, p, f, res=[]):
         res.append(f(tree[1]))
@@ -268,7 +268,7 @@ def potentials_consistent(pot1, vars1, pot2, vars2):
     )
 
     return np.allclose(
-                np.einsum(
+                bp.sum_product.einsum(
                     c_pot,
                     c_vars,
                     np.intersect1d(c_vars, s_vars).tolist()
@@ -353,7 +353,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                         ])
         # https://obilaniu6266h16.wordpress.com/2016/02/04/einstein-summation-in-numpy/
         # marginal probability of A, P(A)
-        assert np.allclose(np.einsum(phiABD, [0,1,2], [0]), np.array([0.500, 0.500]))
+        assert np.allclose(bp.sum_product.einsum(phiABD, [0,1,2], [0]), np.array([0.500, 0.500]))
         # marginal probability of D, P(D)
         assert np.allclose(np.array([0.32,0.68]), np.array([0.320, 0.680]))
 

@@ -595,7 +595,7 @@ def eliminate_variables(junction_tree):
             for z in x_i
         ] + [tree[0], tree[1], variables]
 
-        return np.einsum(*args)
+        return sum_product.einsum(*args)
 
     return __run(junction_tree, junction_tree[1])
 
@@ -828,7 +828,7 @@ def compute_marginal(potential, clique_keys, key_ix):
         return 0.0
 
 
-    return np.einsum(
+    return sum_product.einsum(
                         potential,
                         clique_keys,
                         [key_ix]
@@ -1056,4 +1056,4 @@ def generate_potential_pairs(tree):
 
 
 # Sum-product distributive law for NumPy
-sum_product = SumProduct(np.einsum)
+sum_product = SumProduct(np.einsum,optimize=True)

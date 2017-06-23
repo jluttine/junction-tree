@@ -5,11 +5,17 @@ class SumProduct():
     """ Sum-product distributive law """
 
 
-    def __init__(self, einsum):
+    def __init__(self, einsum, *args, **kwargs):
         # Perhaps support for different frameworks (TensorFlow, Theano) could
         # be provided by giving the necessary functions.
-        self.einsum = einsum
+        self.func = einsum
+        self.args = args
+        self.kwargs = kwargs
         return
+
+    def einsum(self, *args, **kwargs):
+        return self.func(*args, *self.args, **kwargs, **self.kwargs)
+
 
     def project(self, clique_pot, clique_keys, sep_keys):
         """
