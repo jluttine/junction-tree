@@ -360,6 +360,7 @@ class JunctionTree(object):
 
         """
         new_potentials = potentials if in_place else copy.deepcopy(potentials)
+        shrink_mapping = None
         if data:
             likelihood, new_potentials, shrink_mapping = self.observe(new_potentials, data=data)
 
@@ -368,7 +369,8 @@ class JunctionTree(object):
                                     tree,
                                     self.get_label_order(),
                                     new_potentials,
-                                    bp.sum_product
+                                    bp.sum_product,
+                                    shrink_mapping
         )
 
         return new_potentials

@@ -601,7 +601,7 @@ def eliminate_variables(junction_tree):
 
 
 
-def collect(tree, key_labels, potentials, visited, distributive_law):
+def collect(tree, key_labels, potentials, visited, distributive_law, shrink_mapping=None):
     """
     Used by Hugin algorithm to collect messages
 
@@ -618,7 +618,7 @@ def collect(tree, key_labels, potentials, visited, distributive_law):
 
     Distributive law for performing sum product calculations
 
-    Shrink mappings for cliques
+    Shrink mapping for cliques
 
     Output:
     -------
@@ -627,6 +627,7 @@ def collect(tree, key_labels, potentials, visited, distributive_law):
 
 
     """
+    sm = shrink_mapping
     clique_ix, clique_keys = tree[:2]
     # set clique_index in visited to 1
     visited[clique_ix] = 1
@@ -634,29 +635,35 @@ def collect(tree, key_labels, potentials, visited, distributive_law):
     # loop over neighbors of root of tree
     for neighbor in tree[2:]:
         sep_ix, sep_keys, child = neighbor
+        child_ix, child_keys = child[:2]
         # call collect on neighbor if not marked as visited
-        if not visited[child[0]]:
+        if not visited[child_ix]:
             potentials = collect(
                             child,
                             key_labels,
                             potentials,
                             visited,
-                            distributive_law
+                            distributive_law,
+                            shrink_mapping
             )
             new_clique_pot, new_sep_pot = distributive_law.update(
-                                        potentials[child[0]], child[1],
-                                        potentials[clique_ix], clique_keys,
-                                        potentials[sep_ix], sep_keys,
-                                        sep_keys
+                                        potentials[child_ix] if not sm else potentials[child_ix][sm[child_ix][0]],
+                                        child_keys if not sm else sm[child_ix][1],
+                                        potentials[clique_ix] if not sm else potentials[clique_ix][sm[clique_ix][0]],
+                                        clique_keys if not sm else sm[clique_ix][1],
+                                        potentials[sep_ix] if not sm else potentials[sep_ix][sm[sep_ix][0]],
+                                        sep_keys if not sm else sm[sep_ix][1],
+                                        sep_keys if not sm else sm[sep_ix][1]
             )
-            potentials[clique_ix] = new_clique_pot
-            potentials[sep_ix] = new_sep_pot
+            # ensure that values are assigned to proper positions
+            potentials[clique_ix][... if not sm else sm[clique_ix][0]] = new_clique_pot
+            potentials[sep_ix][... if not sm else sm[sep_ix][0]] = new_sep_pot
 
     # return the updated potentials
     return potentials
 
 
-def distribute(tree, key_labels, potentials, visited, distributive_law):
+def distribute(tree, key_labels, potentials, visited, distributive_law, shrink_mapping=None):
     """
     Used by Hugin algorithm to distribute messages
 
@@ -673,7 +680,7 @@ def distribute(tree, key_labels, potentials, visited, distributive_law):
 
     Distributive law for performing sum product calculations
 
-    Shrink mappings for cliques
+    Shrink mapping for cliques
 
     Output:
     -------
@@ -681,7 +688,7 @@ def distribute(tree, key_labels, potentials, visited, distributive_law):
     List of updated potentials for distribute phase of propagation
 
     """
-
+    sm = shrink_mapping
     # set clique_index in visited to 1
     clique_ix, clique_keys = tree[:2]
     visited[clique_ix] = 1
@@ -689,29 +696,35 @@ def distribute(tree, key_labels, potentials, visited, distributive_law):
     # loop over neighbors of root of tree
     for neighbor in tree[2:]:
         sep_ix, sep_keys, child = neighbor
+        child_ix, child_keys = child[:2]
         # call distribute on neighbor if not marked as visited
-        if not visited[child[0]]:
+        if not visited[child_ix]:
             new_clique_pot, new_sep_pot = distributive_law.update(
-                                        potentials[clique_ix], clique_keys,
-                                        potentials[child[0]], child[1],
-                                        potentials[sep_ix], sep_keys,
-                                        sep_keys
+                                        potentials[clique_ix] if not sm else potentials[clique_ix][sm[clique_ix][0]],
+                                        clique_keys if not sm else sm[clique_ix][1],
+                                        potentials[child_ix] if not sm else potentials[child_ix][sm[child_ix][0]],
+                                        child_keys if not sm else sm[child_ix][1],
+                                        potentials[sep_ix] if not sm else potentials[sep_ix][sm[sep_ix][0]],
+                                        sep_keys if not sm else sm[sep_ix][1],
+                                        sep_keys if not sm else sm[sep_ix][1]
             )
-            potentials[child[0]] = new_clique_pot
-            potentials[sep_ix] = new_sep_pot
+            # ensure that values are assigned to proper positions
+            potentials[child_ix][... if not sm else sm[child_ix][0]] = new_clique_pot
+            potentials[sep_ix][... if not sm else sm[sep_ix][0]] = new_sep_pot
             potentials = distribute(
                                 child,
                                 key_labels,
                                 potentials,
                                 visited,
-                                distributive_law
+                                distributive_law,
+                                shrink_mapping
             )
 
     # return the updated potentials
     return potentials
 
 
-def hugin(tree, key_labels, potentials, distributive_law):
+def hugin(tree, key_labels, potentials, distributive_law, shrink_mapping=None):
     """
     Run hugin algorithm by using the given distributive law.
 
@@ -726,7 +739,7 @@ def hugin(tree, key_labels, potentials, distributive_law):
 
     Distributive law for performing sum product calculations
 
-    Dictionary of clique/sepset mappings
+    Shrink mapping for cliques
 
 
     Output:
@@ -746,7 +759,8 @@ def hugin(tree, key_labels, potentials, distributive_law):
                         key_labels,
                         potentials,
                         visited,
-                        distributive_law
+                        distributive_law,
+                        shrink_mapping
     )
 
     # initialize visited array again
@@ -758,7 +772,8 @@ def hugin(tree, key_labels, potentials, distributive_law):
                     key_labels,
                     new_potentials,
                     visited,
-                    distributive_law
+                    distributive_law,
+                    shrink_mapping
     )
 
 def get_clique(tree, key_label):
