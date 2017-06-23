@@ -221,7 +221,6 @@ def assert_sum_product(junction_tree, potentials):
                     junction_tree.get_label_order(),
                     potentials,
                     bp.sum_product,
-                    junction_tree.get_clique_sepset()
             )
         )
 
@@ -473,9 +472,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                             {"V1": 0, "V2": 1, "V3": 2},
                             phi,
                             [0]*len(phi),
-                            bp.sum_product,
-                            {(0,1): ([0,1],[1]),
-                            (2,1): ([1,2],[1])}
+                            bp.sum_product
         )
         np.allclose(phiN[2], np.array([
                                         [0.03,0.07],
@@ -519,9 +516,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 {"V1": 0, "V2": 1, "V3": 2},
                                 phi,
                                 [0]*len(phi),
-                                bp.sum_product,
-                                {(0,1): ([0,1],[1]),
-                                (2,1): ([1,2],[1])}
+                                bp.sum_product
         )
         np.allclose(phiN[2], np.array([
                                         [0.04,0.72],
@@ -901,7 +896,6 @@ class TestHUGINFunctionality(unittest.TestCase):
                     jt.get_label_order(),
                     phi0,
                     bp.sum_product,
-                    jt.get_clique_sepset()
         )
         assert_junction_tree_consistent(jt, phi1)
 
@@ -1019,8 +1013,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     jt.get_struct()[0],
                     jt.get_label_order(),
                     phi0,
-                    bp.sum_product,
-                    jt.get_clique_sepset()
+                    bp.sum_product
         )
         assert_junction_tree_consistent(jt, phi1)
 
@@ -1056,8 +1049,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     jt.get_struct()[0],
                     jt.get_label_order(),
                     phi2,
-                    bp.sum_product,
-                    jt.get_clique_sepset()
+                    bp.sum_product
         )
         assert_junction_tree_consistent(jt, phi3)
 
@@ -1174,8 +1166,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     jt.get_struct()[0],
                     jt.get_label_order(),
                     phi0,
-                    bp.sum_product,
-                    jt.get_clique_sepset()
+                    bp.sum_product
         )
         assert_junction_tree_consistent(jt, phi1)
 
@@ -1211,8 +1202,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     jt.get_struct()[0],
                     jt.get_label_order(),
                     phi2,
-                    bp.sum_product,
-                    jt.get_clique_sepset()
+                    bp.sum_product
         )
         assert_junction_tree_consistent(jt, phi3)
 
@@ -1315,8 +1305,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     jt.get_struct()[0],
                     jt.get_label_order(),
                     phi0,
-                    bp.sum_product,
-                    jt.get_clique_sepset()
+                    bp.sum_product
         )
         assert_junction_tree_consistent(jt, phi1)
 
@@ -1333,8 +1322,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                     jt.get_struct()[0],
                     jt.get_label_order(),
                     phi2,
-                    bp.sum_product,
-                    jt.get_clique_sepset()
+                    bp.sum_product
         )
         assert_junction_tree_consistent(jt, phi3)
 
@@ -1767,8 +1755,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                         jt.get_label_order(),
                         phi1,
                         [0]*len(phi1),
-                        bp.sum_product,
-                        jt.get_clique_sepset()
+                        bp.sum_product
         )
         key_ix = jt.find_key("H")
         clique_ix, clique_keys = bp.get_clique_of_key(jt.get_struct()[0], key_ix)
@@ -2614,7 +2601,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
                 ]
 
-        out_tree, clique_sepset_mappings = JunctionTree.map_keys(in_tree, var_lookup)
+        out_tree = JunctionTree.map_keys(in_tree, var_lookup)
 
 
 
@@ -2645,8 +2632,6 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                         ]
                     )
                 ]
-
-        assert len(clique_sepset_mappings) == 8
 
         assert_junction_tree_equal([out_tree], [test_tree])
 
@@ -2689,7 +2674,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
                 ]
 
-        out_tree, csm = JunctionTree.map_keys(in_tree, {v:k for k, v in var_lookup.items()})
+        out_tree = JunctionTree.map_keys(in_tree, {v:k for k, v in var_lookup.items()})
 
         test_tree = [
                     2, ["B","C"],

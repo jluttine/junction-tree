@@ -38,10 +38,17 @@ class SumProduct():
 
         """
 
+        # map keys to get around variable count limitation in einsum
+        mapped_keys = []
+        m_keys = {}
+        for i,k in enumerate(clique_keys):
+            m_keys[k] = i
+            mapped_keys.append(i)
+
         return self.einsum(
             clique_pot,
-            clique_keys,
-            sep_keys
+            mapped_keys,
+            [m_keys[k] for k in sep_keys]
         )
 
     def absorb(self, clique_pot, clique_keys, sep_pot, new_sep_pot, sep_keys):
@@ -73,10 +80,17 @@ class SumProduct():
             return np.zeros_like(clique_pot)
 
 
+        # map keys to get around variable count limitation in einsum
+        mapped_keys = []
+        m_keys = {}
+        for i,k in enumerate(clique_keys):
+            m_keys[k] = i
+            mapped_keys.append(i)
+
         return self.einsum(
-            new_sep_pot / sep_pot, sep_keys,
-            clique_pot, clique_keys,
-            clique_keys
+            new_sep_pot / sep_pot, [m_keys[k] for k in sep_keys],
+            clique_pot, mapped_keys,
+            mapped_keys
         )
 
     def update(self, clique1_pot, clique1_keys, clique2_pot, clique2_keys, sep_pot, sep1_keys, sep2_keys):

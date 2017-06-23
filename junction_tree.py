@@ -8,14 +8,12 @@ class JunctionTree(object):
         self.labels = {vl:i for i, vl in enumerate(sorted(key_sizes.keys()))}
         self.sorted_labels = self._get_labels()
         self.struct = []
-        self.clique_sepset = {} # (clique_ix, sepset_ix) -> (indexed_clique_keys, indexed_sepset_keys)
         self.clique_keys = {} # clique_ix -> list of keys
         self.tree_cliques = [[]]*len(trees) # tree_ix -> list of clique_ixs
         self.keys_to_cliques = {} # key -> list of cliques containing key
         self.cliques_to_trees = {} # clique_ix -> tree_ix
         for t_i, tree in enumerate(trees):
-            indexed_tree, clique_sepset_mappings = self.map_keys(tree, self.labels)
-            self.clique_sepset.update(clique_sepset_mappings)
+            indexed_tree = self.map_keys(tree, self.labels)
             self.struct.append(indexed_tree)
             clique_id_keys = list(bp.df_traverse([indexed_tree]))
             for i in range(0, len(clique_id_keys), 2):
@@ -146,13 +144,11 @@ class JunctionTree(object):
         -------
         Return tree with re-indexed clique keys
 
-        A list of clique/sepset pairs
 
         """
         cp_tree = copy.deepcopy(tree)
-        clique_sepset_mappings = {}
 
-        def __run(tree, lookup, clique_sepset_mappings, ss_parent=None):
+        def __run(tree, lookup, ss_parent=None):
             ix, keys = tree[0:2]
             for i, k in enumerate(keys):
                 keys[i] = lookup[k]
@@ -160,10 +156,6 @@ class JunctionTree(object):
             mapped_keys = [m_keys[k] for k in keys]
             if ss_parent:
                 sep_ix, sep_keys = ss_parent[0:2]
-                clique_sepset_mappings[(ix, sep_ix)] = (
-                                                        mapped_keys,
-                                                        [m_keys[k] for k in sep_keys]
-                                                    )
 
             separators = tree[2:]
 
@@ -172,14 +164,10 @@ class JunctionTree(object):
                 for i, k in enumerate(separator_keys):
                     separator_keys[i] = lookup[k]
 
-                clique_sepset_mappings[(ix, separator_ix)] = (
-                                                                mapped_keys,
-                                                                [m_keys[k] for k in separator_keys]
-                                                            )
-                __run(c_tree, lookup, clique_sepset_mappings, separator[0:2])
+                __run(c_tree, lookup, separator[0:2])
 
-        __run(cp_tree, lookup, clique_sepset_mappings)
-        return cp_tree, clique_sepset_mappings
+        __run(cp_tree, lookup)
+        return cp_tree
 
 
     @staticmethod
@@ -320,17 +308,22 @@ class JunctionTree(object):
                                                         key_ix
                 )
                 if clique_ix and clique_keys: break
+
             # map keys to get around variable count limitation in einsum
-            m_keys = {k:i for i,k in enumerate(clique_keys)}
-            mapped_clique_keys = [m_keys[k] for k in clique_keys]
+            mapped_keys = []
+            m_keys = {}
+            for i,k in enumerate(clique_keys):
+                m_keys[k] = i
+                mapped_keys.append(i)
+
 
             # multiply clique's potential by likelihood
             potentials[clique_ix] = bp.sum_product.einsum(
                                         potentials[clique_ix],
-                                        mapped_clique_keys,
+                                        mapped_keys,
                                         ll[key_lbl],
                                         [m_keys[key_ix]],
-                                        mapped_clique_keys
+                                        mapped_keys
             )
             # remove key_ix from key set for all clique's containing key
             for clique_ix in self.keys_to_cliques[key_ix]:
@@ -375,8 +368,7 @@ class JunctionTree(object):
                                     tree,
                                     self.get_label_order(),
                                     new_potentials,
-                                    bp.sum_product,
-                                    self.get_clique_sepset()
+                                    bp.sum_product
         )
 
         return new_potentials
@@ -414,8 +406,11 @@ class JunctionTree(object):
 
 
         # map keys to get around variable count limitation in einsum
-        m_keys = {k:i for i,k in enumerate(clique_keys)}
-        mapped_keys = [m_keys[k] for k in clique_keys]
+        mapped_keys = []
+        m_keys = {}
+        for i,k in enumerate(clique_keys):
+            m_keys[k] = i
+            mapped_keys.append(i)
 
         try:
             value = bp.compute_marginal(
