@@ -352,9 +352,9 @@ class TestHUGINFunctionality(unittest.TestCase):
                         ])
         # https://obilaniu6266h16.wordpress.com/2016/02/04/einstein-summation-in-numpy/
         # marginal probability of A, P(A)
-        assert np.allclose(bp.sum_product.einsum(phiABD, [0,1,2], [0]), np.array([0.500, 0.500]))
+        np.testing.assert_allclose(bp.sum_product.einsum(phiABD, [0,1,2], [0]), np.array([0.500, 0.500]))
         # marginal probability of D, P(D)
-        assert np.allclose(np.array([0.32,0.68]), np.array([0.320, 0.680]))
+        np.testing.assert_allclose(np.array([0.32,0.68]), np.array([0.320, 0.680]))
 
 
     def test_pass_message(self):
@@ -417,17 +417,17 @@ class TestHUGINFunctionality(unittest.TestCase):
                         ])
 
         phi2n = bp.sum_product.project(phi12, [0,1], [1])
-        np.allclose(phi2n, np.array([1,1])) == True
+        np.testing.assert_allclose(phi2n, np.array([1,1]))
         phi23 = bp.sum_product.absorb(phi23, [0,1], phi2, phi2n, [1])
-        np.allclose(phi23, np.array([
+        np.testing.assert_allclose(phi23, np.array([
                                         [0.03,0.07],
                                         [0.45,0.45]
-                                    ])) == True
+                                    ]))
 
         phi2nn = bp.sum_product.project(phi23, [0,1], [0])
-        np.allclose(phi2nn, np.array([0.9, 0.1])) == True
+        np.testing.assert_allclose(phi2nn, np.array([0.9, 0.1]))
         phi12 = bp.sum_product.absorb(phi12, [0,1], phi2n, phi2nn, [0])
-        np.allclose(phi12, np.array([
+        np.testing.assert_allclose(phi12, np.array([
                                         [0.04,0.72],
                                         [0.06,0.18]
                                     ]))
@@ -474,10 +474,15 @@ class TestHUGINFunctionality(unittest.TestCase):
                             [0]*len(phi),
                             bp.sum_product
         )
-        np.allclose(phiN[2], np.array([
-                                        [0.03,0.07],
-                                        [0.45,0.45]
-                                    ])) == True
+        np.testing.assert_allclose(
+            phiN[2],
+            np.array(
+                [
+                    [0.03,0.07],
+                    [0.45,0.45]
+                ]
+            )
+        )
 
 
     def test_distribute_messages(self):
@@ -518,7 +523,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 [0]*len(phi),
                                 bp.sum_product
         )
-        np.allclose(phiN[2], np.array([
+        np.testing.assert_allclose(phiN[2], np.array([
                                         [0.04,0.72],
                                         [0.06,0.18]
                                     ]))
@@ -1759,7 +1764,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         )
         key_ix = jt.find_key("H")
         clique_ix, clique_keys = bp.get_clique_of_key(jt.get_struct()[0], key_ix)
-        np.allclose(bp.compute_marginal(phi2[clique_ix], clique_keys, [key_ix]), np.array([0.4, 0.6])) == True
+        np.testing.assert_allclose(bp.compute_marginal(phi2[clique_ix], clique_keys, [key_ix]), np.array([0.4, 0.6]))
 
 
     def test_evidence_shrinking(self):
