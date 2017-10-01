@@ -8,6 +8,12 @@ import bp
 import attr
 
 
+def create_junction_tree(factors, sizes):
+    """Create a Junction tree for a given factor graph."""
+    fg = FactorGraph(factors=factors, sizes=sizes)
+    return fg.triangulate().create_junction_tree()
+
+
 def argfind1(xs, cond):
     """Returns the index of the first element in xs satisfying cond."""
     return next(i for (i, x) in enumerate(xs) if cond(x))
@@ -132,10 +138,6 @@ class FactorGraph():
         )
 
 
-        def create_junction_tree(self):
-            return self.triangulate().create_junction_tree()
-
-
 @attr.s(frozen=False)
 class CliqueGraph():
     """
@@ -205,6 +207,8 @@ class CliqueGraph():
         # node_list = maxcliques + separators
         #           = [ ['a', 'b', 'c', 'd'], [ 'a', 'b', 'e'], ['c', 'f'] ]
         #             + [ ['a', 'b'], ['c'] ]
+        #
+        # Note how the indices in the tree are pointing to this node_list.
         #
         # So, what we need is the above tree structure and separators list.
 
