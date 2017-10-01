@@ -85,6 +85,20 @@ def find_triangulation(factors, key_sizes):
 
     """
 
+    # NOTE: Only keys that have been used at least in one factor should be
+    # used. Ignore those key sizes that are not in any factor. Perhaps this
+    # could be fixed elsewhere. Just added a quick fix here to filter key
+    # sizes.
+    used_keys = list(
+        set(key for factor in factors for key in factor)
+    )
+    key_sizes = {
+        key: size
+        for (key, size) in key_sizes.items()
+        if key in used_keys
+    }
+
+
     tri = []
     induced_clusters = []
     edges = factors_to_undirected_graph(factors)
