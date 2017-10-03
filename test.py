@@ -2080,7 +2080,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     np.random.randn(2, 2),
                 ]
         fg = [_vars, factors, values]
-        tri, ics = bp.find_triangulation(fg[1], fg[0])
+        tri, ics, max_cliques = bp.find_triangulation(fg[1], fg[0])
 
         # triangulation should consist of 1 edge
         assert len(tri) == 1
@@ -2112,12 +2112,12 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["D", "E", "F"]  #6
         ]
 
-        tri, ics = bp.find_triangulation(factors, _vars)
+        tri, ics, max_cliques = bp.find_triangulation(factors, _vars)
         assert_triangulated(factors, tri)
-        cliques = bp.identify_cliques(ics)
+        #cliques = bp.identify_cliques(ics)
 
 
-        assert len(cliques) == 6
+        assert len(max_cliques) == 6
 
 
     def test_triangulate_factor_graph3(self):
@@ -2147,11 +2147,11 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["S","L","J"], #5
         ]
 
-        tri, ics = bp.find_triangulation(factors, _vars)
+        tri, ics, max_cliques = bp.find_triangulation(factors, _vars)
         assert_triangulated(factors, tri)
         cliques = bp.identify_cliques(ics)
 
-        assert len(cliques) == 5
+        assert len(max_cliques) == 5
 
         assert ["C","D"] in cliques
         assert ["D","G","I"] in cliques

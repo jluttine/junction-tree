@@ -83,6 +83,8 @@ def find_triangulation(factors, key_sizes):
 
     A list of key lists representing induced clusters from triangulation
 
+    A list of maximal cliques generated during triangulation process
+
     """
 
     # NOTE: Only keys that have been used at least in one factor should be
@@ -101,6 +103,8 @@ def find_triangulation(factors, key_sizes):
 
     tri = []
     induced_clusters = []
+    max_cliques = []
+
     edges = factors_to_undirected_graph(factors)
     heap, entry_finder = initialize_triangulation_heap(
                                             key_sizes,
@@ -125,8 +129,8 @@ def find_triangulation(factors, key_sizes):
                 if len(neighbor) == 1:
                     rem_neighbors.append(neighbor.pop())
 
-
-        induced_clusters.append(rem_neighbors + [key])
+        new_clust = rem_neighbors + [key]
+        induced_clusters.append(new_clust)
         # connect all unconnected neighbors of key
         for i, n1 in enumerate(rem_neighbors):
             for n2 in rem_neighbors[i+1:]:
@@ -134,7 +138,13 @@ def find_triangulation(factors, key_sizes):
                     edges[frozenset((n1,n2))] = None
                     tri.append((n1,n2))
 
-    return tri, induced_clusters
+
+        if any(frozenset(new_clust) < frozenset(s2) for s2 in induced_clusters):
+            continue
+        else:
+            max_cliques.append(sorted(new_clust))
+
+    return tri, induced_clusters, max_cliques
 
 
 def initialize_triangulation_heap(key_sizes, edges):
