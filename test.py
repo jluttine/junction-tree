@@ -2749,11 +2749,24 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["D","E","F"],#[3,4,5]
                     ["E","G","H"],#[4,6,7]
                 ]
-        trees = bp.construct_junction_tree(cliques, key_sizes)
 
+        trees, sepsets = bp.construct_junction_tree(cliques, key_sizes)
         assert len(trees) == 1
 
         jt0 = JunctionTree(key_sizes, trees)
+        label_dict = jt0.get_label_order()
+
+        def __sepsets_using_tree_index(jt, sepsets):
+            label_dict = jt0.get_label_order()
+            r_sepsets = []
+            for ss in sepsets:
+                l = []
+                for key_label in sorted(ss):
+                    l.append(label_dict[key_label])
+                r_sepsets.append(tuple(l))
+            return r_sepsets
+
+        assert set(__sepsets_using_tree_index(jt0, sepsets)) == set([(0,3), (3,4), (0,4), (2,4), (4,6)])
 
         # expected junction tree
 

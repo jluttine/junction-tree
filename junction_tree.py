@@ -86,7 +86,7 @@ class JunctionTree(object):
 
     def get_label_order(self):
         """
-        Return dictionary of key label as key
+        Return dictionary with key label as key
             and index as value
         """
         return self.labels

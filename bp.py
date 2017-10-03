@@ -346,6 +346,7 @@ def construct_junction_tree(cliques, key_sizes):
             if len(sepset) > 0:
                 sepsets.append((sepset, (i,j+i+1)))
 
+    separator_dict = {}
 
     heap = build_sepset_heap(sepsets, cliques, key_sizes)
     num_selected = 0
@@ -373,16 +374,16 @@ def construct_junction_tree(cliques, key_sizes):
                                 ss_tree_ix,
                                 list(sepsets[ss_ix][0])
             )
-
+            separator_dict[ss_tree_ix] = sepsets[ss_ix][0]
             # insert new_tree into forest
             trees.append(new_tree)
 
-            # remove tree1 and tree2
+            # remove tree1 and tree2 from forest
             trees.remove(tree1)
             trees.remove(tree2)
             num_selected += 1
 
-    return trees
+    return trees, [list(separator_dict[ix]) for ix in sorted(separator_dict.keys())]
 
 
 def build_sepset_heap(sepsets, cliques, key_sizes):
