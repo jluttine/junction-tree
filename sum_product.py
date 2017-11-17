@@ -124,7 +124,6 @@ class SumProduct():
         # See page 2:
         # http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
 
-
         # Sum keys in A that are not in B
         new_sep_pot = self.project(
                                 clique1_pot,

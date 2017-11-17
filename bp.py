@@ -345,6 +345,8 @@ def construct_junction_tree(cliques, key_sizes):
         In most cases, there should only be a single tree in the
         returned list
 
+    A list of separators in the order in which they appear in the tree
+
     """
 
     trees = [[c_ix, clique] for c_ix, clique in enumerate(cliques)]
@@ -680,9 +682,15 @@ def collect(tree, key_labels, potentials, visited, distributive_law, shrink_mapp
                                         sep_keys if not sm else sm[sep_ix][1],
                                         sep_keys if not sm else sm[sep_ix][1]
             )
+
             # ensure that values are assigned to proper positions
-            potentials[clique_ix][... if not sm else sm[clique_ix][0]] = new_clique_pot
-            potentials[sep_ix][... if not sm else sm[sep_ix][0]] = new_sep_pot
+            if sm:
+                potentials[clique_ix][sm[clique_ix][0]] = new_clique_pot
+                potentials[sep_ix][sm[sep_ix][0]] = new_sep_pot
+            else:
+                potentials[clique_ix] = new_clique_pot
+                potentials[sep_ix] = new_sep_pot
+
 
     # return the updated potentials
     return potentials
@@ -734,8 +742,12 @@ def distribute(tree, key_labels, potentials, visited, distributive_law, shrink_m
                                         sep_keys if not sm else sm[sep_ix][1]
             )
             # ensure that values are assigned to proper positions
-            potentials[child_ix][... if not sm else sm[child_ix][0]] = new_clique_pot
-            potentials[sep_ix][... if not sm else sm[sep_ix][0]] = new_sep_pot
+            if sm:
+                potentials[child_ix][sm[child_ix][0]] = new_clique_pot
+                potentials[sep_ix][sm[sep_ix][0]] = new_sep_pot
+            else:
+                potentials[child_ix] = new_clique_pot
+                potentials[sep_ix] = new_sep_pot
             potentials = distribute(
                                 child,
                                 key_labels,

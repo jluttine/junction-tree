@@ -358,7 +358,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
 
     def test_pass_message(self):
-        '''
+        """
             Example taken from here: https://www.cs.ru.nl/~peterl/BN/examplesproofs.pdf
             Example will be processed under the assumption that potentials have been
             properly initialized outside of this test
@@ -402,8 +402,7 @@ class TestHUGINFunctionality(unittest.TestCase):
             0   1   |   0.7 * 0.1 = 0.07
             1   0   |   0.5 * 0.9 = 0.45
             1   1   |   0.5 * 0.9 = 0.45
-
-        '''
+        """
 
         phi12 = np.array([
                             [0.4, 0.8],
@@ -425,8 +424,8 @@ class TestHUGINFunctionality(unittest.TestCase):
                                     ]))
 
         phi2nn = bp.sum_product.project(phi23, [0,1], [0])
-        np.testing.assert_allclose(phi2nn, np.array([0.9, 0.1]))
-        phi12 = bp.sum_product.absorb(phi12, [0,1], phi2n, phi2nn, [0])
+        np.testing.assert_allclose(phi2nn, np.array([0.1, 0.9]))
+        phi12 = bp.sum_product.absorb(phi12, [0,1], phi2n, phi2nn, [1])
         np.testing.assert_allclose(phi12, np.array([
                                         [0.04,0.72],
                                         [0.06,0.18]
@@ -474,6 +473,7 @@ class TestHUGINFunctionality(unittest.TestCase):
                             [0]*len(phi),
                             bp.sum_product
         )
+
         np.testing.assert_allclose(
             phiN[2],
             np.array(
@@ -515,18 +515,46 @@ class TestHUGINFunctionality(unittest.TestCase):
                             )
                     )
 
+        phiN = bp.collect(
+                            jt,
+                            {"V1": 0, "V2": 1, "V3": 2},
+                            phi,
+                            [0]*len(phi),
+                            bp.sum_product
+        )
 
-        phiN = bp.distribute(
+        phiN2 = bp.distribute(
                                 jt,
                                 {"V1": 0, "V2": 1, "V3": 2},
-                                phi,
-                                [0]*len(phi),
+                                phiN,
+                                [0]*len(phiN),
                                 bp.sum_product
         )
-        np.testing.assert_allclose(phiN[2], np.array([
-                                        [0.04,0.72],
-                                        [0.06,0.18]
-                                    ]))
+
+        np.testing.assert_allclose(
+            phiN2[0],
+            np.array(
+                [
+                    [0.04,0.72],
+                    [0.06,0.18]
+                ]
+            )
+        )
+
+        np.testing.assert_allclose(
+            phiN[1],
+            np.array([0.1,0.9])
+        )
+
+        np.testing.assert_allclose(
+            phiN[2],
+            np.array(
+                [
+                    [0.03,0.07],
+                    [0.45,0.45]
+                ]
+            )
+        )
 
 
     def test_one_scalar_node(self):
@@ -1369,403 +1397,6 @@ class TestHUGINFunctionality(unittest.TestCase):
                                                 )
 
         '''
-
-    def test_marginalize_variable_with_evidence(self):
-        '''
-            Potentials to be used based on assignments in:
-            http://www.inf.ed.ac.uk/teaching/courses/pmr/docs/jta_ex.pdf
-
-            peace = 1
-            war = 0
-            yes = 1
-            no = 0
-            stay = 0
-            run = 1
-            decrease = 0
-            no change = 1
-            increase = 2
-
-            P(L=1) = 0.4
-            P(Q=1) = 0.6
-            P(S=1|L=1) = 0.8
-            P(S=0|L=1) = 0.2
-            P(S=1|L=0) = 0.3
-            P(S=0|L=0) = 0.7
-            P(F=1|Q=1) = 0.8
-            P(F=0|Q=1) = 0.2
-            P(F=1|Q=0) = 0.1
-            P(F=0|Q=1) = 0.9
-            P(B=1|L=1,Q=1) = 0.2
-            P(B=0|L=1,Q=1) = 0.8
-            P(B=1|L=1,Q=0) = 1
-            P(B=0|L=1,Q=0) = 0
-            P(B=1|L=0,Q=1) = 1
-            P(B=0|L=0,Q=1) = 0
-            P(B=1|L=0,Q=0) = 1
-            P(B=0|L=0,Q=0) = 0
-            P(G=2|L=1,Q=1) = 0.3
-            P(G=1|L=1,Q=1) = 0.6
-            P(G=0|L=1,Q=1) = 0.1
-            P(G=2|L=0,Q=1) = 0.1
-            P(G=1|L=0,Q=1) = 0.2
-            P(G=0|L=0,Q=1) = 0.7
-            P(G=2|L=1,Q=0) = 0.8
-            P(G=1|L=1,Q=0) = 0.1
-            P(G=0|L=1,Q=0) = 0.1
-            P(G=2|L=0,Q=0) = 0.2
-            P(G=1|L=0,Q=0) = 0.2
-            P(G=0|L=0,Q=0) = 0.6
-            P(H=1|B=1,F=0) = 1
-            P(H=0|B=1,F=0) = 0
-            P(H=1|B=1,F=1) = 0.4
-            P(H=0|B=1,F=1) = 0.6
-            P(H=1|B=0,F=0) = 0.5
-            P(H=0|B=0,F=0) = 0.5
-            P(H=1|B=0,F=1) = 0.1
-            P(H=0|B=0,F=1) = 0.9
-            P(I=1|G=1,H=1) = 0
-            P(I=0|G=1,H=1) = 1
-            P(I=1|G=0,H=1) = 0
-            P(I=0|G=0,H=1) = 1
-            P(I=1|G=2,H=1) = 0
-            P(I=1|G=2,H=1) = 1
-            P(I=1|G=1,H=0) = 0.3
-            P(I=0|G=1,H=0) = 0.7
-            P(I=1|G=0,H=0) = 0.1
-            P(I=0|G=0,H=0) = 0.9
-            P(I=1|G=2,H=0) = 1
-            P(I=1|G=2,H=0) = 0
-
-                                    {F Q B H}
-                                        |
-            {S L} --- {L Q B G} --- {H B Q G} --- {I G H}
-
-            S   L   |   \phi_{SL} (P(L)P(S|L))
-            ----------------------------------
-            0   0   |   0.6 x 0.7 = 0.42
-            0   1   |   0.4 x 0.2 = 0.08
-            1   0   |   0.6 x 0.3 = 0.18
-            1   1   |   0.4 x 0.8 = 0.32
-
-            L   Q   B   G   |   \phi_{LQBG} (P(B|L,Q)P(G|L,Q))
-            ----------------------------------------------
-            0   0   0   0   |   0 x 0.6 = 0
-            0   0   0   1   |   0 x 0.2 = 0
-            0   0   0   2   |   0 ...   = 0
-            0   0   1   0   |   1 x 0.6 = 0.6
-            0   0   1   1   |   1 x 0.2 = 0.2
-            0   0   1   2   |   1 x 0.2 = 0.2
-            0   1   0   0   |   0 ...   = 0
-            0   1   0   1   |   0 ...   = 0
-            0   1   0   2   |   0 ...   = 0
-            0   1   1   0   |   1 x 0.7 = 0.7
-            0   1   1   1   |   1 x 0.2 = 0.2
-            0   1   1   2   |   1 x 0.1 = 0.1
-            1   0   0   0   |   0 ...   = 0
-            1   0   0   1   |   0 ...   = 0
-            1   0   0   2   |   0 ...   = 0
-            1   0   1   0   |   1 x 0.1 = 0.1
-            1   0   1   1   |   1 x 0.1 = 0.1
-            1   0   1   2   |   1 x 0.8 = 0.8
-            1   1   0   0   |   0.8 x 0.1 = 0.08
-            1   1   0   1   |   0.8 x 0.6 = 0.48
-            1   1   0   2   |   0.8 x 0.3 = 0.32
-            1   1   1   0   |   0.2 x 0.1 = 0.02
-            1   1   1   1   |   0.2 x 0.6 = 0.12
-            1   1   1   2   |   0.2 x 0.3 = 0.06
-
-            F   Q   B   H   |   \phi_{LQBG} (P(F|Q)P(H|B,F))
-            ------------------------------------------------
-            0   0   0   0   |   0.9 x 0.5 = 0.45
-            0   0   0   1   |   0.9 x 0.5 = 0.45
-            0   0   1   0   |   0.9 x 0.5 = 0.45
-            0   0   1   1   |   0.9 x 0.5 = 0.45
-            0   1   0   0   |   0.2 x 0.5 = 0.10
-            0   1   0   1   |   0.2 x 0.5 = 0.10
-            0   1   1   0   |   0.2 x 0 = 0
-            0   1   1   1   |   0.2 x 1 = 0.2
-            1   0   0   0   |   0.1 x 0.9 = 0.09
-            1   0   0   1   |   0.1 x 0.1 = 0.01
-            1   0   1   0   |   0.1 x 0.6 = 0.06
-            1   0   1   1   |   0.1 x 0.4 = 0.04
-            1   1   0   0   |   0.8 x 0.9 = 0.72
-            1   1   0   1   |   0.8 x 0.1 = 0.08
-            1   1   1   0   |   0.8 x 0.6 = 0.48
-            1   1   1   1   |   0.8 x 0.4 = 0.32
-
-            H   B   Q   G   |   \phi_{HBQG} (P(Q))
-            ------------------------------------------------
-            0   0   0   0   |   0.4
-            0   0   0   1   |   0.4
-            0   0   0   2   |   0.4
-            0   0   1   0   |   0.6
-            0   0   1   1   |   0.6
-            0   0   1   2   |   0.6
-            0   1   0   0   |   0.4
-            0   1   0   1   |   0.4
-            0   1   0   2   |   0.4
-            0   1   1   0   |   0.6
-            0   1   1   1   |   0.6
-            0   1   1   2   |   0.6
-            1   0   0   0   |   0.4
-            1   0   0   1   |   0.4
-            1   0   0   2   |   0.4
-            1   0   1   0   |   0.6
-            1   0   1   1   |   0.6
-            1   0   1   2   |   0.6
-            1   1   0   0   |   0.4
-            1   1   0   1   |   0.4
-            1   1   0   2   |   0.4
-            1   1   1   0   |   0.6
-            1   1   1   1   |   0.6
-            1   1   1   2   |   0.6
-
-            I   G   H   |   \phi_{IGH} (P(I|H,G))
-            ------------------------------------------------
-            0   0   0   |   0.9
-            0   0   1   |   1
-            0   1   0   |   0.7
-            0   1   1   |   1
-            0   2   0   |   0
-            0   2   1   |   1
-            1   0   0   |   0.1
-            1   0   1   |   0
-            1   1   0   |   0.3
-            1   1   1   |   0
-            1   2   0   |   1
-            1   2   1   |   0
-
-        '''
-
-        phi0 = []
-        _vars = sorted(["L","Q","S","F","G","B","I","H"])
-
-        #("H","B","Q","G") -> 0
-        phi0.append(
-                    np.array(
-                        [
-                            [
-                                [
-                                    [0.4,0.4,0.4],
-                                    [0.6,0.6,0.6],
-                                ],
-                                [
-                                    [0.4,0.4,0.4],
-                                    [0.6,0.6,0.6],
-                                ]
-                            ],
-                            [
-                                [
-                                    [0.4,0.4,0.4],
-                                    [0.6,0.6,0.6],
-                                ],
-                                [
-                                    [0.4,0.4,0.4],
-                                    [0.6,0.6,0.6],
-                                ]
-                            ]
-                        ]
-                    )
-        )
-
-        #("B","H","Q") -> 1
-        phi0.append(
-                    np.array(
-                        [
-                            [
-                                [1,1],
-                                [1,1],
-                            ],
-                            [
-                                [1,1],
-                                [1,1],
-                            ]
-                        ]
-                    )
-        )
-
-        #("F","Q","B","H") -> 2
-        phi0.append(
-                    np.array(
-                        [
-                            [
-                                [
-                                    [0.45,0.45],
-                                    [0.45,0.45],
-                                ],
-                                [
-                                    [0.10,0.10],
-                                    [0,0.2],
-                                ]
-                            ],
-                            [
-                                [
-                                    [0.09,0.01],
-                                    [0.06,0.04],
-                                ],
-                                [
-                                    [0.72,0.08],
-                                    [0.48,0.32],
-                                ]
-                            ]
-                        ]
-                    )
-        )
-
-        #("G", "H") -> 3
-        phi0.append(
-                    np.array(
-                        [
-                            [1,1],
-                            [1,1],
-                            [1,1]
-                        ]
-                    )
-        )
-
-        #("I","G","H") -> 4
-        phi0.append(
-                    np.array(
-                        [
-                            [
-                                [0.9,1],
-                                [0.7,1],
-                                [0,1],
-                            ],
-                            [
-
-                                [0.1,0],
-                                [0.3,0],
-                                [1,0],
-                            ]
-
-                        ]
-                    )
-        )
-
-        #("Q", "B", "G") -> 5
-        phi0.append(
-                    np.array(
-                        [
-                            [
-                                [1,1,1],
-                                [1,1,1],
-                            ],
-                            [
-                                [1,1,1],
-                                [1,1,1],
-                            ]
-                        ]
-                    )
-        )
-
-        #("L","Q","B","G") -> 6
-        phi0.append(
-                    np.array(
-                        [
-                            [
-                                [
-                                    [0,0,0],
-                                    [0.6,0.2,0.2],
-                                ],
-                                [
-                                    [0,0,0],
-                                    [0.7,0.2,0.1],
-                                ]
-                            ],
-                            [
-                                [
-                                    [0,0,0],
-                                    [0.1,0.1,0.8],
-                                ],
-                                [
-                                    [0.08,0.48,0.32],
-                                    [0.02,0.12,0.06],
-                                ]
-                            ]
-                        ]
-                    )
-        )
-
-        #("L") -> 7
-        phi0.append(np.array([1,1]))
-
-
-
-        #("S","L") -> 8
-        phi0.append(
-                    np.array(
-                        [
-                            [0.42,0.08],
-                            [0.18,0.32]
-                        ]
-                    )
-
-        )
-
-
-        # ['B', 'F', 'G', 'H', 'I', 'L', 'Q', 'S']
-        # [0    1    2    3    4    5    6    7  ]
-
-        jt = JunctionTree(
-                    {
-                        "L":2,
-                        "Q":2,
-                        "S":2,
-                        "F":2,
-                        "G":3,
-                        "B":2,
-                        "I":2,
-                        "H":2
-                    },
-                    [
-                        [
-                            0, ["H","B","Q","G"],
-                            (
-                                1, ["B", "H", "Q"],
-                                [
-                                    2, ["F","Q","B","H"],
-                                ]
-                            ),
-                            (
-                                3, ["G","H"],
-                                [
-                                    4, ["I", "G", "H"]
-                                ]
-
-                            ),
-                            (
-                                5, ["Q","B","G"],
-                                [
-                                    6, ["L","Q","B","G"],
-                                    (
-                                        7, ["L"],
-                                        [
-                                            8, ["S","L"]
-                                        ]
-                                    )
-                                ]
-                            )
-                        ]
-                    ]
-        )
-
-
-        # need to set evidence here: Q=0, G=0, F=1
-        data = {"Q":0, "G":0, "F":1}
-        likelihood, phi1, shrink_mapping = jt.observe(phi0, data)
-
-        phi2 = bp.collect(
-                        jt.get_struct()[0],
-                        jt.get_label_order(),
-                        phi1,
-                        [0]*len(phi1),
-                        bp.sum_product
-        )
-        key_ix = jt.find_key("H")
-        clique_ix, clique_keys = bp.get_clique_of_key(jt.get_struct()[0], key_ix)
-        np.testing.assert_allclose(bp.compute_marginal(phi2[clique_ix], clique_keys, [key_ix]), np.array([0.4, 0.6]))
-
 
     def test_evidence_shrinking(self):
         A = np.random.rand(3,4,2) # vars: a,b,c
