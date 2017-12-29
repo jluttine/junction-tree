@@ -341,11 +341,11 @@ def construct_junction_tree(cliques, key_sizes):
     Output:
     -------
 
-    A list of junction tree structures from the input cliques.
-        In most cases, there should only be a single tree in the
-        returned list
+    A junction tree structure from the input cliques
 
-    A list of separators in the order in which they appear in the tree
+    A list of separators in the order in which they appear in the tree.
+        Empty separator sets indicate the presence of distinct unconnected
+        trees in the structure
 
     """
 
@@ -355,8 +355,7 @@ def construct_junction_tree(cliques, key_sizes):
     for i, X in enumerate(cliques):
         for j, Y in enumerate(cliques[i+1:]):
             sepset = tuple(set(X).intersection(Y))
-            if len(sepset) > 0:
-                sepsets.append((sepset, (i,j+i+1)))
+            sepsets.append((sepset, (i,j+i+1)))
 
     separator_dict = {}
 
@@ -395,7 +394,8 @@ def construct_junction_tree(cliques, key_sizes):
             trees.remove(tree2)
             num_selected += 1
 
-    return trees, [list(separator_dict[ix]) for ix in sorted(separator_dict.keys())]
+    # trees list contains one tree which is the fully constructed tree
+    return trees[0], [list(separator_dict[ix]) for ix in sorted(separator_dict.keys())]
 
 
 def build_sepset_heap(sepsets, cliques, key_sizes):
@@ -423,7 +423,7 @@ def build_sepset_heap(sepsets, cliques, key_sizes):
     heap = []
 
     for i, (ss, (cliq1_ix, cliq2_ix)) in enumerate(sepsets):
-        mass = len(set(ss))
+        mass = len(ss) + 0.001 # avoids division by zero if sepset empty
         weight1 = np.prod([key_sizes[key] for key in cliques[cliq1_ix]])
         weight2 = np.prod([key_sizes[key] for key in cliques[cliq2_ix]])
         # invert mass to use minheap
@@ -917,7 +917,7 @@ def yield_clique_pairs(tree):
         yield (tree[0], tree[1], child[0], child[1])
 
 
-def bf_traverse(trees, clique_ix=None, func=yield_id_and_keys):
+def bf_traverse(tree, clique_ix=None, func=yield_id_and_keys):
     """
     Breadth-first traversal of tree
 
@@ -926,7 +926,7 @@ def bf_traverse(trees, clique_ix=None, func=yield_id_and_keys):
     Input:
     ------
 
-    List of tree structures to traverse
+    Tree structure to traverse
 
     (Optional) Clique ID used to terminate traversal
 
@@ -941,17 +941,16 @@ def bf_traverse(trees, clique_ix=None, func=yield_id_and_keys):
     [id1, keys1, ..., idN, keysN] (or [id1, keys1, ..., cid, ckeys])
     """
 
-    for tree in trees:
-        queue = [tree]
-        while queue:
-            tree = queue.pop(0)
-            yield from func(tree)
-            if tree[0] == clique_ix:
-                raise StopIteration
-            queue.extend([child for child in tree[2:]])
+    queue = [tree]
+    while queue:
+        tree = queue.pop(0)
+        yield from func(tree)
+        if tree[0] == clique_ix:
+            raise StopIteration
+        queue.extend([child for child in tree[2:]])
 
 
-def df_traverse(trees, clique_ix=None, func=yield_id_and_keys):
+def df_traverse(tree, clique_ix=None, func=yield_id_and_keys):
     """
     Depth-first traversal of tree
 
@@ -960,7 +959,7 @@ def df_traverse(trees, clique_ix=None, func=yield_id_and_keys):
     Input:
     ------
 
-    List of tree structures to traverse
+    Tree structure to traverse
 
     (Optional) Clique ID used to terminate traversal
 
@@ -977,14 +976,13 @@ def df_traverse(trees, clique_ix=None, func=yield_id_and_keys):
 
     """
 
-    for tree in trees:
-        stack = [tree]
-        while stack:
-            tree = stack.pop()
-            yield from func(tree)
-            if tree[0] == clique_ix:
-                raise StopIteration
-            stack.extend([child for child in reversed(tree[2:])])
+    stack = [tree]
+    while stack:
+        tree = stack.pop()
+        yield from func(tree)
+        if tree[0] == clique_ix:
+            raise StopIteration
+        stack.extend([child for child in reversed(tree[2:])])
 
 
 def get_clique_keys(tree, clique_ix):

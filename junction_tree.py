@@ -3,28 +3,22 @@ import bp
 import numpy as np
 
 class JunctionTree(object):
-    def __init__(self, key_sizes, trees=[]):
+    def __init__(self, key_sizes, tree=[]):
         self.key_sizes = key_sizes
         self.labels = {vl:i for i, vl in enumerate(sorted(key_sizes.keys()))}
         self.sorted_labels = self._get_labels()
-        self.struct = []
         self.clique_keys = {} # clique_ix -> list of keys
-        self.tree_cliques = [[]]*len(trees) # tree_ix -> list of clique_ixs
         self.keys_to_cliques = {} # key -> list of cliques containing key
-        self.cliques_to_trees = {} # clique_ix -> tree_ix
-        for t_i, tree in enumerate(trees):
-            indexed_tree = self.map_keys(tree, self.labels)
-            self.struct.append(indexed_tree)
-            clique_id_keys = list(bp.df_traverse([indexed_tree]))
-            for i in range(0, len(clique_id_keys), 2):
-                clique_ix = clique_id_keys[i]
-                clique_keys = clique_id_keys[i+1]
-                self.clique_keys[clique_ix] = clique_keys
-                self.cliques_to_trees[clique_ix] = t_i
-                self.tree_cliques[t_i].append(clique_ix)
-                for key in clique_keys:
-                    self.keys_to_cliques.setdefault(key, [])
-                    self.keys_to_cliques[key].append(clique_ix)
+        indexed_tree = self.map_keys(tree, self.labels)
+        self.struct = indexed_tree
+        clique_id_keys = list(bp.df_traverse(indexed_tree))
+        for i in range(0, len(clique_id_keys), 2):
+            clique_ix = clique_id_keys[i]
+            clique_keys = clique_id_keys[i+1]
+            self.clique_keys[clique_ix] = clique_keys
+            for key in clique_keys:
+                self.keys_to_cliques.setdefault(key, [])
+                self.keys_to_cliques[key].append(clique_ix)
 
 
 
@@ -302,12 +296,10 @@ class JunctionTree(object):
         for key_lbl,val in data.items():
             # find clique that contains key
             key_ix = self.find_key(key_lbl)
-            for tree in self.get_struct():
-                clique_ix, clique_keys = bp.get_clique_of_key(
-                                                        tree,
-                                                        key_ix
-                )
-                if clique_ix and clique_keys: break
+            clique_ix, clique_keys = bp.get_clique_of_key(
+                                                    self.get_struct(),
+                                                    key_ix
+            )
 
             # map keys to get around variable count limitation in einsum
             mapped_keys = []
@@ -364,13 +356,12 @@ class JunctionTree(object):
         if data:
             likelihood, new_potentials, shrink_mapping = self.observe(new_potentials, data=data)
 
-        for i, tree in enumerate(self.get_struct()):
-            new_potentials = bp.hugin(
-                                    tree,
-                                    self.get_label_order(),
-                                    new_potentials,
-                                    bp.sum_product,
-                                    shrink_mapping
+        new_potentials = bp.hugin(
+                                self.get_struct(),
+                                self.get_label_order(),
+                                new_potentials,
+                                bp.sum_product,
+                                shrink_mapping
         )
 
         return new_potentials
