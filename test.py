@@ -2351,7 +2351,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["E","G","H"],#[4,6,7]
                 ]
 
-        tree, sepsets = bp.construct_junction_tree(cliques, key_sizes)
+        tree, sepsets = bp.construct_junction_tree2(cliques, key_sizes)
 
         jt0 = JunctionTree(key_sizes, tree)
         label_dict = jt0.get_label_order()
@@ -2407,6 +2407,46 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         assert_junction_tree_equal(jt0.get_struct(), jt1)
 
+    def test_junction_tree_structure_as_indices_into_node_list(self):
+        key_sizes = {
+                        "A": 2,
+                        "B": 2,
+                        "C": 2,
+                        "D": 2,
+                        "E": 2,
+                        "F": 2,
+                        "G": 2,
+                        "H": 2
+        }
+
+        factors = [
+                    ["A"], # 0
+                    ["B"], # 1
+                    ["C"], # 2
+                    ["D"], # 3
+                    ["E"], # 4
+                    ["F"], # 5
+                    ["G"], # 6
+                    ["H"]  # 7
+        ]
+
+        cliques = [
+                    ["A","B","D"],#[0,1,3]
+                    ["A","C","E"],#[0,2,4]
+                    ["A","D","E"],#[0,3,4]
+                    ["C","E","G"],#[2,4,6]
+                    ["D","E","F"],#[3,4,5]
+                    ["E","G","H"],#[4,6,7]
+                ]
+
+        tree1, sepsets = bp.construct_junction_tree2(cliques, key_sizes)
+        traversed_tree = list(bp.bf_traverse(tree1))
+
+        tree2, sepsets = bp.construct_junction_tree(cliques, key_sizes)
+        node_list = cliques + sepsets
+        # check that both tree structures have same underlying nodes
+        assert set([tuple(set(val)) for i, val in enumerate(traversed_tree) if (i+1) % 2 == 0]) == set([tuple(set(node)) for node in node_list])
+        # check that relationship between nodes is preserved in node list representation of tree
 
 class TestJunctionTreeInference(unittest.TestCase):
     def setUp(self):

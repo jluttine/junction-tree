@@ -327,6 +327,9 @@ def identify_cliques(induced_clusters):
     return cliques
 
 def construct_junction_tree(cliques, key_sizes):
+    return [], []
+
+def construct_junction_tree2(cliques, key_sizes):
     """
     Construct junction tree from input cliques
 

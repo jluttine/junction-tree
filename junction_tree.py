@@ -190,8 +190,8 @@ class JunctionTree(object):
                             factors=factor_graph[1]
         )
         cliques = bp.identify_cliques(induced_clusters)
-        trees, sepsets = bp.construct_junction_tree(cliques, key_sizes)
-        jt = JunctionTree(key_sizes, trees)
+        tree, sepsets = bp.construct_junction_tree2(cliques, key_sizes)
+        jt = JunctionTree(key_sizes, tree)
         phi = JunctionTree.init_potentials(jt, factors, values)
         return jt, phi
 
