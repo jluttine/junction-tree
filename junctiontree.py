@@ -212,15 +212,10 @@ class CliqueGraph():
         #
         # So, what we need is the above tree structure and separators list.
 
-        (trees, sepsets) = bp.construct_junction_tree(
+        (tree, sepsets) = bp.construct_junction_tree(
             self.maxcliques,
             self.factor_graph.sizes
         )
-
-        # NOTE/FIXME: For now, support only one tree. In what case would it be
-        # useful to have many trees? Why couldn't independent graphs be handled
-        # by one tree which just has empty separator sets between them?
-        tree = trees[0]
 
         return JunctionTree(
             tree=tree,

@@ -114,7 +114,7 @@ def find_cycles(factors, num):
     cycles = [np.array(graph_edges)[[np.nonzero(cycle)[0]]]
                 for cycle in gibbs_elem_cycles(bit_seqs) if sum(cycle) >= num]
 
-    return G.edges(), cycles
+    return list(G.edges()), cycles
 
 def gibbs_elem_cycles(fcs):
     '''
