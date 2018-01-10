@@ -243,7 +243,7 @@ def assert_junction_tree_consistent(tree, potentials):
                         for c_ix1,
                             c_vars1,
                             c_ix2,
-                            c_vars2 in bp.generate_potential_pairs(tree.get_struct())
+                            c_vars2 in bp.generate_potential_pairs2(tree.get_struct())
                 ]
             )
 
@@ -2444,9 +2444,15 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         tree2, sepsets = bp.construct_junction_tree(cliques, key_sizes)
         node_list = cliques + sepsets
+
         # check that both tree structures have same underlying nodes
         assert set([tuple(set(val)) for i, val in enumerate(traversed_tree) if (i+1) % 2 == 0]) == set([tuple(set(node)) for node in node_list])
+
+        print (set([tuple(set([tuple(pairs[1]), tuple(pairs[3])])) for pairs in bp.generate_potential_pairs2(tree1)]))
+        print (set([tuple(set([tuple(node_list[pair[0]]), tuple(node_list[pair[1]])])) for pair in bp.generate_potential_pairs(tree2)]))
+
         # check that relationship between nodes is preserved in node list representation of tree
+        assert set([tuple(set([tuple(pairs[1]), tuple(pairs[3])])) for pairs in bp.generate_potential_pairs2(tree1)]) == set([tuple(set([tuple(node_list[pair[0]]), tuple(node_list[pair[1]])])) for pair in bp.generate_potential_pairs(tree2)])
 
 class TestJunctionTreeInference(unittest.TestCase):
     def setUp(self):
@@ -2917,13 +2923,13 @@ class TestJTTraversal(unittest.TestCase):
 
     def test_bf_traverse(self):
         assert list(bp.bf_traverse(self.tree)) == [
-                                                    0, [0, 2, 4],
-                                                    1, [0, 2],
-                                                    3, [4],
-                                                    2, [0, 1, 2],
-                                                    4, [3, 4],
-                                                    5, [3],
-                                                    6, [1, 2, 3]
+                                                    0,
+                                                    1,
+                                                    3,
+                                                    2,
+                                                    4,
+                                                    5,
+                                                    6,
                                                 ]
 
     def test_df_traverse(self):
@@ -2950,31 +2956,31 @@ class TestJTTraversal(unittest.TestCase):
 
     def test_generate_potential_pairs(self):
         tree = [
-                0, [0,3,4],
+                0,
                 (
-                    1, [0,3],
+                    1,
                     [
-                        2, [0,1,3]
+                        2,
                     ]
                 ),
                 (
-                    3, [3,4],
+                    3,
                     [
-                        4,[3,4,5]
+                        4,
                     ]
                 ),
                 (
-                    5, [0,4],
+                    5,
                     [
-                        6, [0,2,4],
+                        6,
                         (
-                            7, [2,4],
+                            7,
                             [
-                                8, [2,4,6],
+                                8,
                                 (
-                                    9, [4,6],
+                                    9,
                                     [
-                                        10, [4,6,7]
+                                        10,
                                     ]
                                 )
                             ]
@@ -2986,14 +2992,14 @@ class TestJTTraversal(unittest.TestCase):
 
 
         assert bp.generate_potential_pairs(tree) == [
-                                                            (0, [0,3,4], 1, [0,3]),
-                                                            (0, [0,3,4], 3, [3,4]),
-                                                            (0, [0,3,4], 5, [0,4]),
-                                                            (1, [0,3], 2, [0,1,3]),
-                                                            (3, [3,4], 4, [3,4,5]),
-                                                            (5, [0,4], 6, [0,2,4]),
-                                                            (6, [0,2,4], 7, [2,4]),
-                                                            (7, [2,4], 8, [2,4,6]),
-                                                            (8, [2,4,6], 9, [4,6]),
-                                                            (9, [4,6], 10, [4,6,7])
+                                                        (0, 1),
+                                                        (0, 3),
+                                                        (0, 5),
+                                                        (1, 2),
+                                                        (3, 4),
+                                                        (5, 6),
+                                                        (6, 7),
+                                                        (7, 8),
+                                                        (8, 9),
+                                                        (9, 10)
         ]
