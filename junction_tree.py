@@ -11,7 +11,7 @@ class JunctionTree(object):
         self.keys_to_cliques = {} # key -> list of cliques containing key
         indexed_tree = self.map_keys(tree, self.labels)
         self.struct = indexed_tree
-        clique_id_keys = list(bp.df_traverse(indexed_tree))
+        clique_id_keys = list(bp.df_traverse2(indexed_tree))
         for i in range(0, len(clique_id_keys), 2):
             clique_ix = clique_id_keys[i]
             clique_keys = clique_id_keys[i+1]
@@ -215,7 +215,7 @@ class JunctionTree(object):
         Initial potentials
 
         """
-        clique_id_keys = list(bp.bf_traverse(tree.get_struct()))
+        clique_id_keys = list(bp.bf_traverse2(tree.get_struct()))
         clique_lookup = {}
         potentials = [[]]*(int(len(clique_id_keys)/2))
 

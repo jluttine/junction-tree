@@ -441,14 +441,14 @@ def construct_junction_tree2(cliques, key_sizes):
         tree1, tree2 = None, None
         for tree in trees:
             # find tree (tree1) containing cliq1_ix
-            tree1 = tree1 if tree1 else (tree if find_subtree(tree,cliq1_ix) != [] else None)
+            tree1 = tree1 if tree1 else (tree if find_subtree2(tree,cliq1_ix) != [] else None)
             # find tree (tree2) containing cliq2_ix
-            tree2 = tree2 if tree2 else (tree if find_subtree(tree,cliq2_ix) != [] else None)
+            tree2 = tree2 if tree2 else (tree if find_subtree2(tree,cliq2_ix) != [] else None)
 
         if tree1 != tree2:
             ss_tree_ix = len(cliques) + num_selected
             # merge tree1 and tree2 into new_tree
-            new_tree = merge_trees(
+            new_tree = merge_trees2(
                                 tree1,
                                 cliq1_ix,
                                 tree2,
@@ -503,7 +503,7 @@ def build_sepset_heap(sepsets, cliques, key_sizes):
 
     return heap
 
-def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
+def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix):
     """
     Merge two trees into one separated by sepset
 
@@ -541,7 +541,45 @@ def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
     # return the merged trees
     return merged_tree
 
-def insert_sepset(tree, clique_ix, sepset_group):
+def merge_trees2(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
+    """
+    Merge two trees into one separated by sepset
+
+    Input:
+    ------
+
+    Tree structure (list) containing clique_1
+
+    The clique id for clique_1
+
+    Tree structure (list) containing clique_2
+
+    The clique id for clique_2
+
+    The sepset id for the sepset to be inserted
+
+    The sepset (list of factor ids) to be inserted
+
+    Output:
+    -------
+
+    A tree structure (list) containing clique_1, clique_2, and sepset
+
+    """
+
+    t2 = copy.deepcopy(tree2)
+
+    # combine tree2 (rooted by clique2) with sepset
+    sepset_group = (sepset_ix, sepset, change_root2(t2, clique2_ix))
+
+    # merged tree
+    merged_tree = insert_sepset2(tree1, clique1_ix, sepset_group)
+
+
+    # return the merged trees
+    return merged_tree
+
+def insert_sepset2(tree, clique_ix, sepset_group):
     """
     Inserts sepset into tree as child of clique
 
@@ -565,7 +603,7 @@ def insert_sepset(tree, clique_ix, sepset_group):
 
     return [tree[0],tree[1]] + sum(
         [
-            [(child_sepset[0], child_sepset[1], insert_sepset(child_sepset[2], clique_ix, sepset_group))]
+            [(child_sepset[0], child_sepset[1], insert_sepset2(child_sepset[2], clique_ix, sepset_group))]
             for child_sepset in tree[2:]
         ],
         [] if tree[0] != clique_ix else [(sepset_group)]
@@ -595,7 +633,37 @@ def find_subtree(tree, clique_ix):
 
     return ([] if tree[0] != clique_ix else tree) + sum(
         [
-            find_subtree(child_tree, clique_ix)
+            find_subtree2(child_tree, clique_ix)
+            for child_tree in tree[2:]
+        ],
+        []
+    )
+
+def find_subtree2(tree, clique_ix):
+    """
+    Find subtree rooted by clique
+
+    Input:
+    ------
+
+    Tree (potentially) containing clique as root
+
+    The id of the clique serving as root of subtree
+
+    Output:
+    -------
+
+    A (new) tree rooted by clique_ix if clique_ix is in tree.
+        Otherwise return an empty tree ([])
+
+
+    TODO: Try to return a reference to the subtree rather than
+    a newly allocated version
+    """
+
+    return ([] if tree[0] != clique_ix else tree) + sum(
+        [
+            find_subtree2(child_tree, clique_ix)
             for child_tree in tree[2:]
         ],
         []
@@ -636,6 +704,51 @@ def change_root(tree, clique_ix, child=[], sep=[]):
     return  sum(
                 [
                     change_root(
+                                child_sepset[2],
+                                clique_ix,
+                                tree[:c_ix+2] + tree[c_ix+3:] + [(sep[0],sep[1],child)] if len(child) else tree[:c_ix+2] + tree[c_ix+3:],
+                                [child_sepset[0],child_sepset[1]]
+                    )
+                    for c_ix, child_sepset in enumerate(tree[2:])
+                ],
+                []
+            )
+
+def change_root2(tree, clique_ix, child=[], sep=[]):
+    """
+    Restructures tree so that clique becomes root
+
+    Input:
+    ------
+
+    Tree to be altered
+
+    ID of the clique that will become tree's root
+
+    Child tree to be added to new root of tree (constructed during recursion)
+
+    Separator connecting root to recursively constructed child tree
+
+    Output:
+    -------
+
+    Tree with clique_ix as root
+
+
+    If clique_ix is already root of tree, tree is returned
+
+    If clique_ix not in tree, empty list is returned
+    """
+
+    if tree[0] == clique_ix:
+        if len(child) > 0:
+            tree.append((sep[0],sep[1],child))
+        return tree
+
+
+    return  sum(
+                [
+                    change_root2(
                                 child_sepset[2],
                                 clique_ix,
                                 tree[:c_ix+2] + tree[c_ix+3:] + [(sep[0],sep[1],child)] if len(child) else tree[:c_ix+2] + tree[c_ix+3:],
@@ -998,6 +1111,26 @@ def yield_clique_pairs(tree):
     Output:
     -------
 
+    Tuples of root clique id and child separator ids
+
+    """
+    for child in tree[1:]:
+        yield (tree[0], child[0])
+
+def yield_clique_pairs2(tree):
+    """
+
+    Function making it possible to yield clique id/keys and
+        child separators
+
+    Input:
+    ------
+
+    The tree structure of the junction tree
+
+    Output:
+    -------
+
     Tuples of root clique id/keys and child separator ids/keys
 
     """
@@ -1024,15 +1157,15 @@ def bf_traverse(tree, clique_ix=None, func=yield_id):
     -------
 
     Depends on func argument. Default is list of clique
-        ids and corresponding keys
+        ids
 
-    [id1, keys1, ..., idN, keysN] (or [id1, keys1, ..., cid, ckeys])
+    [id1, ..., idN] (or [id1, ..., cid])
     """
 
     queue = [tree]
     while queue:
         tree = queue.pop(0)
-        #yield from func(tree)
+        yield from func(tree)
         if tree[0] == clique_ix:
             raise StopIteration
         queue.extend([child for child in tree[1:]])
@@ -1070,7 +1203,41 @@ def bf_traverse2(tree, clique_ix=None, func=yield_id_and_keys):
         queue.extend([child for child in tree[2:]])
 
 
-def df_traverse(tree, clique_ix=None, func=yield_id_and_keys):
+def df_traverse(tree, clique_ix=None, func=yield_id):
+    """
+    Depth-first traversal of tree
+
+    Early termination of search is performed if clique_id provided
+
+    Input:
+    ------
+
+    Tree structure to traverse
+
+    (Optional) Clique ID used to terminate traversal
+
+    (Optional) Function controlling output
+
+
+    Output:
+    -------
+
+    Depends on func argument. Default is list of clique
+        ids
+
+    [id1, ..., idN] (or [id1, ..., cid])
+
+    """
+
+    stack = [tree]
+    while stack:
+        tree = stack.pop()
+        yield from func(tree)
+        if tree[0] == clique_ix:
+            raise StopIteration
+        stack.extend([child for child in reversed(tree[1:])])
+
+def df_traverse2(tree, clique_ix=None, func=yield_id_and_keys):
     """
     Depth-first traversal of tree
 
@@ -1104,8 +1271,28 @@ def df_traverse(tree, clique_ix=None, func=yield_id_and_keys):
             raise StopIteration
         stack.extend([child for child in reversed(tree[2:])])
 
+def get_clique_keys(node_list, clique_ix):
+    """
+    Return keys for clique with ID clique_ix
+        (if clique_ix not in tree return None)
 
-def get_clique_keys(tree, clique_ix):
+    Input:
+    ------
+
+    List of nodes (maxcliques + separators)
+
+    Clique ID to find
+
+    Output:
+    -------
+
+    A list containing clique keys (or None)
+
+    """
+
+    return node_list[clique_ix] if len(node_list) > clique_ix else None
+
+def get_clique_keys2(tree, clique_ix):
     """
     Return keys for clique with ID clique_ix
         (if clique_ix not in tree return None)
@@ -1123,7 +1310,7 @@ def get_clique_keys(tree, clique_ix):
     A list containing clique_id/clique keys (or None)
 
     """
-    flist = list(bf_traverse(tree, clique_ix))
+    flist = list(bf_traverse2(tree, clique_ix))
     return flist[-1] if flist[-2] == clique_ix else None
 
 
@@ -1147,7 +1334,7 @@ def get_cliques(tree, key):
     [clique_wkey_id1, clique_wkey_keys1, ..., clique_wkey_idM, clique_wkey_keysM]
     """
 
-    flist = list(bf_traverse(tree))
+    flist = list(bf_traverse2(tree))
     return [
             (flist[i], flist[i+1])
                 for i in range(0, len(flist), 2) if key in flist[i+1]
@@ -1189,7 +1376,7 @@ def get_clique_of_key(tree, key):
 
     return None, None
 
-def generate_potential_pairs2(tree):
+def generate_potential_pairs(tree):
     """
     Returns cliques and child separators
 
@@ -1215,7 +1402,7 @@ def generate_potential_pairs2(tree):
     """
     return list(bf_traverse(tree, func=yield_clique_pairs))
 
-def generate_potential_pairs(tree):
+def generate_potential_pairs2(tree):
     """
     Returns cliques and child separators
 
@@ -1239,7 +1426,7 @@ def generate_potential_pairs(tree):
     ]
 
     """
-    return list(bf_traverse2(tree, func=yield_clique_pairs))
+    return list(bf_traverse2(tree, func=yield_clique_pairs2))
 
 
 # Sum-product distributive law for NumPy

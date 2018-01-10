@@ -1803,25 +1803,24 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert ["A","D","E"] in cliques
 
     def test_join_trees_with_single_cliques(self):
-        tree1 = [0, [0,1,2]]
-        sepset = [2, [2]]
-        tree2 = [1, [2,3,4]]
+        tree1 = [0,]
+        sepset = [2,]
+        tree2 = [1,]
 
         output = bp.merge_trees(
                             tree1,
                             tree1[0],
                             tree2,
                             tree2[0],
-                            sepset[0],
-                            sepset[1]
+                            sepset[0]
         )
 
         merged_tree = [
-                0, [0,1,2],
+                0,
                 (
-                    2, [2],
+                    2,
                     [
-                        1, [2,3,4]
+                        1,
                     ]
                 )
             ]
@@ -1834,7 +1833,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [3, [4]]
         tree2 = [4, [3,4], (5, [3],[6, [1,2,3]])]
 
-        output = bp.merge_trees(
+        output = bp.merge_trees2(
                             tree1,
                             tree1[0],
                             tree2,
@@ -1866,7 +1865,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [3, [4]]
         tree2 = [4, [3,4], (5, [3],[6, [1,2,3]])]
 
-        output = bp.merge_trees(
+        output = bp.merge_trees2(
                             tree1,
                             tree1[0],
                             tree2,
@@ -1900,15 +1899,15 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
     def test_change_root(self):
         tree1 = [
-                    4,[0,8],
+                    4,
                     (
-                        5, [0],
+                        5,
                         [
-                            0, [0,2,4],
+                            0,
                             (
-                                1, [2],
+                                1,
                                 [
-                                    2, [1,2]
+                                    2,
                                 ]
                             )
                         ]
@@ -1924,17 +1923,17 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         output = bp.change_root(copy.deepcopy(tree1), 0)
 
         tree2 = [
-                    0, [0,2,4],
+                    0,
                     (
-                        1, [2],
+                        1,
                         [
-                            2, [1,2]
+                            2,
                         ]
                     ),
                     (
-                        5, [0],
+                        5,
                         [
-                            4, [0,8]
+                            4,
                         ]
                     )
                 ]
@@ -1946,15 +1945,15 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         output = bp.change_root(copy.deepcopy(tree1), 2)
 
         tree3 = [
-                    2, [1,2],
+                    2,
                     (
-                        1, [2],
+                        1,
                         [
-                            0, [0,2,4],
+                            0,
                             (
-                                5, [0],
+                                5,
                                 [
-                                    4,[0,8]
+                                    4,
                                 ]
                             )
                         ]
@@ -1966,29 +1965,29 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert_junction_tree_equal(tree1, output)
 
         tree4 = [
-                    4,[0,8],
+                    4,
                     (
-                        5, [0],
+                        5,
                         [
-                            0, [0,2,4],
+                            0,
                             (
-                                1, [2],
+                                1,
                                 [
-                                    2, [1,2]
+                                    2,
                                 ]
                             ),
                             (
-                                3, [4],
+                                3,
                                 [
-                                    6, [4,9]
+                                    6,
                                 ]
                             )
                         ]
                     ),
                     (
-                        7, [8],
+                        7,
                         [
-                            8, [8, 10]
+                            8,
                         ]
                     )
                 ]
@@ -2002,27 +2001,27 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         # each move up the treei is changing the root at the current level of the tree ??
 
         tree5 = [
-                    2, [1,2],
+                    2,
                     (
-                        1, [2],
+                        1,
                         [
-                            0, [0,2,4],
+                            0,
                             (
-                                5, [0],
+                                5,
                                 [
-                                    4,[0,8],
+                                    4,
                                     (
-                                        7, [8],
+                                        7,
                                         [
-                                            8, [8, 10]
+                                            8,
                                         ]
                                     )
                                 ]
                             ),
                             (
-                                3, [4],
+                                3,
                                 [
-                                    6, [4,9]
+                                    6,
                                 ]
                             )
                         ]
@@ -2036,7 +2035,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [3, [4]]
         tree2 = [8, [4,5,6], (9, [6], [10, [6,7]])]
 
-        output = bp.merge_trees(
+        output = bp.merge_trees2(
                             tree1,
                             0,
                             tree2,
@@ -2080,7 +2079,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [3, [4]]
         tree2 = [6, [3,5,8], (7, [5], [8, [4,5,6], (9, [6], [10, [6,7]])])]
 
-        output = bp.merge_trees(
+        output = bp.merge_trees2(
                             tree1,
                             0,
                             tree2,
@@ -2123,7 +2122,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [3, [4]]
         tree2 = [6, [3,5], (7, [5], [8, [4,5,6], (9, [6], [10, [6,7]])])]
 
-        output = bp.merge_trees(
+        output = bp.merge_trees2(
                             tree1,
                             0,
                             tree2,
@@ -2440,7 +2439,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 ]
 
         tree1, sepsets = bp.construct_junction_tree2(cliques, key_sizes)
-        traversed_tree = list(bp.bf_traverse(tree1))
+        traversed_tree = list(bp.bf_traverse2(tree1))
 
         tree2, sepsets = bp.construct_junction_tree(cliques, key_sizes)
         node_list = cliques + sepsets
@@ -2900,21 +2899,21 @@ class TestJunctionTreeInference(unittest.TestCase):
 class TestJTTraversal(unittest.TestCase):
     def setUp(self):
         self.tree = [
-                        0, [0,2,4],
+                        0,
                         (
-                            1, [0,2],
+                            1,
                             [
-                                2, [0,1,2]
+                                2,
                             ]
                         ),
                         (
-                            3, [4],
+                            3,
                             [
-                                4, [3,4],
+                                4,
                                 (
-                                    5, [3],
+                                    5,
                                     [
-                                        6, [1,2,3]
+                                        6,
                                     ]
                                 )
                             ]
@@ -2934,25 +2933,35 @@ class TestJTTraversal(unittest.TestCase):
 
     def test_df_traverse(self):
         assert list(bp.df_traverse(self.tree)) == [
-                                                    0, [0, 2, 4],
-                                                    1, [0, 2],
-                                                    2, [0, 1, 2],
-                                                    3, [4],
-                                                    4, [3, 4],
-                                                    5, [3],
-                                                    6, [1, 2, 3]
+                                                    0,
+                                                    1,
+                                                    2,
+                                                    3,
+                                                    4,
+                                                    5,
+                                                    6,
                                                 ]
 
 
     def test_get_clique_keys(self):
-        assert bp.get_clique_keys(self.tree, 0) == [0, 2, 4]
-        assert bp.get_clique_keys(self.tree, 1) == [0, 2]
-        assert bp.get_clique_keys(self.tree, 2) == [0, 1, 2]
-        assert bp.get_clique_keys(self.tree, 3) == [4]
-        assert bp.get_clique_keys(self.tree, 4) == [3, 4]
-        assert bp.get_clique_keys(self.tree, 5) == [3]
-        assert bp.get_clique_keys(self.tree, 6) == [1, 2, 3]
-        assert bp.get_clique_keys(self.tree, 7) == None
+        node_list = [
+                        [0, 2, 4],
+                        [0, 2],
+                        [0, 1, 2],
+                        [4],
+                        [3, 4],
+                        [3],
+                        [1, 2, 3]
+
+        ]
+        assert bp.get_clique_keys(node_list, 0) == [0, 2, 4]
+        assert bp.get_clique_keys(node_list, 1) == [0, 2]
+        assert bp.get_clique_keys(node_list, 2) == [0, 1, 2]
+        assert bp.get_clique_keys(node_list, 3) == [4]
+        assert bp.get_clique_keys(node_list, 4) == [3, 4]
+        assert bp.get_clique_keys(node_list, 5) == [3]
+        assert bp.get_clique_keys(node_list, 6) == [1, 2, 3]
+        assert bp.get_clique_keys(node_list, 7) == None
 
     def test_generate_potential_pairs(self):
         tree = [
@@ -2989,7 +2998,6 @@ class TestJTTraversal(unittest.TestCase):
 
                 )
             ]
-
 
         assert bp.generate_potential_pairs(tree) == [
                                                         (0, 1),
