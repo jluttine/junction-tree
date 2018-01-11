@@ -349,7 +349,8 @@ def construct_junction_tree(cliques, key_sizes):
 
     """
 
-    trees = [[c_ix, clique] for c_ix, clique in enumerate(cliques)]
+    #trees = [[c_ix, clique] for c_ix, clique in enumerate(cliques)]
+    trees = [[c_ix] for c_ix, clique in enumerate(cliques)]
     # set of candidate sepsets
     sepsets = list()
     for i, X in enumerate(cliques):
@@ -382,8 +383,7 @@ def construct_junction_tree(cliques, key_sizes):
                                 cliq1_ix,
                                 tree2,
                                 cliq2_ix,
-                                ss_tree_ix,
-                                list(sepsets[ss_ix][0])
+                                ss_tree_ix
             )
             separator_dict[ss_tree_ix] = sepsets[ss_ix][0]
             # insert new_tree into forest
@@ -520,7 +520,6 @@ def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix):
 
     The sepset id for the sepset to be inserted
 
-    The sepset (list of factor ids) to be inserted
 
     Output:
     -------
@@ -532,7 +531,7 @@ def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix):
     t2 = copy.deepcopy(tree2)
 
     # combine tree2 (rooted by clique2) with sepset
-    sepset_group = (sepset_ix, sepset, change_root(t2, clique2_ix))
+    sepset_group = (sepset_ix, change_root(t2, clique2_ix))
 
     # merged tree
     merged_tree = insert_sepset(tree1, clique1_ix, sepset_group)
@@ -578,6 +577,36 @@ def merge_trees2(tree1, clique1_ix, tree2, clique2_ix, sepset_ix, sepset):
 
     # return the merged trees
     return merged_tree
+
+def insert_sepset(tree, clique_ix, sepset_group):
+    """
+    Inserts sepset into tree as child of clique
+
+    Input:
+    ------
+
+    Tree structure in which to insert sepset
+
+    The clique id of the sepset's parent
+
+    The sepset group being inserted
+
+    Output:
+    -------
+
+    A new tree structure with the sepset inserted as a
+        child of clique
+
+    """
+
+
+    return [tree[0]] + sum(
+        [
+            [(child_sepset[0], insert_sepset(child_sepset[1], clique_ix, sepset_group))]
+            for child_sepset in tree[1:]
+        ],
+        [] if tree[0] != clique_ix else [(sepset_group)]
+    )
 
 def insert_sepset2(tree, clique_ix, sepset_group):
     """
@@ -627,14 +656,15 @@ def find_subtree(tree, clique_ix):
         Otherwise return an empty tree ([])
 
 
-    TODO: Try to return a reference to the subtree rather than
-    a newly allocated version
     """
+
+    #TODO: Try to return a reference to the subtree rather than
+    #a newly allocated version
 
     return ([] if tree[0] != clique_ix else tree) + sum(
         [
-            find_subtree2(child_tree, clique_ix)
-            for child_tree in tree[2:]
+            find_subtree(child_tree, clique_ix)
+            for child_tree in tree[1:]
         ],
         []
     )
