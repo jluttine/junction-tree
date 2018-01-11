@@ -697,19 +697,19 @@ def change_root(tree, clique_ix, child=[], sep=[]):
 
     if tree[0] == clique_ix:
         if len(child) > 0:
-            tree.append((sep[0],sep[1],child))
+            tree.append((sep[0],child))
         return tree
 
 
     return  sum(
                 [
                     change_root(
-                                child_sepset[2],
+                                child_sepset[1],
                                 clique_ix,
-                                tree[:c_ix+2] + tree[c_ix+3:] + [(sep[0],sep[1],child)] if len(child) else tree[:c_ix+2] + tree[c_ix+3:],
-                                [child_sepset[0],child_sepset[1]]
+                                tree[:c_ix+1] + tree[c_ix+2:] + [(sep[0],child)] if len(child) else tree[:c_ix+1] + tree[c_ix+2:],
+                                [child_sepset[0]]
                     )
-                    for c_ix, child_sepset in enumerate(tree[2:])
+                    for c_ix, child_sepset in enumerate(tree[1:])
                 ],
                 []
             )

@@ -17,6 +17,17 @@ import math
 def assert_junction_tree_equal(t1, t2):
     """Test equality of two junction trees
 
+    Both trees contain same edges and node indices
+
+    """
+
+    pairs1 = set([tuple(sorted(p)) for p in bp.generate_potential_pairs(t1)])
+    pairs2 = set([tuple(sorted(p)) for p in bp.generate_potential_pairs(t2)])
+    assert pairs1 == pairs2
+
+def assert_junction_tree_equal2(t1, t2):
+    """Test equality of two junction trees
+
     Both trees contain same edges and cliques have same keys
 
     """
@@ -44,7 +55,6 @@ def assert_junction_tree_equal(t1, t2):
     d2 = __build_dict(t2)
 
     assert d1 == d2
-
 
 
 def assert_factor_graph_equal(fg1, fg2):
@@ -1826,7 +1836,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
             ]
 
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal2(output, merged_tree)
 
     def test_join_tree_with_single_clique_to_multiclique_tree(self):
         tree1 = [0, [0,2,4]]
@@ -1857,7 +1867,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
         ]
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal2(output, merged_tree)
 
 
     def test_join_tree_with_multiple_cliques_to_tree_with_multiple_cliques(self):
@@ -1895,7 +1905,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
         ]
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal2(output, merged_tree)
 
     def test_change_root(self):
         tree1 = [
@@ -1995,10 +2005,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         output = bp.change_root(tree4, 2)
 
-        # need to return re-rooted tree and attach nodes/separators higher up in
-        # the tree to the tree that is being built.
 
-        # each move up the treei is changing the root at the current level of the tree ??
 
         tree5 = [
                     2,
@@ -2028,6 +2035,8 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
                 ]
 
+
+        assert_junction_tree_equal(output,tree5)
         assert_junction_tree_equal(tree4, output)
 
     def test_join_trees_with_multiple_cliques_with_first_nested(self):
@@ -2071,7 +2080,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
                 ]
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal2(output, merged_tree)
 
 
     def test_join_trees_with_multiple_cliques_with_second_nested(self):
@@ -2115,7 +2124,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
         ]
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal2(output, merged_tree)
 
     def test_join_trees_with_multiple_cliques_with_both_nested(self):
         tree1 = [4,[0,8], (5, [0], [0, [0,2,4], (1, [2], [2, [1,2]])])]
@@ -2166,7 +2175,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 ]
 
 
-        assert_junction_tree_equal(output, merged_tree)
+        assert_junction_tree_equal2(output, merged_tree)
 
     def test_index_vars(self):
         var_lookup = {
@@ -2238,7 +2247,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
                 ]
 
-        assert_junction_tree_equal(out_tree, test_tree)
+        assert_junction_tree_equal2(out_tree, test_tree)
 
     def test_unindex_vars(self):
         var_lookup = {
@@ -2309,7 +2318,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     )
                 ]
 
-        assert_junction_tree_equal(out_tree, test_tree)
+        assert_junction_tree_equal2(out_tree, test_tree)
 
     def test_join_cliques_into_junction_tree(self):
         """
@@ -2404,7 +2413,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 )
             ]
 
-        assert_junction_tree_equal(jt0.get_struct(), jt1)
+        assert_junction_tree_equal2(jt0.get_struct(), jt1)
 
     def test_junction_tree_structure_as_indices_into_node_list(self):
         key_sizes = {
