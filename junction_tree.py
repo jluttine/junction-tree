@@ -3,14 +3,15 @@ import bp
 import numpy as np
 
 class JunctionTree(object):
-    def __init__(self, key_sizes, tree=[]):
+    def __init__(self, key_sizes, tree=[], node_list=[]):
         self.key_sizes = key_sizes
         self.labels = {vl:i for i, vl in enumerate(sorted(key_sizes.keys()))}
         self.sorted_labels = self._get_labels()
         self.clique_keys = {} # clique_ix -> list of keys
         self.keys_to_cliques = {} # key -> list of cliques containing key
-        indexed_tree = self.map_keys(tree, self.labels)
+        indexed_tree, indexed_node_list = self.map_keys(tree, node_list, self.labels)
         self.struct = indexed_tree
+        self.node_list = indexed_node_list
         clique_id_keys = list(bp.df_traverse2(indexed_tree))
         for i in range(0, len(clique_id_keys), 2):
             clique_ix = clique_id_keys[i]
@@ -122,7 +123,7 @@ class JunctionTree(object):
         return self.clique_sepset
 
     @staticmethod
-    def map_keys(tree, lookup):
+    def map_keys(tree, node_list, lookup):
         """
         Map keys of cliques to index values
 
@@ -130,6 +131,8 @@ class JunctionTree(object):
         ------
 
         Tree structure
+
+        List of nodes referenced by indices in tree structure
 
         Lookup dictonary with key label as key and
             key index (in junction tree) as value
@@ -142,26 +145,29 @@ class JunctionTree(object):
         """
         cp_tree = copy.deepcopy(tree)
 
-        def __run(tree, lookup, ss_parent=None):
-            ix, keys = tree[0:2]
+        def __run(tree, node_list, lookup, ss_parent=None):
+            ix = tree[0]
+            keys = node_list[ix]
             for i, k in enumerate(keys):
                 keys[i] = lookup[k]
             m_keys = {k:i for i,k in enumerate(keys)}
             mapped_keys = [m_keys[k] for k in keys]
             if ss_parent:
-                sep_ix, sep_keys = ss_parent[0:2]
+                sep_ix = ss_parent[0]
+                sep_keys = node_list[sep_ix]
 
-            separators = tree[2:]
+            separators = tree[1:]
 
             for separator in separators:
-                separator_ix, separator_keys, c_tree = separator
-                for i, k in enumerate(separator_keys):
-                    separator_keys[i] = lookup[k]
+                separator_ix, c_tree = separator
+                for i, k in enumerate(node_list[separator_ix]):
+                    node_list[separator_ix][i] = lookup[k]
 
-                __run(c_tree, lookup, separator[0:2])
+                __run(c_tree, node_list, lookup, separator[0:1])
 
-        __run(cp_tree, lookup)
-        return cp_tree
+        __run(cp_tree, node_list, lookup)
+
+        return cp_tree, node_list
 
 
     @staticmethod

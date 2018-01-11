@@ -2183,66 +2183,95 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                 "G": 10
         }
         in_tree = [
-                    2, ["B","C"],
+                    2,
                     (
-                        1, ["C"],
+                        1,
                         [
-                            0, ["A","C","D"],
+                            0,
                             (
-                                5, ["A"],
+                                5,
                                 [
-                                    4,["A","E"],
+                                    4,
                                     (
-                                        7, ["E"],
+                                        7,
                                         [
-                                            8, ["E","G"]
+                                            8,
                                         ]
                                     )
                                 ]
                             ),
                             (
-                                3, ["D"],
+                                3,
                                 [
-                                    6, ["D","F"]
+                                    6,
                                 ]
                             )
                         ]
                     )
                 ]
 
-        out_tree = JunctionTree.map_keys(in_tree, var_lookup)
+        in_node_list = [
+                        ["A","C","D"],
+                        ["C"],
+                        ["B","C"],
+                        ["D"],
+                        ["A","E"],
+                        ["A"],
+                        ["D","F"],
+                        ["E"],
+                        ["E","G"]
+        ]
+
+        out_tree, out_node_list = JunctionTree.map_keys(in_tree, in_node_list, var_lookup)
 
 
 
         test_tree = [
-                    2, [1,2],
+                    2,
                     (
-                        1, [2],
+                        1,
                         [
-                            0, [0,2,4],
+                            0,
                             (
-                                5, [0],
+                                5,
                                 [
-                                    4,[0,8],
+                                    4,
                                     (
-                                        7, [8],
+                                        7,
                                         [
-                                            8, [8, 10]
+                                            8,
                                         ]
                                     )
                                 ]
                             ),
                             (
-                                3, [4],
+                                3,
                                 [
-                                    6, [4,9]
+                                    6,
                                 ]
                             )
                         ]
                     )
                 ]
 
-        assert_junction_tree_equal2(out_tree, test_tree)
+        test_node_list = [
+                            [0,2,4],
+                            [2],
+                            [1,2],
+                            [4],
+                            [0,8],
+                            [0],
+                            [4,9],
+                            [8],
+                            [8, 10]
+        ]
+
+        assert len(in_node_list) == len(out_node_list)
+        for i in range(len(in_node_list)):
+            assert len(in_node_list[i]) == len(out_node_list[i])
+
+        assert out_node_list == test_node_list
+        assert_junction_tree_equal(out_tree, test_tree)
 
     def test_unindex_vars(self):
         var_lookup = {
@@ -2256,64 +2285,93 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         }
 
         in_tree = [
-                    2, [1,2],
+                    2,
                     (
-                        1, [2],
+                        1,
                         [
-                            0, [0,2,4],
+                            0,
                             (
-                                5, [0],
+                                5,
                                 [
-                                    4,[0,8],
+                                    4,
                                     (
-                                        7, [8],
+                                        7,
                                         [
-                                            8, [8, 10]
+                                            8,
                                         ]
                                     )
                                 ]
                             ),
                             (
-                                3, [4],
+                                3,
                                 [
-                                    6, [4,9]
+                                    6,
                                 ]
                             )
                         ]
                     )
                 ]
 
-        out_tree = JunctionTree.map_keys(in_tree, {v:k for k, v in var_lookup.items()})
+        in_node_list = [
+                            [0,2,4],
+                            [2],
+                            [1,2],
+                            [4],
+                            [0,8],
+                            [0],
+                            [4,9],
+                            [8],
+                            [8, 10]
+        ]
+
+        out_tree, out_node_list = JunctionTree.map_keys(in_tree, in_node_list, {v:k for k, v in var_lookup.items()})
 
         test_tree = [
-                    2, ["B","C"],
+                    2,
                     (
-                        1, ["C"],
+                        1,
                         [
-                            0, ["A","C","D"],
+                            0,
                             (
-                                5, ["A"],
+                                5,
                                 [
-                                    4,["A","E"],
+                                    4,
                                     (
-                                        7, ["E"],
+                                        7,
                                         [
-                                            8, ["E","G"]
+                                            8,
                                         ]
                                     )
                                 ]
                             ),
                             (
-                                3, ["D"],
+                                3,
                                 [
-                                    6, ["D","F"]
+                                    6,
                                 ]
                             )
                         ]
                     )
                 ]
 
-        assert_junction_tree_equal2(out_tree, test_tree)
+        test_node_list = [
+                        ["A","C","D"],
+                        ["C"],
+                        ["B","C"],
+                        ["D"],
+                        ["A","E"],
+                        ["A"],
+                        ["D","F"],
+                        ["E"],
+                        ["E","G"]
+        ]
+
+        assert len(in_node_list) == len(out_node_list)
+        for i in range(len(in_node_list)):
+            assert len(in_node_list[i]) == len(out_node_list[i])
+
+        assert out_node_list == test_node_list
+        assert_junction_tree_equal(out_tree, test_tree)
 
     def test_join_cliques_into_junction_tree(self):
         """
@@ -2457,31 +2515,31 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 class TestJunctionTreeInference(unittest.TestCase):
     def setUp(self):
         self.tree = [
-                        0, ["A","D","E"],
+                        0,
                         (
-                            1, ["A","D"],
+                            1,
                             [
-                                2, ["A","B","D"]
+                                2,
                             ]
                         ),
                         (
-                            3, ["D","E"],
+                            3,
                             [
-                                4,["D","E","F"]
+                                4,
                             ]
                         ),
                         (
-                            5, ["A","E"],
+                            5,
                             [
-                                6, ["A","C","E"],
+                                6,
                                 (
-                                    7, ["C","E"],
+                                    7,
                                     [
-                                        8, ["C","E","G"],
+                                        8,
                                         (
-                                            9, ["E","G"],
+                                            9,
                                             [
-                                                10, ["E","G","H"]
+                                                10,
                                             ]
                                         )
                                     ]
@@ -2491,6 +2549,19 @@ class TestJunctionTreeInference(unittest.TestCase):
                         )
                     ]
 
+        self.node_list = [
+                            ["A","D","E"],
+                            ["A","D"],
+                            ["A","B","D"],
+                            ["D","E"],
+                            ["D","E","F"],
+                            ["A","E"],
+                            ["A","C","E"],
+                            ["C","E"],
+                            ["C","E","G"],
+                            ["E","G"],
+                            ["E","G","H"]
+        ]
 
         self.key_sizes = {
                             "A": 2,
@@ -2577,7 +2648,7 @@ class TestJunctionTreeInference(unittest.TestCase):
 
 
     def test_transformation(self):
-        jt0 = JunctionTree(self.key_sizes, self.tree)
+        jt0 = JunctionTree(self.key_sizes, self.tree, self.node_list)
         init_phi = JunctionTree.init_potentials(jt0, self.factors, self.values)
         phi0 = jt0.propagate(init_phi)
         jt, init_phi = JunctionTree.from_factor_graph(self.fg)
