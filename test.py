@@ -2085,7 +2085,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         sepset = [3, ]
         tree2 = [6,  (7,  [8,  (9,  [10, ])])]
 
-        output = bp.merge_trees2(
+        output = bp.merge_trees(
                             tree1,
                             0,
                             tree2,
