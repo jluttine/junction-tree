@@ -48,18 +48,23 @@ Junction trees:
 ---------------
 
 ```
+tree structure (composed of node indices found in node list):
 [
-    index, keys
+    index,
     (
-        separator1_index, separator1_keys
+        separator1_index,
         child_tree1
     ),
     ...,
     (
-        separatorN_index, separatorN_keys
+        separatorN_index,
         child_treeN
     )
 ]
+node list (elements are list of keys which define node):
+[node0_keys, node1_keys,...,nodeN_keys]
+
+maxcliques and separators are both types of nodes
 ```
 
 Potentials in (junction) trees:
