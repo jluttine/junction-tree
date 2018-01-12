@@ -842,7 +842,80 @@ def eliminate_variables(junction_tree):
 
 
 
-def collect(tree, key_labels, potentials, visited, distributive_law, shrink_mapping=None):
+def collect(tree, node_list, key_labels, potentials, visited, distributive_law, shrink_mapping=None):
+    """
+    Used by Hugin algorithm to collect messages
+
+    Input:
+    ------
+
+    The tree structure of the junction tree
+
+    List of nodes in tree
+
+    Dictionary of key labels
+
+    List of clique potentials
+
+    List of boolean entries representing visited status of cliques
+
+    Distributive law for performing sum product calculations
+
+    Shrink mapping for cliques
+
+    Output:
+    -------
+
+    Updated potentials for collect phase of propagation
+
+
+    """
+    sm = shrink_mapping
+    clique_ix = tree[0]
+    clique_keys = node_list[clique_ix]
+    # set clique_index in visited to 1
+    visited[clique_ix] = 1
+
+    # loop over neighbors of root of tree
+    for neighbor in tree[1:]:
+        sep_ix, child = neighbor
+        sep_keys = node_list[sep_ix]
+        child_ix = child[0]
+        child_keys = node_list[child_ix]
+        # call collect on neighbor if not marked as visited
+        if not visited[child_ix]:
+            potentials = collect(
+                            child,
+                            node_list,
+                            key_labels,
+                            potentials,
+                            visited,
+                            distributive_law,
+                            shrink_mapping
+            )
+            new_clique_pot, new_sep_pot = distributive_law.update(
+                                        potentials[child_ix] if not sm else potentials[child_ix][sm[child_ix][0]],
+                                        child_keys if not sm else sm[child_ix][1],
+                                        potentials[clique_ix] if not sm else potentials[clique_ix][sm[clique_ix][0]],
+                                        clique_keys if not sm else sm[clique_ix][1],
+                                        potentials[sep_ix] if not sm else potentials[sep_ix][sm[sep_ix][0]],
+                                        sep_keys if not sm else sm[sep_ix][1],
+                                        sep_keys if not sm else sm[sep_ix][1]
+            )
+
+            # ensure that values are assigned to proper positions
+            if sm:
+                potentials[clique_ix][sm[clique_ix][0]] = new_clique_pot
+                potentials[sep_ix][sm[sep_ix][0]] = new_sep_pot
+            else:
+                potentials[clique_ix] = new_clique_pot
+                potentials[sep_ix] = new_sep_pot
+
+
+    # return the updated potentials
+    return potentials
+
+def collect2(tree, key_labels, potentials, visited, distributive_law, shrink_mapping=None):
     """
     Used by Hugin algorithm to collect messages
 
@@ -879,7 +952,7 @@ def collect(tree, key_labels, potentials, visited, distributive_law, shrink_mapp
         child_ix, child_keys = child[:2]
         # call collect on neighbor if not marked as visited
         if not visited[child_ix]:
-            potentials = collect(
+            potentials = collect2(
                             child,
                             key_labels,
                             potentials,
@@ -910,7 +983,7 @@ def collect(tree, key_labels, potentials, visited, distributive_law, shrink_mapp
     return potentials
 
 
-def distribute(tree, key_labels, potentials, visited, distributive_law, shrink_mapping=None):
+def distribute(tree, node_list, key_labels, potentials, visited, distributive_law, shrink_mapping=None):
     """
     Used by Hugin algorithm to distribute messages
 
@@ -937,13 +1010,16 @@ def distribute(tree, key_labels, potentials, visited, distributive_law, shrink_m
     """
     sm = shrink_mapping
     # set clique_index in visited to 1
-    clique_ix, clique_keys = tree[:2]
+    clique_ix = tree[0]
+    clique_keys = node_list[clique_ix]
     visited[clique_ix] = 1
 
     # loop over neighbors of root of tree
-    for neighbor in tree[2:]:
-        sep_ix, sep_keys, child = neighbor
-        child_ix, child_keys = child[:2]
+    for neighbor in tree[1:]:
+        sep_ix, child = neighbor
+        sep_keys = node_list[sep_ix]
+        child_ix = child[0]
+        child_keys = node_list[child_ix]
         # call distribute on neighbor if not marked as visited
         if not visited[child_ix]:
             new_clique_pot, new_sep_pot = distributive_law.update(
@@ -964,6 +1040,7 @@ def distribute(tree, key_labels, potentials, visited, distributive_law, shrink_m
                 potentials[sep_ix] = new_sep_pot
             potentials = distribute(
                                 child,
+                                node_list,
                                 key_labels,
                                 potentials,
                                 visited,
@@ -975,7 +1052,7 @@ def distribute(tree, key_labels, potentials, visited, distributive_law, shrink_m
     return potentials
 
 
-def hugin(tree, key_labels, potentials, distributive_law, shrink_mapping=None):
+def hugin(tree, node_list, key_labels, potentials, distributive_law, shrink_mapping=None):
     """
     Run hugin algorithm by using the given distributive law.
 
@@ -1007,6 +1084,7 @@ def hugin(tree, key_labels, potentials, distributive_law, shrink_mapping=None):
     # call collect on root_index storing the result in new_potentials
     new_potentials = collect(
                         tree,
+                        node_list,
                         key_labels,
                         potentials,
                         visited,
@@ -1020,6 +1098,7 @@ def hugin(tree, key_labels, potentials, distributive_law, shrink_mapping=None):
     # return the result of a call to distribute on root index
     return distribute(
                     tree,
+                    node_list,
                     key_labels,
                     new_potentials,
                     visited,
@@ -1027,7 +1106,7 @@ def hugin(tree, key_labels, potentials, distributive_law, shrink_mapping=None):
                     shrink_mapping
     )
 
-def get_clique(tree, key_label):
+def get_clique(tree, node_list, key_label):
     """
     Finds a clique containing key with label key_label
 
@@ -1044,18 +1123,21 @@ def get_clique(tree, key_label):
     Clique ID/clique keys pair or None if key not in any cliques
 
     """
-    ix, keys = tree[0:2]
-    separators = tree[2:]
+
+    ix = tree[0]
+    keys = node_list[ix]
+    separators = tree[1:]
     if key_label in keys:
         return ix, keys
     if separators == (): # base case reached (leaf)
         return None
 
     for separator in separators:
-        separator_ix, separator_keys, c_tree = separator
+        separator_ix, c_tree = separator
+        separator_keys = node_list[separator_ix]
         if key_label in separator_keys:
             return separator_ix, separator_keys
-        clique_info = get_clique(c_tree, key_label)
+        clique_info = get_clique(c_tree, node_list, key_label)
         if clique_info:
             return clique_info
 
@@ -1344,7 +1426,7 @@ def get_clique_keys2(tree, clique_ix):
     return flist[-1] if flist[-2] == clique_ix else None
 
 
-def get_cliques(tree, key):
+def get_cliques(tree, node_list, key):
     """
     Return the (M) cliques (clique id/clique keys pairs) which
         include key and all other keys in clique
@@ -1364,13 +1446,13 @@ def get_cliques(tree, key):
     [clique_wkey_id1, clique_wkey_keys1, ..., clique_wkey_idM, clique_wkey_keysM]
     """
 
-    flist = list(bf_traverse2(tree))
+    flist = list(bf_traverse(tree))
     return [
-            (flist[i], flist[i+1])
-                for i in range(0, len(flist), 2) if key in flist[i+1]
+            (clique_ix, node_list[clique_ix])
+                for clique_ix in flist if key in node_list[clique_ix]
     ]
 
-def get_clique_of_key(tree, key):
+def get_clique_of_key(tree, node_list, key):
     """
     Returns a clique ID/keys containing key (if exists)
 
@@ -1388,8 +1470,9 @@ def get_clique_of_key(tree, key):
 
     """
 
-    ix, keys = tree[0:2]
-    separators = tree[2:]
+    ix = tree[0]
+    keys = node_list[ix]
+    separators = tree[1:]
 
     if key in keys:
         return ix, keys
@@ -1397,10 +1480,11 @@ def get_clique_of_key(tree, key):
         return None, None
 
     for separator in separators:
-        separator_ix, separator_keys, c_tree = separator
+        separator_ix, c_tree = separator
+        separator_keys = node_list[separator_ix]
         if key in separator_keys:
             return separator_ix, separator_keys
-        clique_ix, clique_keys = get_clique_of_key(c_tree, key)
+        clique_ix, clique_keys = get_clique_of_key(c_tree, node_list, key)
         if clique_ix != None:
             return clique_ix, clique_keys
 

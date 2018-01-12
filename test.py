@@ -181,7 +181,8 @@ def assert_potentials_equal(p1, p2):
     """Test equality of two potentials
 
     """
-
+    print (p1)
+    print (p2)
     # Same number of potentials
     assert len(p1) == len(p2)
 
@@ -191,43 +192,45 @@ def assert_potentials_equal(p1, p2):
         # recursively check remaining potentials
         assert_potentials_equal(p1[1:], p2[1:])
 
-def get_arrays_and_keys(tree, potentials):
+def get_arrays_and_keys(tree, node_list, potentials):
     """Get all arrays and their keys as a flat list
 
     Output: [array1, keys1, ..., arrayN, keysN]
 
     """
-    return list([potentials[tree[0]],tree[1]]) + sum(
+    return list([potentials[tree[0]],node_list[tree[0]]]) + sum(
         [
-            get_arrays_and_keys(child_tree, potentials)
-            for child_tree in tree[2:]
+            get_arrays_and_keys(child_tree, node_list, potentials)
+            for child_tree in tree[1:]
         ],
         []
     )
 
-def brute_force_sum_product(tree, potentials):
+def brute_force_sum_product(tree, node_list, potentials):
     """Compute brute force sum-product with einsum """
 
     # Function to compute the sum-product with brute force einsum
-    arrays_keys = get_arrays_and_keys(tree, potentials)
+    arrays_keys = get_arrays_and_keys(tree, node_list, potentials)
     f = lambda output_keys: bp.sum_product.einsum(*(arrays_keys + [output_keys]))
 
-    def __run(tree, p, f, res=[]):
-        res.append(f(tree[1]))
-        for child_tree in tree[2:]:
-            __run(child_tree, p, f, res)
+    def __run(tree, node_list, p, f, res=[]):
+        res.append(f(node_list[tree[0]]))
+        for child_tree in tree[1:]:
+            __run(child_tree, node_list, p, f, res)
         return res
 
-    return __run(tree, potentials, f)
+    return __run(tree, node_list, potentials, f)
 
 def assert_sum_product(junction_tree, potentials):
     """ Test hugin vs brute force sum-product """
 
     tree = junction_tree.get_struct()
+    node_list = junction_tree.get_node_list()
     assert_potentials_equal(
-        brute_force_sum_product(tree, potentials),
+        brute_force_sum_product(tree, node_list, potentials),
         bp.hugin(
                 tree,
+                node_list,
                 junction_tree.get_label_order(),
                 potentials,
                 bp.sum_product,
@@ -242,18 +245,16 @@ def assert_junction_tree_consistent(tree, potentials):
         provided potentials
     '''
 
+    node_list = tree.get_node_list()
     assert np.all(
                     [
                         potentials_consistent(
                                             potentials[c_ix1],
-                                            c_vars1,
+                                            node_list[c_ix1],
                                             potentials[c_ix2],
-                                            c_vars2
+                                            node_list[c_ix2]
                         )
-                        for c_ix1,
-                            c_vars1,
-                            c_ix2,
-                            c_vars2 in bp.generate_potential_pairs2(tree.get_struct())
+                        for c_ix1, c_ix2 in bp.generate_potential_pairs(tree.get_struct())
                 ]
             )
 
@@ -446,15 +447,17 @@ class TestHUGINFunctionality(unittest.TestCase):
         # constructor for junction tree taking a list based definition
         # will have a function that can convert factor graph into JT
         jt = [
-                0, ["V1","V2"],
+                0,
                 (
-                    1, ["V2"],
+                    1,
                     [
-                        2, ["V2", "V3"]
+                        2,
                     ]
                 )
 
             ]
+
+        node_list = [["V1","V2"],["V2"],["V2", "V3"]]
 
         phi = []
         phi.append(
@@ -478,6 +481,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         phiN = bp.collect(
                             jt,
+                            node_list,
                             {"V1": 0, "V2": 1, "V3": 2},
                             phi,
                             [0]*len(phi),
@@ -497,14 +501,15 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     def test_distribute_messages(self):
         jt = [
-                0, ["V1","V2"],
+                0,
                 (
-                    1, ["V2"],
+                    1,
                     [
-                        2, ["V2", "V3"]
+                        2,
                     ]
                 )
             ]
+        node_list = [["V1","V2"],["V2"],["V2", "V3"]]
         phi = []
         phi.append(
                     np.array(
@@ -527,6 +532,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         phiN = bp.collect(
                             jt,
+                            node_list,
                             {"V1": 0, "V2": 1, "V3": 2},
                             phi,
                             [0]*len(phi),
@@ -535,6 +541,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         phiN2 = bp.distribute(
                                 jt,
+                                node_list,
                                 {"V1": 0, "V2": 1, "V3": 2},
                                 phiN,
                                 [0]*len(phiN),
@@ -572,8 +579,9 @@ class TestHUGINFunctionality(unittest.TestCase):
                 JunctionTree(
                         {},
                         [
-                            0, []
-                        ]
+                            0,
+                        ],
+                        [[]]
                 ),
                 [
                     np.random.randn(),
@@ -588,8 +596,9 @@ class TestHUGINFunctionality(unittest.TestCase):
                             5:3
                         },
                         [
-                            0, [3, 5]
+                            0,
                         ],
+                        [[3, 5]]
                 ),
                 [
                     np.random.randn(2, 3),
@@ -604,14 +613,19 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 5:3
                             },
                             [
-                                0, [3, 5],
+                                0,
                                 (
-                                    1, [5, 3],
+                                    1,
                                     [
-                                        2, [5, 3],
+                                        2,
                                     ]
                                 )
                             ],
+                            [
+                                [3, 5],
+                                [5, 3],
+                                [5, 3],
+                            ]
             ),
             [
                 np.random.randn(2, 3),
@@ -629,13 +643,18 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 9:4
                             },
                             [
-                                0, [3, 5],
+                                0,
                                 (
-                                    1, [5],
+                                    1,
                                     [
-                                        2, [5, 9]
+                                        2,
                                     ]
                                 )
+                            ],
+                            [
+                                [3, 5],
+                                [5],
+                                [5, 9]
                             ]
                     ),
                     [
@@ -653,13 +672,18 @@ class TestHUGINFunctionality(unittest.TestCase):
                             9:3
                         },
                         [
-                            0, [3],
+                            0,
                             (
-                                1, [],
+                                1,
                                 [
-                                    2, [9]
+                                    2,
                                 ]
                             )
+                        ],
+                        [
+                            [3],
+                            [],
+                            [9]
                         ]
                     ),
                     [
@@ -679,19 +703,26 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 9:4,
                             },
                             [
-                                0, [3, 5],
+                                0,
                                 (
-                                    1, [5],
+                                    1,
                                     [
-                                        2, [5, 9],
+                                        2,
                                         (
-                                            3, [9],
+                                            3,
                                             [
-                                                4, [9, 1]
+                                                4,
                                             ]
                                         )
                                     ]
                                 )
+                            ],
+                            [
+                                [3, 5],
+                                [5],
+                                [5, 9],
+                                [9],
+                                [9, 1]
                             ]
                     ),
                     [
@@ -713,20 +744,28 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 9:4
                             },
                             [
-                                0, [3, 5],
+                                0,
                                 (
-                                    1, [5],
+                                    1,
                                     [
-                                        2, [5, 9],
+                                        2,
                                         (
-                                            3, [5],
+                                            3,
                                             [
-                                                4, [1, 5]
+                                                4,
                                             ]
                                         )
                                     ]
                                 )
+                            ],
+                            [
+                                [3, 5],
+                                [5],
+                                [5, 9],
+                                [5],
+                                [1, 5]
                             ]
+
                     ),
                     [
                         np.random.randn(2, 3),
@@ -747,19 +786,26 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 1:5
                             },
                             [
-                                0, [3, 5],
+                                0,
                                 (
-                                    1, [5],
+                                    1,
                                     [
-                                        2, [5, 9],
+                                        2,
                                     ]
                                 ),
                                 (
-                                    3, [3],
+                                    3,
                                     [
-                                        4, [3, 1]
+                                        4,
                                     ]
                                 )
+                            ],
+                            [
+                                [3, 5],
+                                [5],
+                                [5, 9],
+                                [3],
+                                [3, 1]
                             ]
                     ),
                     [
@@ -780,19 +826,26 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 9:4,
                             },
                             [
-                                0, [3, 5],
+                                0,
                                 (
-                                    1, [5],
+                                    1,
                                     [
-                                        2, [5, 9],
+                                        2,
                                     ]
                                 ),
                                 (
-                                    3, [5],
+                                    3,
                                     [
-                                        4, [5]
+                                        4,
                                     ]
                                 )
+                            ],
+                            [
+                                [3, 5],
+                                [5],
+                                [5, 9],
+                                [5],
+                                [5]
                             ]
                     ),
                     [
@@ -816,19 +869,26 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 9:5
                             },
                             [
-                                0, [3, 5, 7],
+                                0,
                                 (
-                                    1, [5, 7],
+                                    1,
                                     [
-                                        2, [5, 7, 9],
+                                        2,
                                     ]
                                 ),
                                 (
-                                    3, [5],
+                                    3,
                                     [
-                                        4, [5, 1]
+                                        4,
                                     ]
                                 )
+                            ],
+                            [
+                                [3, 5, 7],
+                                [5, 7],
+                                [5, 7, 9],
+                                [5],
+                                [5, 1]
                             ]
                     ),
                     [
@@ -850,25 +910,34 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 4: 6
                             },
                             [
-                                0, [0,2,4],
+                                0,
                                 (
-                                    1, [0,2],
+                                    1,
                                     [
-                                        2, [0,1,2]
+                                        2,
                                     ]
                                 ),
                                 (
-                                    3, [4],
+                                    3,
                                     [
-                                        4, [3,4],
+                                        4,
                                         (
-                                            5, [3],
+                                            5,
                                             [
-                                                6, [1,2,3]
+                                                6,
                                             ]
                                         )
                                     ]
                                 )
+                            ],
+                            [
+                                [0,2,4],
+                                [0,2],
+                                [0,1,2],
+                                [4],
+                                [3,4],
+                                [3],
+                                [1,2,3]
                             ]
                     )
 
@@ -912,6 +981,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         phi1 = bp.hugin(
                     jt.get_struct(),
+                    jt.get_node_list(),
                     jt.get_label_order(),
                     phi0,
                     bp.sum_product,
@@ -923,7 +993,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         # for now just find one but for now just check the first clique containing the variable)
 
         for var, val in data.items():
-            clique, _vars = bp.get_clique(jt.get_struct(), var)
+            clique, _vars = bp.get_clique(jt.get_struct(), jt.get_node_list(), var)
             pot = phi1[clique]
             assert pot.shape == phi[clique].shape
             var_ix = _vars.index(var)
@@ -941,7 +1011,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         for var in jt.get_key_sizes():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
+                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), jt.get_node_list(), var):
                     pot = phi1[clique_ix]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
@@ -966,25 +1036,34 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 4: 6
                             },
                             [
-                                0, [0,2,4],
+                                0,
                                 (
-                                    1, [0,2],
+                                    1,
                                     [
-                                        2, [0,1,2]
+                                        2,
                                     ]
                                 ),
                                 (
-                                    3, [4],
+                                    3,
                                     [
-                                        4, [3,4],
+                                        4,
                                         (
-                                            5, [3],
+                                            5,
                                             [
-                                                6, [1,2,3]
+                                                6,
                                             ]
                                         )
                                     ]
                                 )
+                            ],
+                            [
+                                [0,2,4],
+                                [0,2],
+                                [0,1,2],
+                                [4],
+                                [3,4],
+                                [3],
+                                [1,2,3]
                             ]
                     )
 
@@ -1028,6 +1107,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         phi1 = bp.hugin(
                     jt.get_struct(),
+                    jt.get_node_list(),
                     jt.get_label_order(),
                     phi0,
                     bp.sum_product
@@ -1064,6 +1144,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         phi3 = bp.hugin(
                     jt.get_struct(),
+                    jt.get_node_list(),
                     jt.get_label_order(),
                     phi2,
                     bp.sum_product
@@ -1075,7 +1156,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         # for now just find one but for now just check the first clique containing the variable)
 
         for var, val in data.items():
-            clique, _vars = bp.get_clique(jt.get_struct(), var)
+            clique, _vars = bp.get_clique(jt.get_struct(), jt.get_node_list(), var)
             pot = phi3[clique]
             assert pot.shape == phi[clique].shape
             var_ix = _vars.index(var)
@@ -1093,7 +1174,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         for var in jt.get_key_sizes():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
+                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), jt.get_node_list(), var):
                     pot = phi3[clique_ix]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
@@ -1117,25 +1198,34 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 4: 6
                             },
                             [
-                                0, [0,2,4],
+                                0,
                                 (
-                                    1, [0,2],
+                                    1,
                                     [
-                                        2, [0,1,2]
+                                        2,
                                     ]
                                 ),
                                 (
-                                    3, [4],
+                                    3,
                                     [
-                                        4, [3,4],
+                                        4,
                                         (
-                                            5, [3],
+                                            5,
                                             [
-                                                6, [1,2,3]
+                                                6,
                                             ]
                                         )
                                     ]
                                 )
+                            ],
+                            [
+                                [0,2,4],
+                                [0,2],
+                                [0,1,2],
+                                [4],
+                                [3,4],
+                                [3],
+                                [1,2,3]
                             ]
                     )
 
@@ -1179,6 +1269,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         phi1 = bp.hugin(
                     jt.get_struct(),
+                    jt.get_node_list(),
                     jt.get_label_order(),
                     phi0,
                     bp.sum_product
@@ -1215,6 +1306,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         phi3 = bp.hugin(
                     jt.get_struct(),
+                    jt.get_node_list(),
                     jt.get_label_order(),
                     phi2,
                     bp.sum_product
@@ -1226,7 +1318,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         # for now just find one but for now just check the first clique containing the variable)
 
         for var, val in data.items():
-            clique, _vars = bp.get_clique(jt.get_struct(), var)
+            clique, _vars = bp.get_clique(jt.get_struct(), jt.get_node_list(), var)
             pot = phi3[clique]
             assert pot.shape == phi[clique].shape
             var_ix = _vars.index(var)
@@ -1244,7 +1336,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         for var in jt.get_key_sizes():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
+                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), jt.get_node_list(), var):
                     pot = phi3[clique_ix]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
@@ -1272,25 +1364,34 @@ class TestHUGINFunctionality(unittest.TestCase):
                                 4: 6
                             },
                             [
-                                0, [0,2,4],
+                                0,
                                 (
-                                    1, [0,2],
+                                    1,
                                     [
-                                        2, [0,1,2]
+                                        2,
                                     ]
                                 ),
                                 (
-                                    3, [4],
+                                    3,
                                     [
-                                        4, [3,4],
+                                        4,
                                         (
-                                            5, [3],
+                                            5,
                                             [
-                                                6, [1,2,3]
+                                                6,
                                             ]
                                         )
                                     ]
                                 )
+                            ],
+                            [
+                                [0,2,4],
+                                [0,2],
+                                [0,1,2],
+                                [4],
+                                [3,4],
+                                [3],
+                                [1,2,3]
                             ]
                     )
 
@@ -1316,6 +1417,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         phi1 = bp.hugin(
                     jt.get_struct(),
+                    jt.get_node_list(),
                     jt.get_label_order(),
                     phi0,
                     bp.sum_product
@@ -1333,6 +1435,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         phi3 = bp.hugin(
                     jt.get_struct(),
+                    jt.get_node_list(),
                     jt.get_label_order(),
                     phi2,
                     bp.sum_product
@@ -1344,7 +1447,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         # for now just find one but for now just check the first clique containing the variable)
 
         for var, val in data.items():
-            clique, _vars = bp.get_clique(jt.get_struct(), var)
+            clique, _vars = bp.get_clique(jt.get_struct(), jt.get_node_list(), var)
             pot = phi3[clique]
             assert pot.shape == phi[clique].shape
             var_ix = _vars.index(var)
@@ -1362,7 +1465,7 @@ class TestHUGINFunctionality(unittest.TestCase):
         for var in jt.get_key_sizes():
             if var not in data.keys():
                 # we have not observed a value for this var
-                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), var):
+                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), jt.get_node_list(), var):
                     pot = phi3[clique_ix]
                     # get the vals for the observed axes and set unobserved to -1
                     test_arr = np.array([data[v] if v in data else -1 for v in _vars])
@@ -1439,8 +1542,9 @@ class TestJunctionTreeConstruction(unittest.TestCase):
     # graph will be represented in the resulting junction tree.
 
     def test_can_locate_clique_containing_variable(self):
-        tree = [0, [0,1], (1, [1], [2, [1,2]])]
-        clique, _vars = bp.get_clique(tree, 2)
+        tree = [0, (1, [2, ])]
+        node_list = [[0,1],[1], [1,2]]
+        clique, _vars = bp.get_clique(tree, node_list, 2)
         assert clique == 2
 
     def test_convert_factor_graph_to_undirected_graph(self):
@@ -2412,9 +2516,9 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["E","G","H"],#[4,6,7]
                 ]
 
-        tree, sepsets = bp.construct_junction_tree2(cliques, key_sizes)
+        tree, sepsets = bp.construct_junction_tree(cliques, key_sizes)
 
-        jt0 = JunctionTree(key_sizes, tree)
+        jt0 = JunctionTree(key_sizes, tree, cliques+sepsets)
         label_dict = jt0.get_label_order()
 
         def __sepsets_using_tree_index(jt, sepsets):
@@ -2432,31 +2536,31 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         # expected junction tree
 
         jt1 = [
-                0, [0,3,4],
+                0,
                 (
-                    1, [0,3],
+                    1,
                     [
-                        2, [0,1,3]
+                        2,
                     ]
                 ),
                 (
-                    3, [3,4],
+                    3,
                     [
-                        4,[3,4,5]
+                        4,
                     ]
                 ),
                 (
-                    5, [0,4],
+                    5,
                     [
-                        6, [0,2,4],
+                        6,
                         (
-                            7, [2,4],
+                            7,
                             [
-                                8, [2,4,6],
+                                8,
                                 (
-                                    9, [4,6],
+                                    9,
                                     [
-                                        10, [4,6,7]
+                                        10,
                                     ]
                                 )
                             ]
@@ -2465,8 +2569,34 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
                 )
             ]
+        node_list = [
+                        [0,3,4],
+                        [0,3],
+                        [0,1,3],
+                        [3,4],
+                        [3,4,5],
+                        [0,4],
+                        [0,2,4],
+                        [2,4],
+                        [2,4,6],
+                        [4,6],
+                        [4,6,7]
+        ]
 
-        assert_junction_tree_equal2(jt0.get_struct(), jt1)
+        # code below is equivalent to junction tree structure and nodes being equivalent
+        assert len(node_list) == len(jt0.get_node_list())
+        assert set([tuple(sorted(node)) for node in node_list]) == set([tuple(sorted(node)) for node in jt0.get_node_list()])
+        jt0_pairs = [sorted(pair) for pair in bp.generate_potential_pairs(jt0.get_struct())]
+        jt0_node_as_sets = [set(node) for node in jt0.get_node_list()]
+        for pair in bp.generate_potential_pairs(jt1):
+            node_ix1, node_ix2 = pair
+            node1 = set(node_list[node_ix1])
+            node2 = set(node_list[node_ix2])
+
+            matching_node1 = jt0_node_as_sets.index(node1)
+            matching_node2 = jt0_node_as_sets.index(node2)
+            assert sorted([matching_node1, matching_node2]) in jt0_pairs
+
 
     def test_junction_tree_structure_as_indices_into_node_list(self):
         key_sizes = {
@@ -2654,6 +2784,7 @@ class TestJunctionTreeInference(unittest.TestCase):
         jt, init_phi = JunctionTree.from_factor_graph(self.fg)
         phi = jt.propagate(init_phi)
 
+
         # check that marginal values are same with different tree structures
         np.testing.assert_allclose(
                                 jt.marginalize(phi, ["A"]),
@@ -2727,7 +2858,7 @@ class TestJunctionTreeInference(unittest.TestCase):
         )
 
     def test_initialize_potentials(self):
-        jt = JunctionTree(self.key_sizes,self.tree)
+        jt = JunctionTree(self.key_sizes,self.tree, self.node_list)
         init_phi = JunctionTree.init_potentials(jt, self.fg[1], self.fg[2])
         assert_potentials_equal(
                                     init_phi[6:8], # clusters ACE and CE
@@ -2754,7 +2885,7 @@ class TestJunctionTreeInference(unittest.TestCase):
                                 )
 
     def test_global_propagation(self):
-        jt = JunctionTree(self.key_sizes,self.tree)
+        jt = JunctionTree(self.key_sizes,self.tree,self.node_list)
         init_phi = JunctionTree.init_potentials(jt, self.fg[1], self.fg[2])
         phi = jt.propagate(init_phi)
         assert_potentials_equal(
@@ -2906,29 +3037,39 @@ class TestJunctionTreeInference(unittest.TestCase):
         ]
 
         tree = [
-                    0, ["C","D","E"],
+                    0,
                     (
-                        1, ["D","E"],
+                        1,
                         [
-                            2, ["D","E","F"]
+                            2,
                         ]
                     ),
                     (
-                        3, ["C","D"],
+                        3,
                         [
-                            4, ["B","C","D"],
+                            4,
                             (
-                                5, ["B","C"],
+                                5,
                                 [
-                                    6, ["A","B","C"]
+                                    6,
                                 ]
                             )
                         ]
                     )
                 ]
 
+        node_list = [
+                        ["C","D","E"],
+                        ["D","E"],
+                        ["D","E","F"],
+                        ["C","D"],
+                        ["B","C","D"],
+                        ["B","C"],
+                        ["A","B","C"]
+        ]
+
         fg = [key_sizes,factors,values]
-        jt = JunctionTree(key_sizes, tree)
+        jt = JunctionTree(key_sizes, tree, node_list)
         init_phi = JunctionTree.init_potentials(jt, fg[1], fg[2])
 
         phi = jt.propagate(init_phi)

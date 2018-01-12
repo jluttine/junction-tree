@@ -7,16 +7,13 @@ class JunctionTree(object):
         self.key_sizes = key_sizes
         self.labels = {vl:i for i, vl in enumerate(sorted(key_sizes.keys()))}
         self.sorted_labels = self._get_labels()
-        self.clique_keys = {} # clique_ix -> list of keys
         self.keys_to_cliques = {} # key -> list of cliques containing key
         indexed_tree, indexed_node_list = self.map_keys(tree, node_list, self.labels)
         self.struct = indexed_tree
         self.node_list = indexed_node_list
-        clique_id_keys = list(bp.df_traverse2(indexed_tree))
-        for i in range(0, len(clique_id_keys), 2):
-            clique_ix = clique_id_keys[i]
-            clique_keys = clique_id_keys[i+1]
-            self.clique_keys[clique_ix] = clique_keys
+        clique_ids = list(bp.df_traverse(indexed_tree))
+        for i, clique_ix in enumerate(clique_ids):
+            clique_keys = self.node_list[clique_ix]
             for key in clique_keys:
                 self.keys_to_cliques.setdefault(key, [])
                 self.keys_to_cliques[key].append(clique_ix)
@@ -65,7 +62,7 @@ class JunctionTree(object):
 
         """
         try:
-            keys = self.clique_keys[clique_ix]
+            keys = self.node_list[clique_ix]
             key_ix = self.find_key(key_label)
             return keys.index(key_ix)
         except (AttributeError, ValueError):
@@ -106,15 +103,15 @@ class JunctionTree(object):
 
     def get_sorted_labels(self):
         """
-        Return get labels in sorted order
+        Return labels in sorted order
         """
         return self.sorted_labels
 
-    def get_clique_keys(self):
+    def get_node_list(self):
         """
-        Return get clique key mappings
+        Return list of nodes which contain keys
         """
-        return self.clique_keys
+        return self.node_list
 
     def get_clique_sepset(self):
         """
@@ -144,6 +141,7 @@ class JunctionTree(object):
 
         """
         cp_tree = copy.deepcopy(tree)
+        cp_node_list = copy.deepcopy(node_list)
 
         def __run(tree, node_list, lookup, ss_parent=None):
             ix = tree[0]
@@ -165,9 +163,9 @@ class JunctionTree(object):
 
                 __run(c_tree, node_list, lookup, separator[0:1])
 
-        __run(cp_tree, node_list, lookup)
+        __run(cp_tree, cp_node_list, lookup)
 
-        return cp_tree, node_list
+        return cp_tree, cp_node_list
 
 
     @staticmethod
@@ -196,8 +194,8 @@ class JunctionTree(object):
                             factors=factor_graph[1]
         )
         cliques = bp.identify_cliques(induced_clusters)
-        tree, sepsets = bp.construct_junction_tree2(cliques, key_sizes)
-        jt = JunctionTree(key_sizes, tree)
+        tree, sepsets = bp.construct_junction_tree(cliques, key_sizes)
+        jt = JunctionTree(key_sizes, tree, cliques+sepsets)
         phi = JunctionTree.init_potentials(jt, factors, values)
         return jt, phi
 
@@ -221,15 +219,15 @@ class JunctionTree(object):
         Initial potentials
 
         """
-        clique_id_keys = list(bp.bf_traverse2(tree.get_struct()))
+
         clique_lookup = {}
-        potentials = [[]]*(int(len(clique_id_keys)/2))
+        potentials = [[]]*(int(len(tree.get_node_list())))
 
         labels = tree.get_sorted_labels()
         key_sizes = tree.get_key_sizes()
         mapped_keys = {}
 
-        for clique_ix, clique_keys in tree.get_clique_keys().items():
+        for clique_ix, clique_keys in enumerate(tree.get_node_list()):
             # initialize all potentials
             clique_lookup[clique_ix] = clique_keys
             potentials[clique_ix] = np.ones([key_sizes[labels[ix]] for ix in clique_keys])
@@ -292,7 +290,7 @@ class JunctionTree(object):
         shrink_mapping = [
                             (
                                 [slice(None)]*len(potentials[i].shape),
-                                list(self.clique_keys[i])
+                                list(self.node_list[i])
                             )
                             for i in range(len(potentials))
                         ]
@@ -304,6 +302,7 @@ class JunctionTree(object):
             key_ix = self.find_key(key_lbl)
             clique_ix, clique_keys = bp.get_clique_of_key(
                                                     self.get_struct(),
+                                                    self.get_node_list(),
                                                     key_ix
             )
 
@@ -327,7 +326,7 @@ class JunctionTree(object):
             for clique_ix in self.keys_to_cliques[key_ix]:
                 shrink_mapping[clique_ix][1].remove(key_ix)
                 # update key to have observed value in array indexer
-                keys = self.clique_keys[clique_ix]
+                keys = self.node_list[clique_ix]
                 c_key_ix = keys.index(key_ix)
                 shrink_mapping[clique_ix][0][c_key_ix] = val
 
@@ -338,6 +337,42 @@ class JunctionTree(object):
         return (ll, potentials, shrink_mapping)
 
     def propagate(self, potentials, in_place=True, data=None):
+        """
+        Return consistent potentials
+
+        Input:
+        ------
+
+        List of inconsistent potentials
+
+        Boolean to do updates in place
+
+        Dictionary of key label as key and key assignment as value
+
+        Output:
+        -------
+
+        Updated list of (consistent) potentials and
+            normalization constants for each tree
+
+        """
+        new_potentials = potentials if in_place else copy.deepcopy(potentials)
+        shrink_mapping = None
+        if data:
+            likelihood, new_potentials, shrink_mapping = self.observe(new_potentials, data=data)
+
+        new_potentials = bp.hugin(
+                                self.get_struct(),
+                                self.get_node_list(),
+                                self.get_label_order(),
+                                new_potentials,
+                                bp.sum_product,
+                                shrink_mapping
+        )
+
+        return new_potentials
+
+    def propagate2(self, potentials, in_place=True, data=None):
         """
         Return consistent potentials
 
@@ -401,8 +436,7 @@ class JunctionTree(object):
 
         key_ix = self.find_key(key_labels[0])
         clique_ix = self.keys_to_cliques[key_ix][0]
-        clique_keys = self.clique_keys[clique_ix]
-
+        clique_keys = self.node_list[clique_ix]
 
         # map keys to get around variable count limitation in einsum
         mapped_keys = []
