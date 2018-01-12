@@ -372,40 +372,6 @@ class JunctionTree(object):
 
         return new_potentials
 
-    def propagate2(self, potentials, in_place=True, data=None):
-        """
-        Return consistent potentials
-
-        Input:
-        ------
-
-        List of inconsistent potentials
-
-        Boolean to do updates in place
-
-        Dictionary of key label as key and key assignment as value
-
-        Output:
-        -------
-
-        Updated list of (consistent) potentials and
-            normalization constants for each tree
-
-        """
-        new_potentials = potentials if in_place else copy.deepcopy(potentials)
-        shrink_mapping = None
-        if data:
-            likelihood, new_potentials, shrink_mapping = self.observe(new_potentials, data=data)
-
-        new_potentials = bp.hugin(
-                                self.get_struct(),
-                                self.get_label_order(),
-                                new_potentials,
-                                bp.sum_product,
-                                shrink_mapping
-        )
-
-        return new_potentials
 
     def marginalize(self, potentials, key_labels, normalize=False):
         """

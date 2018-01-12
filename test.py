@@ -25,37 +25,6 @@ def assert_junction_tree_equal(t1, t2):
     pairs2 = set([tuple(sorted(p)) for p in bp.generate_potential_pairs(t2)])
     assert pairs1 == pairs2
 
-def assert_junction_tree_equal2(t1, t2):
-    """Test equality of two junction trees
-
-    Both trees contain same edges and cliques have same keys
-
-    """
-
-
-    def __build_dict(tree):
-        # dict is: clique_keys -> set of each tuple of neighbor_keys
-        d = {}
-
-        stack = [tree]
-        d[frozenset((tree[1]))] = set()
-        while stack:
-            tree = stack.pop()
-            for child in reversed(tree[2:]):
-                d[frozenset((tree[1]))].add(frozenset((child[1])))
-                # child clique entry initialized
-                d[frozenset((child[2][1]))] = set([frozenset((child[1]))])
-                # separator entered in dictionary
-                d[frozenset((child[1]))] = set([frozenset((tree[1])),frozenset((child[2][1]))])
-                stack.append(child[2])
-
-        return d
-
-    d1 = __build_dict(t1)
-    d2 = __build_dict(t2)
-
-    assert d1 == d2
-
 
 def assert_factor_graph_equal(fg1, fg2):
     # assert that the variable maps are equal
@@ -1829,7 +1798,6 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         tri, ics, max_cliques = bp.find_triangulation(factors, _vars)
         assert_triangulated(factors, tri)
-        #cliques = bp.identify_cliques(ics)
 
 
         assert len(max_cliques) == 6
@@ -2597,50 +2565,6 @@ class TestJunctionTreeConstruction(unittest.TestCase):
             matching_node2 = jt0_node_as_sets.index(node2)
             assert sorted([matching_node1, matching_node2]) in jt0_pairs
 
-
-    def test_junction_tree_structure_as_indices_into_node_list(self):
-        key_sizes = {
-                        "A": 2,
-                        "B": 2,
-                        "C": 2,
-                        "D": 2,
-                        "E": 2,
-                        "F": 2,
-                        "G": 2,
-                        "H": 2
-        }
-
-        factors = [
-                    ["A"], # 0
-                    ["B"], # 1
-                    ["C"], # 2
-                    ["D"], # 3
-                    ["E"], # 4
-                    ["F"], # 5
-                    ["G"], # 6
-                    ["H"]  # 7
-        ]
-
-        cliques = [
-                    ["A","B","D"],#[0,1,3]
-                    ["A","C","E"],#[0,2,4]
-                    ["A","D","E"],#[0,3,4]
-                    ["C","E","G"],#[2,4,6]
-                    ["D","E","F"],#[3,4,5]
-                    ["E","G","H"],#[4,6,7]
-                ]
-
-        tree1, sepsets = bp.construct_junction_tree2(cliques, key_sizes)
-        traversed_tree = list(bp.bf_traverse2(tree1))
-
-        tree2, sepsets = bp.construct_junction_tree(cliques, key_sizes)
-        node_list = cliques + sepsets
-
-        # check that both tree structures have same underlying nodes
-        assert set([tuple(set(val)) for i, val in enumerate(traversed_tree) if (i+1) % 2 == 0]) == set([tuple(set(node)) for node in node_list])
-
-        # check that relationship between nodes is preserved in node list representation of tree
-        assert set([tuple(set([tuple(pairs[1]), tuple(pairs[3])])) for pairs in bp.generate_potential_pairs2(tree1)]) == set([tuple(set([tuple(node_list[pair[0]]), tuple(node_list[pair[1]])])) for pair in bp.generate_potential_pairs(tree2)])
 
 class TestJunctionTreeInference(unittest.TestCase):
     def setUp(self):
