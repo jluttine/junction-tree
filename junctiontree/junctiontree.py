@@ -4,7 +4,7 @@ Simple user interface for the Junction tree algorithm library
 
 import numpy as np
 
-import bp
+import .beliefpropagation as bp
 import attr
 
 
