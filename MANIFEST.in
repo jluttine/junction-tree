@@ -1,2 +1,7 @@
+include README*
+include INSTALL*
+include LICENSE
+include CHANGELOG*
+
 include versioneer.py
 include junctiontree/_version.py
