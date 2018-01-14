@@ -109,42 +109,11 @@ class FactorGraph():
         #
         # Also, I didn't quite understand the purpose of the other (the first
         # and the second) outputs.
-        (_, _, maxcliques) = bp.find_triangulation(
+        (_, _, maxcliques, factor_to_maxclique) = bp.find_triangulation(
             self.factors,
             self.sizes
         )
 
-        # FIXME: This should be done already in find_triangulation function as
-        # a part of its process.
-        #
-        # Now, back to the world of factors:
-        #
-        # We need a mapping factorID -> cliqueID, where the IDs are just list
-        # indices.
-        #
-        # Thus, for each factor, find the maximal clique they belong to.
-
-        def _find_clique(factor):
-            """Find the maximal clique that contains the given factor"""
-            return argfind1(
-                maxcliques,
-                lambda clique: is_subset(factor, clique),
-            )
-
-        # TODO: This is the result we should obtain from find_triangulation:
-        #
-        # A list which gives each factor the maxclique ID they belong to. So,
-        # the list length is equivalent to the length of the factors list.
-        #
-        # [maxclique_of_factor_1, ..., maxclique_of_factor_N]
-        #
-        # Note that the number of maxcliques is less or equivalent to the
-        # number of factors. Thus, multiple factors can point to the same
-        # maxclique ID.
-        factor_to_maxclique = [
-            _find_clique(factor)
-            for factor in self.factors
-        ]
 
         return CliqueGraph(
             maxcliques=maxcliques,
@@ -357,6 +326,7 @@ class JunctionTree():
         # match what the function expects.
         ys = bp.hugin(
             self.tree,
+            self.clique_tree.maxcliques + self.separators,
             sizes,
             values,
             distributive_law

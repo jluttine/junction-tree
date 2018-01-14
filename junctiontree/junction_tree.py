@@ -192,7 +192,7 @@ class JunctionTree(object):
         key_sizes = factor_graph[0]
         factors = factor_graph[1]
         values = factor_graph[2]
-        tri,induced_clusters, max_cliques = bp.find_triangulation(
+        tri,induced_clusters, max_cliques, _ = bp.find_triangulation(
                             key_sizes=factor_graph[0],
                             factors=factor_graph[1]
         )

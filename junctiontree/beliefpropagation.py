@@ -44,16 +44,17 @@ def factors_to_undirected_graph(factors):
     Output:
     -------
 
-    Undirected graph as dictionary of edges
+    Undirected graph as dictionary of edges mapped to the factor from
+            which edge originates
     """
 
     edges = {}
 
-    for factor in factors:
+    for factor_ix, factor in enumerate(factors):
         factor_set = set(factor)
         for v1 in factor:
             for v2 in factor_set - set([v1]):
-                edges.setdefault(frozenset((v1,v2)), None)
+                edges[frozenset((v1,v2))] = factor_ix
 
     return edges
 
@@ -89,6 +90,8 @@ def find_triangulation(factors, key_sizes):
 
     A list of maximal cliques generated during triangulation process
 
+    A dictionary mapping each factor to the max_clique which contains the factor
+
     """
 
     # NOTE: Only keys that have been used at least in one factor should be
@@ -107,7 +110,9 @@ def find_triangulation(factors, key_sizes):
 
     tri = []
     induced_clusters = []
+    induced_cluster_to_maxclique = {}
     max_cliques = []
+    factor_to_maxclique = [None]*len(factors)
 
     edges = factors_to_undirected_graph(factors)
     heap, entry_finder = initialize_triangulation_heap(
@@ -124,17 +129,17 @@ def find_triangulation(factors, key_sizes):
                                                         edges
         )
         key = item[2]
-
         # find neighbors that are in remaining keys
         rem_neighbors = []
-        for edge in edges:
+        origin_factors = []
+        for edge, factor_ix in edges.items():
             if key in edge:
                 neighbor = set(rem_keys).intersection(edge)
                 if len(neighbor) == 1:
                     rem_neighbors.append(neighbor.pop())
+                    origin_factors.extend([factor_ix] if factor_ix != None and factor_to_maxclique[factor_ix] == None else [])
 
         new_clust = rem_neighbors + [key]
-        induced_clusters.append(new_clust)
         # connect all unconnected neighbors of key
         for i, n1 in enumerate(rem_neighbors):
             for n2 in rem_neighbors[i+1:]:
@@ -142,13 +147,32 @@ def find_triangulation(factors, key_sizes):
                     edges[frozenset((n1,n2))] = None
                     tri.append((n1,n2))
 
+        new_ic_ix = len(induced_clusters)
 
-        if any(frozenset(new_clust) < frozenset(s2) for s2 in induced_clusters):
-            continue
-        else:
+        for ic_ix, s2 in enumerate(induced_clusters):
+            if frozenset(new_clust) < frozenset(s2):
+                # new cluster is just subset of existing cluster
+                induced_cluster_to_maxclique[new_ic_ix] = induced_cluster_to_maxclique[ic_ix]
+
+                # map factors to existing maxclique
+                for factor_ix in set(origin_factors):
+                    factor_to_maxclique[factor_ix] = induced_cluster_to_maxclique[new_ic_ix]
+
+                break
+
+        induced_clusters.append(new_clust)
+
+        if new_ic_ix not in induced_cluster_to_maxclique:
+            # new maxclique discovered
             max_cliques.append(sorted(new_clust))
+            new_maxclique_ix = len(max_cliques) - 1
+            induced_cluster_to_maxclique[new_ic_ix] = new_maxclique_ix
+            # map factors to new maxclique
+            for factor_ix in set(origin_factors):
+                factor_to_maxclique[factor_ix] = new_maxclique_ix
 
-    return tri, induced_clusters, max_cliques
+
+    return tri, induced_clusters, max_cliques, factor_to_maxclique
 
 
 def initialize_triangulation_heap(key_sizes, edges):
@@ -222,7 +246,7 @@ def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
 
                             ]
         )
-        # weight of a cluster is the product of all key lenghts in cluster
+        # weight of a cluster is the product of all key lengths in cluster
         weight = key_sizes[key]*np.prod([key_sizes[n] for n in rem_neighbors])
         entry = [num_new_edges, weight, key]
         heapq.heappush(h, entry)

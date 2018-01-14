@@ -1,13 +1,13 @@
 import numpy as np
 
-import bp
+from junctiontree import beliefpropagation as bp
 import unittest
 import networkx as nx
 import itertools
 import heapq
 import copy
-from junction_tree import JunctionTree
-from sum_product import SumProduct
+from junctiontree.junction_tree import JunctionTree
+from junctiontree.sum_product import SumProduct
 import math
 
 
@@ -150,8 +150,7 @@ def assert_potentials_equal(p1, p2):
     """Test equality of two potentials
 
     """
-    print (p1)
-    print (p2)
+
     # Same number of potentials
     assert len(p1) == len(p2)
 
@@ -1764,14 +1763,16 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     np.random.randn(2, 2),
                 ]
         fg = [_vars, factors, values]
-        tri, ics, max_cliques = bp.find_triangulation(fg[1], fg[0])
+        tri, ics, max_cliques, factor_to_maxclique = bp.find_triangulation(fg[1], fg[0])
 
         # triangulation should consist of 1 edge
         assert len(tri) == 1
         assert len(tri[0]) == 2
         # to triangulate we have a few options
         assert set(tri[0]) in [set(("A","C")),set(("A","D")),set(("B","D")),set(("B","E"))]
-
+        # ensure factors to cliques mapping is correct
+        for factor_ix, clique_ix in enumerate(factor_to_maxclique):
+            assert np.all([factor_key in max_cliques[clique_ix] for factor_key in factors[factor_ix]])
         assert_triangulated(fg[1], tri)
 
     def test_triangulate_factor_graph2(self):
@@ -1796,7 +1797,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["D", "E", "F"]  #6
         ]
 
-        tri, ics, max_cliques = bp.find_triangulation(factors, _vars)
+        tri, ics, max_cliques, _ = bp.find_triangulation(factors, _vars)
         assert_triangulated(factors, tri)
 
 
@@ -1830,7 +1831,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
                     ["S","L","J"], #5
         ]
 
-        tri, ics, max_cliques = bp.find_triangulation(factors, _vars)
+        tri, ics, max_cliques, _ = bp.find_triangulation(factors, _vars)
         assert_triangulated(factors, tri)
         cliques = bp.identify_cliques(ics)
 
