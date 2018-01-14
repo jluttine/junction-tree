@@ -1,6 +1,9 @@
 import copy
-import bp
 import numpy as np
+
+# FIXME: Cyclic import
+from . import beliefpropagation as bp
+
 
 class JunctionTree(object):
     def __init__(self, key_sizes, tree=[], node_list=[]):

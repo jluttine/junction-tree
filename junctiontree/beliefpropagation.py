@@ -25,8 +25,12 @@ General guidelines:
 import numpy as np
 import heapq
 import copy
+
+# FIXME: Cyclic import
 from .junction_tree import JunctionTree
+
 from .sum_product import SumProduct
+
 
 def factors_to_undirected_graph(factors):
     """
