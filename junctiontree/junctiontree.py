@@ -102,16 +102,21 @@ class FactorGraph():
 
         # Let's use the triangulation methods of undirected graphs.
         #
-        # TODO: Perhaps the triangulation could be done in such a way that the
+        # FIXME: Perhaps the triangulation could be done in such a way that the
         # factor mappings are found at the same time. It is not very efficient
         # to first use only undirected graph and then finding out how the
         # factors are connected to that result.
-        (_, cliques) = bp.find_triangulation(
+        #
+        # Also, I didn't quite understand the purpose of the other (the first
+        # and the second) outputs.
+        (_, _, maxcliques) = bp.find_triangulation(
             self.factors,
             self.sizes
         )
-        maxcliques = bp.identify_cliques(cliques)
 
+        # FIXME: This should be done already in find_triangulation function as
+        # a part of its process.
+        #
         # Now, back to the world of factors:
         #
         # We need a mapping factorID -> cliqueID, where the IDs are just list
@@ -126,6 +131,16 @@ class FactorGraph():
                 lambda clique: is_subset(factor, clique),
             )
 
+        # TODO: This is the result we should obtain from find_triangulation:
+        #
+        # A list which gives each factor the maxclique ID they belong to. So,
+        # the list length is equivalent to the length of the factors list.
+        #
+        # [maxclique_of_factor_1, ..., maxclique_of_factor_N]
+        #
+        # Note that the number of maxcliques is less or equivalent to the
+        # number of factors. Thus, multiple factors can point to the same
+        # maxclique ID.
         factor_to_maxclique = [
             _find_clique(factor)
             for factor in self.factors
@@ -176,11 +191,8 @@ class CliqueGraph():
         # node between two maxclique nodes.
 
 
-        # TODO/FIXME: `construct_junction_tree` doesn't provide the list of
-        # separators, so we need to go through the tree and find them. This
-        # should already be done in the construction phase, right? We need a
-        # list of separators which are in the order that the indices in the
-        # tree use.
+        # `construct_junction_tree` provides the list of separators, which are
+        # in the order that the indices in the tree use.
         #
         # For instance, a list of two separators:
         #
@@ -212,7 +224,7 @@ class CliqueGraph():
         #
         # So, what we need is the above tree structure and separators list.
 
-        (tree, sepsets) = bp.construct_junction_tree(
+        (tree, separators) = bp.construct_junction_tree(
             self.maxcliques,
             self.factor_graph.sizes
         )
@@ -246,6 +258,54 @@ class CliqueGraph():
             for (factors, maxclique) in zip(
                     maxclique_to_factors,
                     self.maxcliques
+            )
+        ]
+
+
+    def marginalize(self, ys):
+        """Marginalize results for maxcliques to results for factors
+
+        This needs to be done because each maxclique may contain multiple
+        factors and also some auxiliary variables. The results should be given
+        for factors.
+
+        Basically, for each factor, find the maxclique they belong to, and
+        marginalize (e.g., sum) the axes that don't belong to that factor.
+
+        Inputs
+        ------
+
+        ys : A list of arrays containing the result (e.g., consistent clique
+             potentials) for each maxclique.
+
+        Outputs
+        -------
+        xs : A list of arrays containing the result for each factor.
+
+        """
+
+        # This tells which maxclique to use for each factor
+        self.factor_to_maxclique
+
+        # This tells the keys in each factor
+        self.factor_graph.factors
+
+        # This tells the keys in each maxclique
+        self.maxcliques
+
+        # Now, use my custom einsum to marginalize, something like (didn't test
+        # this out):
+        #
+        # FIXME: This is most likely slightly incorrect as I didn't test it.
+        return [
+            einsum(
+                [ys[maxclique]],
+                [self.maxcliques[maxclique]],
+                factor_keys
+            )
+            for (factor_keys, maxclique) in zip(
+                    self.factor_graph.factors,
+                    self.factor_to_maxclique
             )
         ]
 
@@ -293,6 +353,8 @@ class JunctionTree():
         # Node list is a concatenation of maxcliques and separators
         values = maxclique_values + separator_values
 
+        # FIXME: There is some argument missing and not sure if these arguments
+        # match what the function expects.
         ys = bp.hugin(
             self.tree,
             sizes,
@@ -300,9 +362,8 @@ class JunctionTree():
             distributive_law
         )
 
-        # TODO: The return result should be marginalized to the factors. That
-        # is, the output list and the arrays inside it have the same length and
-        # shapes as xs. That marginalization function should be provided by
+        # The return result should be marginalized to the factors. That is, the
+        # output list and the arrays inside it have the same length and shapes
+        # as xs. That marginalization function should be provided by
         # CliqueGraph.
-
-        raise NotImplementedError()
+        return self.clique_tree.marginalize(ys)
