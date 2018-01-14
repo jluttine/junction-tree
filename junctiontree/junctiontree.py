@@ -101,14 +101,7 @@ class FactorGraph():
         """Create a triangulated clique tree from a factor graph."""
 
         # Let's use the triangulation methods of undirected graphs.
-        #
-        # FIXME: Perhaps the triangulation could be done in such a way that the
-        # factor mappings are found at the same time. It is not very efficient
-        # to first use only undirected graph and then finding out how the
-        # factors are connected to that result.
-        #
-        # Also, I didn't quite understand the purpose of the other (the first
-        # and the second) outputs.
+        
         (_, _, maxcliques, factor_to_maxclique) = bp.find_triangulation(
             self.factors,
             self.sizes
