@@ -79,7 +79,6 @@ class SumProduct():
         if np.all(sep_pot) == 0:
             return np.zeros_like(clique_pot)
 
-
         # map keys to get around variable count limitation in einsum
         mapped_keys = []
         m_keys = {}

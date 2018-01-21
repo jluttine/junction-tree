@@ -7,6 +7,7 @@ import itertools
 import heapq
 import copy
 from junctiontree.junction_tree import JunctionTree
+import junctiontree.junctiontree as jt
 from junctiontree.sum_product import SumProduct
 import math
 
@@ -189,17 +190,38 @@ def brute_force_sum_product(tree, node_list, potentials):
 
     return __run(tree, node_list, potentials, f)
 
-def assert_sum_product(junction_tree, potentials):
+def assert_sum_product(junction_tree, node_order, potentials):
+    """ Test hugin vs brute force sum-product """
+
+    # node_order represents the order nodes are traversed
+    # in get_arrays_and_keys function
+    tree = junction_tree.tree
+    node_list = junction_tree.clique_tree.maxcliques + junction_tree.separators
+    assert_potentials_equal(
+        brute_force_sum_product(
+                            tree,
+                            [node_list[idx] for idx in node_order],
+                            [potentials[idx] for idx in node_order]
+        ),
+        bp.hugin(
+                tree,
+                node_list,
+                potentials,
+                bp.sum_product
+        )
+    )
+
+def assert_sum_product2(junction_tree, potentials):
     """ Test hugin vs brute force sum-product """
 
     tree = junction_tree.get_struct()
     node_list = junction_tree.get_node_list()
+
     assert_potentials_equal(
         brute_force_sum_product(tree, node_list, potentials),
         bp.hugin(
                 tree,
                 node_list,
-                junction_tree.get_label_order(),
                 potentials,
                 bp.sum_product,
         )
@@ -450,7 +472,6 @@ class TestHUGINFunctionality(unittest.TestCase):
         phiN = bp.collect(
                             jt,
                             node_list,
-                            {"V1": 0, "V2": 1, "V3": 2},
                             phi,
                             [0]*len(phi),
                             bp.sum_product
@@ -501,7 +522,6 @@ class TestHUGINFunctionality(unittest.TestCase):
         phiN = bp.collect(
                             jt,
                             node_list,
-                            {"V1": 0, "V2": 1, "V3": 2},
                             phi,
                             [0]*len(phi),
                             bp.sum_product
@@ -510,7 +530,6 @@ class TestHUGINFunctionality(unittest.TestCase):
         phiN2 = bp.distribute(
                                 jt,
                                 node_list,
-                                {"V1": 0, "V2": 1, "V3": 2},
                                 phiN,
                                 [0]*len(phiN),
                                 bp.sum_product
@@ -544,13 +563,21 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     def test_one_scalar_node(self):
         assert_sum_product(
-                JunctionTree(
-                        {},
-                        [
-                            0,
-                        ],
-                        [[]]
+                jt.JunctionTree(
+                            [
+                                0,
+                            ],
+                            [],
+                            jt.CliqueGraph(
+                                maxcliques=[[]],
+                                factor_to_maxclique=[],
+                                factor_graph=jt.FactorGraph(
+                                    factors=[],
+                                    sizes={}
+                                )
+                            )
                 ),
+                [0],
                 [
                     np.random.randn(),
                 ]
@@ -558,16 +585,24 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     def test_one_matrix_node(self):
         assert_sum_product(
-                JunctionTree(
-                        {
-                            3:2,
-                            5:3
-                        },
-                        [
-                            0,
-                        ],
-                        [[3, 5]]
+                jt.JunctionTree(
+                            [
+                                0,
+                            ],
+                            [],
+                            jt.CliqueGraph(
+                                maxcliques=[[3, 5]],
+                                factor_to_maxclique=[0],
+                                factor_graph=jt.FactorGraph(
+                                    factors=[[3,5]],
+                                    sizes={
+                                        3:2,
+                                        5:3
+                                    }
+                                )
+                            )
                 ),
+                [0],
                 [
                     np.random.randn(2, 3),
                 ]
@@ -575,296 +610,317 @@ class TestHUGINFunctionality(unittest.TestCase):
 
     def test_one_child_node_with_all_variables_shared(self):
         assert_sum_product(
-            JunctionTree(
-                            {
-                                3:2,
-                                5:3
-                            },
-                            [
-                                0,
-                                (
+            jt.JunctionTree(
+                        [
+                            0,
+                            (
+                                2,
+                                [
                                     1,
-                                    [
-                                        2,
-                                    ]
-                                )
-                            ],
-                            [
-                                [3, 5],
-                                [5, 3],
-                                [5, 3],
-                            ]
+                                ]
+                            )
+                        ],
+                        [[5, 3]],
+                        jt.CliqueGraph(
+                            maxcliques=[[3, 5],[5, 3]],
+                            factor_to_maxclique=[0, 1],
+                            factor_graph=jt.FactorGraph(
+                                factors=[[3], [5]],
+                                sizes={
+                                    3:2,
+                                    5:3
+                                }
+                            )
+                        )
             ),
+            [0,2,1],
             [
                 np.random.randn(2, 3),
-                np.ones((3, 2)),
                 np.random.randn(3, 2),
+                np.ones((3, 2)),
             ]
         )
 
     def test_one_child_node_with_one_common_variable(self):
         assert_sum_product(
-                    JunctionTree(
-                            {
-                                3:2,
-                                5:3,
-                                9:4
-                            },
-                            [
-                                0,
-                                (
-                                    1,
-                                    [
+                    jt.JunctionTree(
+                                [
+                                    0,
+                                    (
                                         2,
-                                    ]
+                                        [
+                                            1,
+                                        ]
+                                    )
+                                ],
+                                [[5]],
+                                jt.CliqueGraph(
+                                    maxcliques=[[3, 5],[5, 9]],
+                                    factor_to_maxclique=[0, 1],
+                                    factor_graph=jt.FactorGraph(
+                                        factors=[[3,5],[5,9]],
+                                        sizes={
+                                            3:2,
+                                            5:3,
+                                            9:4
+                                        }
+                                    )
                                 )
-                            ],
-                            [
-                                [3, 5],
-                                [5],
-                                [5, 9]
-                            ]
                     ),
+                    [0,2,1],
                     [
                         np.random.randn(2, 3),
-                        np.ones((3,)),
                         np.random.randn(3, 4),
+                        np.ones((3,)),
                     ]
         )
 
     def test_one_child_node_with_no_common_variable(self):
         assert_sum_product(
-                    JunctionTree(
-                        {
-                            3:2,
-                            9:3
-                        },
-                        [
-                            0,
-                            (
-                                1,
+                    jt.JunctionTree(
                                 [
-                                    2,
-                                ]
-                            )
-                        ],
-                        [
-                            [3],
-                            [],
-                            [9]
-                        ]
+                                    0,
+                                    (
+                                        2,
+                                        [
+                                            1,
+                                        ]
+                                    )
+                                ],
+                                [[]],
+                                jt.CliqueGraph(
+                                    maxcliques=[[3],[9]],
+                                    factor_to_maxclique=[0, 1],
+                                    factor_graph=jt.FactorGraph(
+                                        factors=[[3],[9]],
+                                        sizes={
+                                            3:2,
+                                            9:3
+                                        }
+                                    )
+                                )
                     ),
+                    [0,2,1],
                     [
                         np.random.randn(2),
-                        np.ones(()),
                         np.random.randn(3),
+                        np.ones(()),
                     ]
         )
 
     def test_one_grand_child_node_with_no_variable_shared_with_grand_parent(self):
         assert_sum_product(
-                    JunctionTree(
-                            {
-                                1:5,
-                                3:2,
-                                5:3,
-                                9:4,
-                            },
-                            [
-                                0,
-                                (
-                                    1,
-                                    [
-                                        2,
-                                        (
-                                            3,
-                                            [
+                    jt.JunctionTree(
+                                [
+                                    0,
+                                    (
+                                        3,
+                                        [
+                                            1,
+                                            (
                                                 4,
-                                            ]
-                                        )
-                                    ]
+                                                [
+                                                    2,
+                                                ]
+                                            )
+                                        ]
+                                    )
+                                ],
+                                [[5],[9]],
+                                jt.CliqueGraph(
+                                    maxcliques=[[3, 5],[5, 9],[9, 1]],
+                                    factor_to_maxclique=[0,1,2],
+                                    factor_graph=jt.FactorGraph(
+                                        factors=[[3, 5],[5, 9],[9, 1]],
+                                        sizes={
+                                            1:5,
+                                            3:2,
+                                            5:3,
+                                            9:4,
+                                        }
+                                    )
                                 )
-                            ],
-                            [
-                                [3, 5],
-                                [5],
-                                [5, 9],
-                                [9],
-                                [9, 1]
-                            ]
                     ),
+                    [0,2,4,1,3],
                     [
                         np.random.randn(2, 3),
-                        np.ones((3,)),
                         np.random.randn(3, 4),
-                        np.ones((4,)),
                         np.random.randn(4, 5),
+                        np.ones((3,)),
+                        np.ones((4,)),
                     ]
         )
 
     def test_one_grand_child_node_with_variable_shared_with_grand_parent(self):
         assert_sum_product(
-                    JunctionTree(
-                            {
-                                1:6,
-                                3:2,
-                                5:3,
-                                9:4
-                            },
-                            [
-                                0,
-                                (
-                                    1,
-                                    [
-                                        2,
-                                        (
-                                            3,
-                                            [
+                    jt.JunctionTree(
+                                [
+                                    0,
+                                    (
+                                        3,
+                                        [
+                                            1,
+                                            (
                                                 4,
-                                            ]
-                                        )
-                                    ]
+                                                [
+                                                    2,
+                                                ]
+                                            )
+                                        ]
+                                    )
+                                ],
+                                [[5],[5]],
+                                jt.CliqueGraph(
+                                    maxcliques=[[3, 5],[5, 9],[1, 5]],
+                                    factor_to_maxclique=[0,1,2],
+                                    factor_graph=jt.FactorGraph(
+                                        factors=[[3, 5],[5, 9],[1, 5]],
+                                        sizes={
+                                            1:6,
+                                            3:2,
+                                            5:3,
+                                            9:4
+                                        },
+                                    )
                                 )
-                            ],
-                            [
-                                [3, 5],
-                                [5],
-                                [5, 9],
-                                [5],
-                                [1, 5]
-                            ]
-
                     ),
+                    [0,2,4,1,3],
                     [
                         np.random.randn(2, 3),
-                        np.ones((3,)),
                         np.random.randn(3, 4),
-                        np.ones((3,)),
                         np.random.randn(6, 3),
+                        np.ones((3,)),
+                        np.ones((3,)),
                     ]
         )
 
     def test_two_children_with_no_variable_shared(self):
         assert_sum_product(
-                    JunctionTree(
-                            {
-                                3:2,
-                                5:3,
-                                9:4,
-                                1:5
-                            },
-                            [
-                                0,
-                                (
-                                    1,
-                                    [
-                                        2,
-                                    ]
-                                ),
-                                (
-                                    3,
-                                    [
+                    jt.JunctionTree(
+                                 [
+                                    0,
+                                    (
+                                        3,
+                                        [
+                                            1,
+                                        ]
+                                    ),
+                                    (
                                         4,
-                                    ]
+                                        [
+                                            2,
+                                        ]
+                                    )
+                                ],
+                                [[5],[3]],
+                                jt.CliqueGraph(
+                                    maxcliques=[[3, 5],[5, 9],[3, 1]],
+                                    factor_to_maxclique=[0,1,2],
+                                    factor_graph=jt.FactorGraph(
+                                        factors=[[3, 5],[5, 9],[3, 1]],
+                                        sizes={
+                                            3:2,
+                                            5:3,
+                                            9:4,
+                                            1:5
+                                        },
+                                    )
                                 )
-                            ],
-                            [
-                                [3, 5],
-                                [5],
-                                [5, 9],
-                                [3],
-                                [3, 1]
-                            ]
                     ),
+                    [0,2,4,1,3],
                     [
                         np.random.randn(2, 3),
-                        np.ones((3,)),
                         np.random.randn(3, 4),
-                        np.ones((2,)),
                         np.random.randn(2, 5),
+                        np.ones((3,)),
+                        np.ones((2,)),
                     ]
         )
 
     def test_two_child_with_shared_variable(self):
         assert_sum_product(
-                    JunctionTree(
-                            {
-                                3:2,
-                                5:3,
-                                9:4,
-                            },
-                            [
-                                0,
-                                (
-                                    1,
-                                    [
-                                        2,
-                                    ]
-                                ),
-                                (
-                                    3,
-                                    [
+                    jt.JunctionTree(
+                                 [
+                                    0,
+                                    (
+                                        3,
+                                        [
+                                            1,
+                                        ]
+                                    ),
+                                    (
                                         4,
-                                    ]
+                                        [
+                                            2,
+                                        ]
+                                    )
+                                ],
+                                [[5],[5]],
+                                jt.CliqueGraph(
+                                    maxcliques=[[3, 5],[5, 9],[5]],
+                                    factor_to_maxclique=[0,1,2],
+                                    factor_graph=jt.FactorGraph(
+                                        factors=[[3, 5],[5, 9],[5]],
+                                        sizes={
+                                            3:2,
+                                            5:3,
+                                            9:4,
+                                        },
+                                    )
                                 )
-                            ],
-                            [
-                                [3, 5],
-                                [5],
-                                [5, 9],
-                                [5],
-                                [5]
-                            ]
                     ),
+                    [0,2,4,1,3],
                     [
                         np.random.randn(2, 3),
-                        np.ones((3,)),
                         np.random.randn(3, 4),
-                        np.ones((3,)),
                         np.random.randn(3),
+                        np.ones((3,)),
+                        np.ones((3,)),
 
                     ]
         )
 
     def test_two_children_with_3D_tensors(self):
         assert_sum_product(
-                    JunctionTree(
-                            {
-                                1:6,
-                                3:2,
-                                5:3,
-                                7:4,
-                                9:5
-                            },
-                            [
-                                0,
-                                (
-                                    1,
-                                    [
-                                        2,
-                                    ]
-                                ),
-                                (
-                                    3,
-                                    [
+                    jt.JunctionTree(
+                                 [
+                                    0,
+                                    (
+                                        3,
+                                        [
+                                            1,
+                                        ]
+                                    ),
+                                    (
                                         4,
-                                    ]
+                                        [
+                                            2,
+                                        ]
+                                    )
+                                ],
+                                [[5, 7],[5]],
+                                jt.CliqueGraph(
+                                    maxcliques=[[3, 5, 7],[5, 7, 9],[5, 1]],
+                                    factor_to_maxclique=[0,1,2],
+                                    factor_graph=jt.FactorGraph(
+                                        factors=[[3, 5, 7],[5, 7, 9],[5, 1]],
+                                        sizes={
+                                            1:6,
+                                            3:2,
+                                            5:3,
+                                            7:4,
+                                            9:5
+                                        },
+                                    )
                                 )
-                            ],
-                            [
-                                [3, 5, 7],
-                                [5, 7],
-                                [5, 7, 9],
-                                [5],
-                                [5, 1]
-                            ]
                     ),
+                    [0,2,4,1,3],
                     [
                         np.random.randn(2, 3, 4),
-                        np.ones((3, 4)),
                         np.random.randn(3, 4, 5),
-                        np.ones((3,)),
                         np.random.randn(3, 6),
+                        np.ones((3, 4)),
+                        np.ones((3,)),
                     ]
         )
 
@@ -950,7 +1006,6 @@ class TestHUGINFunctionality(unittest.TestCase):
         phi1 = bp.hugin(
                     jt.get_struct(),
                     jt.get_node_list(),
-                    jt.get_label_order(),
                     phi0,
                     bp.sum_product,
         )
@@ -1076,7 +1131,6 @@ class TestHUGINFunctionality(unittest.TestCase):
         phi1 = bp.hugin(
                     jt.get_struct(),
                     jt.get_node_list(),
-                    jt.get_label_order(),
                     phi0,
                     bp.sum_product
         )
@@ -1113,7 +1167,6 @@ class TestHUGINFunctionality(unittest.TestCase):
         phi3 = bp.hugin(
                     jt.get_struct(),
                     jt.get_node_list(),
-                    jt.get_label_order(),
                     phi2,
                     bp.sum_product
         )
@@ -1238,7 +1291,6 @@ class TestHUGINFunctionality(unittest.TestCase):
         phi1 = bp.hugin(
                     jt.get_struct(),
                     jt.get_node_list(),
-                    jt.get_label_order(),
                     phi0,
                     bp.sum_product
         )
@@ -1275,7 +1327,6 @@ class TestHUGINFunctionality(unittest.TestCase):
         phi3 = bp.hugin(
                     jt.get_struct(),
                     jt.get_node_list(),
-                    jt.get_label_order(),
                     phi2,
                     bp.sum_product
         )
@@ -1386,7 +1437,6 @@ class TestHUGINFunctionality(unittest.TestCase):
         phi1 = bp.hugin(
                     jt.get_struct(),
                     jt.get_node_list(),
-                    jt.get_label_order(),
                     phi0,
                     bp.sum_product
         )
@@ -1404,7 +1454,6 @@ class TestHUGINFunctionality(unittest.TestCase):
         phi3 = bp.hugin(
                     jt.get_struct(),
                     jt.get_node_list(),
-                    jt.get_label_order(),
                     phi2,
                     bp.sum_product
         )

@@ -101,7 +101,7 @@ class FactorGraph():
         """Create a triangulated clique tree from a factor graph."""
 
         # Let's use the triangulation methods of undirected graphs.
-        
+
         (_, _, maxcliques, factor_to_maxclique) = bp.find_triangulation(
             self.factors,
             self.sizes
@@ -320,7 +320,6 @@ class JunctionTree():
         ys = bp.hugin(
             self.tree,
             self.clique_tree.maxcliques + self.separators,
-            sizes,
             values,
             distributive_law
         )

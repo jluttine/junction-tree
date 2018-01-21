@@ -659,7 +659,7 @@ def eliminate_variables(junction_tree):
 
 
 
-def collect(tree, node_list, key_labels, potentials, visited, distributive_law, shrink_mapping=None):
+def collect(tree, node_list, potentials, visited, distributive_law, shrink_mapping=None):
     """
     Used by Hugin algorithm to collect messages
 
@@ -669,8 +669,6 @@ def collect(tree, node_list, key_labels, potentials, visited, distributive_law, 
     The tree structure of the junction tree
 
     List of nodes in tree
-
-    Dictionary of key labels
 
     List of clique potentials
 
@@ -704,7 +702,6 @@ def collect(tree, node_list, key_labels, potentials, visited, distributive_law, 
             potentials = collect(
                             child,
                             node_list,
-                            key_labels,
                             potentials,
                             visited,
                             distributive_law,
@@ -733,7 +730,7 @@ def collect(tree, node_list, key_labels, potentials, visited, distributive_law, 
     return potentials
 
 
-def distribute(tree, node_list, key_labels, potentials, visited, distributive_law, shrink_mapping=None):
+def distribute(tree, node_list, potentials, visited, distributive_law, shrink_mapping=None):
     """
     Used by Hugin algorithm to distribute messages
 
@@ -742,7 +739,7 @@ def distribute(tree, node_list, key_labels, potentials, visited, distributive_la
 
     The tree structure of the junction tree
 
-    List of key labels
+    List of nodes in tree
 
     List of clique potentials
 
@@ -791,7 +788,6 @@ def distribute(tree, node_list, key_labels, potentials, visited, distributive_la
             potentials = distribute(
                                 child,
                                 node_list,
-                                key_labels,
                                 potentials,
                                 visited,
                                 distributive_law,
@@ -802,7 +798,7 @@ def distribute(tree, node_list, key_labels, potentials, visited, distributive_la
     return potentials
 
 
-def hugin(tree, node_list, key_labels, potentials, distributive_law, shrink_mapping=None):
+def hugin(tree, node_list, potentials, distributive_law, shrink_mapping=None):
     """
     Run hugin algorithm by using the given distributive law.
 
@@ -811,7 +807,7 @@ def hugin(tree, node_list, key_labels, potentials, distributive_law, shrink_mapp
 
     The tree structure of the junction tree
 
-    List of key labels
+    List of nodes in tree
 
     List of (inconsistent) clique potentials
 
@@ -835,7 +831,6 @@ def hugin(tree, node_list, key_labels, potentials, distributive_law, shrink_mapp
     new_potentials = collect(
                         tree,
                         node_list,
-                        key_labels,
                         potentials,
                         visited,
                         distributive_law,
@@ -849,7 +844,6 @@ def hugin(tree, node_list, key_labels, potentials, distributive_law, shrink_mapp
     return distribute(
                     tree,
                     node_list,
-                    key_labels,
                     new_potentials,
                     visited,
                     distributive_law,
