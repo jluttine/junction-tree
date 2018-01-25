@@ -367,7 +367,6 @@ class JunctionTree(object):
         new_potentials = bp.hugin(
                                 self.get_struct(),
                                 self.get_node_list(),
-                                self.get_label_order(),
                                 new_potentials,
                                 bp.sum_product,
                                 shrink_mapping
