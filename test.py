@@ -2690,20 +2690,6 @@ class TestJunctionTreeInference(unittest.TestCase):
 
         ]
 
-        self.node_list = [
-                            ["A","D","E"],
-                            ["A","B","D"],
-                            ["D","E","F"],
-                            ["A","C","E"],
-                            ["C","E","G"],
-                            ["E","G","H"],
-                            ["A","D"],
-                            ["D","E"],
-                            ["A","E"],
-                            ["C","E"],
-                            ["E","G"],
-        ]
-
         self.values = [
                         np.array([0.5,0.5]),
                         np.array(
@@ -2762,8 +2748,6 @@ class TestJunctionTreeInference(unittest.TestCase):
                                 )
                 ]
 
-        self.fg = [self.key_sizes,self.factors,self.values]
-
 
     def test_transformation(self):
         tree = jt.JunctionTree(
@@ -2780,7 +2764,6 @@ class TestJunctionTreeInference(unittest.TestCase):
         )
 
         # check that marginal values are correct
-        print (tree.propagate(self.values))
         np.testing.assert_allclose(
                                 bp.sum_product.einsum(
                                     tree.propagate(self.values)[0],
@@ -2881,11 +2864,6 @@ class TestJunctionTreeInference(unittest.TestCase):
         )
 
     def test_global_propagation(self):
-        '''
-        jt = JunctionTree(self.key_sizes,self.tree,self.node_list)
-        init_phi = JunctionTree.init_potentials(jt, self.fg[1], self.fg[2])
-        phi = jt.propagate(init_phi)
-        '''
         tree = jt.JunctionTree(
                     self.tree,
                     self.node_list[6:],
@@ -2900,20 +2878,24 @@ class TestJunctionTreeInference(unittest.TestCase):
         )
         phi = tree.propagate(self.values)
 
+        # P(A)
         assert_potentials_equal(
-                                phi[2],
-                                np.array(
-                                    [
-                                        [
-                                            [0.150,0.150],
-                                            [0.020,0.180]
-                                        ],
-                                        [
-                                            [0.125,0.125],
-                                            [0.025,0.225]
-                                        ]
-                                    ]
-                                )
+                                bp.sum_product.einsum(
+                                    tree.propagate(self.values)[0],
+                                    [0],
+                                    [0]
+                                ),
+                                np.array([0.500,0.500])
+        )
+
+        # P(D)
+        assert_potentials_equal(
+                                bp.sum_product.einsum(
+                                    tree.propagate(self.values)[3],
+                                    [0,1],
+                                    [1]
+                                ),
+                                np.array([0.32,0.68])
         )
 
     def test_global_propagation_with_observations(self):
@@ -2960,13 +2942,38 @@ class TestJunctionTreeInference(unittest.TestCase):
                     )
         ]
 
-        fg = [key_sizes, factors, values]
-        jt, init_phi = JunctionTree.from_factor_graph(fg)
+        tri, ics, max_cliques, factor_to_maxclique = bp.find_triangulation(
+                                                            factors,
+                                                            key_sizes
+        )
+
+        #jt, init_phi = JunctionTree.from_factor_graph(fg)
 
         # grass is wet
-        phi = jt.propagate(init_phi, in_place=False, data={"wet_grass":1})
+        #phi = jt.propagate(init_phi, in_place=False, data={"wet_grass":1})
+
+        fg = jt.FactorGraph(
+            factors=factors,
+            sizes=key_sizes
+        )
+        cg = fg.triangulate()
+        tree = cg.create_junction_tree()
+
+        '''
+        tree.clique_tree.factor_graph.
+        cond_values = copy.deepcopy(values)
+        cond_values = cond_values[3][:,:,1:]
+        '''
+
+        prop_values = tree.propagate(values)
+
         np.testing.assert_allclose(
-                                jt.marginalize(phi, ["sprinkler"], normalize=True),
+                                #jt.marginalize(phi, ["sprinkler"], normalize=True),
+                                bp.sum_product.einsum(
+                                                prop_values[1],
+                                                [0,1],
+                                                [1]
+                                ),
                                 np.array([0.57024,0.42976]),
                                 atol=0.01
         )

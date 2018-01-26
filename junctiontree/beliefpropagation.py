@@ -119,6 +119,7 @@ def find_triangulation(factors, key_sizes):
                                             key_sizes,
                                             edges
     )
+
     rem_keys = list(key_sizes.keys())
     while len(rem_keys) > 0:
         item, heap, entry_finder, rem_keys = remove_next(
