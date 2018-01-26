@@ -48,13 +48,15 @@ def factors_to_undirected_graph(factors):
             which edge originates
     """
 
-    edges = {}
+    edges = set()
 
-    for factor_ix, factor in enumerate(factors):
-        factor_set = set(factor)
-        for v1 in factor:
-            for v2 in factor_set - set([v1]):
-                edges[frozenset((v1,v2))] = factor_ix
+    for factor_ix1 factor1 in enumerate(factors):
+        for factor_ix2, factor2 in enumerate(factors):
+            if factor_ix2 <= factor_ix1:
+                continue
+            if not set(factor1).isdisjoint(factor2):
+                edges.add(((factor1, factor_ix1), (factor2, factor_ix2))
+
 
     return edges
 
@@ -116,6 +118,7 @@ def find_triangulation(factors, key_sizes):
 
     edges = factors_to_undirected_graph(factors)
     heap, entry_finder = initialize_triangulation_heap(
+                                            factors,
                                             key_sizes,
                                             edges
     )
@@ -176,16 +179,18 @@ def find_triangulation(factors, key_sizes):
     return tri, induced_clusters, max_cliques, factor_to_maxclique
 
 
-def initialize_triangulation_heap(key_sizes, edges):
+def initialize_triangulation_heap(nodes, key_sizes, edges):
     """
     Creates heap used for graph triangulation
 
     Input:
     ------
 
+    List of nodes in graph
+
     A dictionary with key label as keys and variable size as values
 
-    A list of pairs of keys representing factor graph edges
+    A set of tuples ((factor1, factor_ix1),(factor2, factor_ix2)) representing factor graph edges
 
 
     Output:
@@ -202,21 +207,21 @@ def initialize_triangulation_heap(key_sizes, edges):
         to heap entry for key
     """
 
-    heap, entry_finder = update_heap(key_sizes.keys(), edges, key_sizes)
+    heap, entry_finder = update_heap(nodes, edges, key_sizes)
 
     return heap, entry_finder
 
 
-def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
+def update_heap(remaining_nodes, edges, key_sizes, heap=None, entry_finder=None):
     """
     Updates entries in heap
 
     Input:
     ------
 
-    list of keys remaining
+    list of remaining nodes
 
-    list of edges (key pairs)
+    A set of tuples ((factor1, factor_ix1),(factor2, factor_ix2)) representing factor graph edges
 
     dictionary of keys (key label is key, size is value)
 
@@ -234,11 +239,20 @@ def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
 
     h = heap if heap else []
     entry_finder = entry_finder if entry_finder else {}
-    for key in remaining_keys:
+    #for key in remaining_keys:
+    for node in remaining_nodes:
+        '''
         rem_neighbors = [(set(edge) - set(key)).pop()
                             for edge in edges if key in edge and len(set(remaining_keys).intersection(edge)) == 2]
-
-        # determine how many of key's remaining neighbors need to be connected
+        '''
+        rem_neighbors = [
+                            edge[0] if node == edge[0][0] else edge[1]
+                            for edge in edges if node == edge[0][0] or node == edge[1][0]
+        ]
+        '''
+        # determine how many keys from node's remaining neighbors need to be connected
+        '''
+        # determine how many of node's remaining neighbors need to be connected
         num_new_edges = sum(
                             [
                                 frozenset((n1,n2)) not in edges
