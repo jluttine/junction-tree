@@ -2942,16 +2942,6 @@ class TestJunctionTreeInference(unittest.TestCase):
                     )
         ]
 
-        tri, ics, max_cliques, factor_to_maxclique = bp.find_triangulation(
-                                                            factors,
-                                                            key_sizes
-        )
-
-        #jt, init_phi = JunctionTree.from_factor_graph(fg)
-
-        # grass is wet
-        #phi = jt.propagate(init_phi, in_place=False, data={"wet_grass":1})
-
         fg = jt.FactorGraph(
             factors=factors,
             sizes=key_sizes
@@ -2959,38 +2949,43 @@ class TestJunctionTreeInference(unittest.TestCase):
         cg = fg.triangulate()
         tree = cg.create_junction_tree()
 
-        '''
-        tree.clique_tree.factor_graph.
+        # grass is wet
+        tree.clique_tree.factor_graph.sizes["wet_grass"] = 1
         cond_values = copy.deepcopy(values)
-        cond_values = cond_values[3][:,:,1:]
-        '''
+        cond_values[3] = cond_values[3][:,:,1:]
 
-        prop_values = tree.propagate(values)
+        prop_values = tree.propagate(cond_values)
+
+        marginal = bp.sum_product.einsum(
+                        prop_values[1],
+                        [0,1],
+                        [1]
+        )
 
         np.testing.assert_allclose(
-                                #jt.marginalize(phi, ["sprinkler"], normalize=True),
-                                bp.sum_product.einsum(
-                                                prop_values[1],
-                                                [0,1],
-                                                [1]
-                                ),
+                                marginal/np.sum(marginal),
                                 np.array([0.57024,0.42976]),
                                 atol=0.01
         )
 
         # grass is wet and it is raining
-        # no need to calculate init_phi in place because init_phi not used again
-        phi = jt.propagate(init_phi, data={"wet_grass":1, "rain": 1})
+        tree.clique_tree.factor_graph.sizes["rain"] = 1
+        cond_values[3] = cond_values[3][1:,:,:]
+        cond_values[2] = cond_values[2][:,1:]
+        prop_values = tree.propagate(cond_values)
+
+        marginal = bp.sum_product.einsum(
+                        prop_values[1],
+                        [0,1],
+                        [1]
+        )
+
         np.testing.assert_allclose(
-                                jt.marginalize(phi, ["sprinkler"], normalize=True),
+                                marginal/np.sum(marginal),
                                 np.array([0.8055,0.1945]),
                                 atol=0.01
         )
-        np.testing.assert_allclose(
-                                jt.marginalize(phi, ["rain"], normalize=True),
-                                np.array([0,1]),
-                                atol=0.01
-        )
+
 
 
 
