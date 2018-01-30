@@ -1013,7 +1013,7 @@ class TestHUGINFunctionality(unittest.TestCase):
 
         # test that a potential containing observed variable is altered properly after observing data
         # (Eventually this will be based on familial content of clique or a more optimal clique but
-        # for now just find one but for now just check the first clique containing the variable)
+        # for now just check the first clique containing the variable)
 
         for var, val in data.items():
             clique, _vars = bp.get_clique(jt.get_struct(), jt.get_node_list(), var)
@@ -3048,22 +3048,22 @@ class TestJunctionTreeInference(unittest.TestCase):
                     )
         ]
 
-        tree = [
+        struct = [
                     0,
                     (
-                        1,
+                        4,
                         [
-                            2,
+                            1,
                         ]
                     ),
                     (
-                        3,
+                        5,
                         [
-                            4,
+                            2,
                             (
-                                5,
+                                6,
                                 [
-                                    6,
+                                    3,
                                 ]
                             )
                         ]
@@ -3072,54 +3072,90 @@ class TestJunctionTreeInference(unittest.TestCase):
 
         node_list = [
                         ["C","D","E"],
-                        ["D","E"],
                         ["D","E","F"],
-                        ["C","D"],
                         ["B","C","D"],
+                        ["A","B","C"],
+                        ["D","E"],
+                        ["C","D"],
                         ["B","C"],
-                        ["A","B","C"]
         ]
 
-        fg = [key_sizes,factors,values]
-        jt = JunctionTree(key_sizes, tree, node_list)
-        init_phi = JunctionTree.init_potentials(jt, fg[1], fg[2])
+        tree = jt.JunctionTree(
+                    struct,
+                    node_list[4:],
+                    jt.CliqueGraph(
+                        maxcliques=node_list[:4],
+                        factor_to_maxclique=[3, 3, 3, 2, 0, 1],
+                        factor_graph=jt.FactorGraph(
+                            factors=factors,
+                            sizes=key_sizes
+                        )
+                    )
+        )
 
-        phi = jt.propagate(init_phi)
-        assert math.isclose(phi[6][0,0,0], 0.072, abs_tol=0.01)
-        assert math.isclose(phi[6][0,0,1], 0.018, abs_tol=0.01)
-        assert math.isclose(phi[6][0,1,0], 0.648, abs_tol=0.01)
-        assert math.isclose(phi[6][0,1,1], 0.162, abs_tol=0.01)
-        assert math.isclose(phi[6][1,0,0], 0.027, abs_tol=0.01)
-        assert math.isclose(phi[6][1,0,1], 0.063, abs_tol=0.01)
-        assert math.isclose(phi[6][1,1,0], 0.003, abs_tol=0.01)
-        assert math.isclose(phi[6][1,1,1], 0.007, abs_tol=0.01)
 
-        assert math.isclose(phi[4][0,0,0], 0.030, abs_tol=0.01)
-        assert math.isclose(phi[4][0,0,1], 0.069, abs_tol=0.01)
-        assert math.isclose(phi[4][0,1,0], 0.024, abs_tol=0.01)
-        assert math.isclose(phi[4][0,1,1], 0.057, abs_tol=0.01)
-        assert math.isclose(phi[4][1,0,0], 0.391, abs_tol=0.01)
-        assert math.isclose(phi[4][1,0,1], 0.260, abs_tol=0.01)
-        assert math.isclose(phi[4][1,1,0], 0.101, abs_tol=0.01)
-        assert math.isclose(phi[4][1,1,1], 0.068, abs_tol=0.01)
+        prop_values = tree.propagate(values)
 
-        assert math.isclose(phi[2][0,0,0], 0.063, abs_tol=0.01)
-        assert math.isclose(phi[2][0,0,1], 0.252, abs_tol=0.01)
-        assert math.isclose(phi[2][0,1,0], 0.139, abs_tol=0.01)
-        assert math.isclose(phi[2][0,1,1], 0.092, abs_tol=0.01)
-        assert math.isclose(phi[2][1,0,0], 0.130, abs_tol=0.01)
-        assert math.isclose(phi[2][1,0,1], 0.130, abs_tol=0.01)
-        assert math.isclose(phi[2][1,1,0], 0.175, abs_tol=0.01)
-        assert math.isclose(phi[2][1,1,1], 0.019, abs_tol=0.01)
+        # P(C)
+        np.testing.assert_allclose(
+                            bp.sum_product.einsum(
+                                prop_values[2],
+                                [0,1],
+                                [0]
+                            ),
+                            np.array([0.75,0.25])
+        )
+        # P(A)
+        np.testing.assert_allclose(
+                            bp.sum_product.einsum(
+                                prop_values[1],
+                                [0,1],
+                                [1]
+                            ),
+                            np.array([0.9,0.1])
+        )
 
-        assert math.isclose(phi[0][0,0,0], 0.252, abs_tol=0.01)
-        assert math.isclose(phi[0][0,0,1], 0.168, abs_tol=0.01)
-        assert math.isclose(phi[0][0,1,0], 0.198, abs_tol=0.01)
-        assert math.isclose(phi[0][0,1,1], 0.132, abs_tol=0.01)
-        assert math.isclose(phi[0][1,0,0], 0.063, abs_tol=0.01)
-        assert math.isclose(phi[0][1,0,1], 0.063, abs_tol=0.01)
-        assert math.isclose(phi[0][1,1,0], 0.062, abs_tol=0.01)
-        assert math.isclose(phi[0][1,1,1], 0.062, abs_tol=0.01)
+        # P(B)
+        np.testing.assert_allclose(
+                            bp.sum_product.einsum(
+                                prop_values[1],
+                                [0,1],
+                                [0]
+                            ),
+                            np.array([0.18,0.82])
+        )
+
+        # P(D)
+        np.testing.assert_allclose(
+                            bp.sum_product.einsum(
+                                prop_values[3],
+                                [0,1],
+                                [1]
+                            ),
+                            np.array([0.546,0.454])
+        )
+
+        # P(E)
+        np.testing.assert_allclose(
+                            bp.sum_product.einsum(
+                                prop_values[4],
+                                [0,1],
+                                [1]
+                            ),
+                            np.array([0.575,0.425])
+        )
+
+        # P(F)
+        np.testing.assert_allclose(
+                            bp.sum_product.einsum(
+                                prop_values[5],
+                                [0,1,2],
+                                [2]
+                            ),
+                            np.array([0.507,0.493]),
+                            atol=0.001
+        )
+
 
 class TestJTTraversal(unittest.TestCase):
     def setUp(self):
