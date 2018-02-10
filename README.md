@@ -83,107 +83,65 @@ in the compilation phase.
 ### Junction Tree construction
 
 Starting with the definition of a factor graph
+(Example taken from http://mensxmachina.org/files/software/demos/jtreedemo.html)
 ```
-import bp
-from junction_tree import JunctionTree
+import junctiontree.beliefpropagation as bp
+import junctiontree.junctiontree as jt
 import numpy as np
 
 key_sizes = {
-              "A": 2,
-              "B": 2,
-              "C": 2,
-              "D": 2,
-              "E": 2,
-              "F": 2,
-              "G": 2,
-              "H": 2
-            }
+                    "cloudy": 2,
+                    "sprinkler": 2,
+                    "rain": 2,
+                    "wet_grass": 2
+                }
 
 factors = [
-            ["A"],
-            ["A", "B"],
-            ["A", "C"],
-            ["B", "D"],
-            ["C", "E"],
-            ["C", "G"],
-            ["G", "E", "H"],
-            ["D", "E", "F"]
+            ["cloudy"],
+            ["cloudy", "sprinkler"],
+            ["cloudy", "rain"],
+            ["rain", "sprinkler", "wet_grass"]
 ]
 
 values = [
-                np.array([0.5,0.5]),
-                np.array(
+            np.array([0.5,0.5]),
+            np.array(
+                        [
+                            [0.5,0.5],
+                            [0.9,0.1]
+                        ]
+                    ),
+            np.array(
+                        [
+                            [0.8,0.2],
+                            [0.2,0.8]
+                        ]
+                    ),
+            np.array(
+                        [
                             [
-                                [0.6,0.4],
-                                [0.5,0.5]
-                            ]
-                        ),
-                np.array(
-                            [
-                                [0.8,0.2],
-                                [0.3,0.7]
-                            ]
-                        ),
-                np.array(
-                            [
-                                [0.5,0.5],
+                                [1,0],
                                 [0.1,0.9]
-                            ]
-                        ),
-                np.array(
+                            ],
                             [
-                                [0.4,0.6],
-                                [0.7,0.3]
+                                [0.1,0.9],
+                                [0.01,0.99]
                             ]
-                        ),
-                np.array(
-                            [
-                                [0.9,0.1],
-                                [0.8,0.2]
-                            ]
-                        ),
-                np.array(
-                            [
-                                [
-                                    [0.01,0.99],
-                                    [0.99,0.01]
-                                ],
-                                [
-                                    [0.99,0.01],
-                                    [0.99,0.01]
-                                ]
-                            ]
-                        ),
-                np.array(
-                            [
-                                [
-                                    [0.05,0.95],
-                                    [0.05,0.95]
-                                ],
-                                [
-                                    [0.05,0.95],
-                                    [0.95,0.05]
-                                ]
-                            ]
-                        )
+                        ]
+            )
 ]
 
-fg = [key_sizes,factors,values]
+tree = jt.create_junction_tree(factors, key_sizes)
 
 ```
 
-A junction tree can be constructed with corresponding initialized clique potentials:
-
-```
-jt, init_potentials = JunctionTree.from_factor_graph(fg)
-```
 
 ### Global Propagation
 
 The initial clique potentials are inconsistent. The potentials are made consistent through global propagation on the junction tree
 
 ```
-new_potentials = jt.propagate(init_potentials)
+prop_values = tree.propagate(values)
 ```
 
 ### Observing Data
@@ -191,8 +149,17 @@ new_potentials = jt.propagate(init_potentials)
 Alternatively, clique potentials can be made consistent after observing data for the variables in the junction tree
 
 ```
-data = {"A": 0, "F": 1, "H": 1}
-new_potentials = jt.propagate(init_potentials, data=data)
+# Update the size of observed variable
+cond_sizes = key_sizes.copy()
+cond_sizes["wet_grass"] = 1
+cond_tree = jt.create_junction_tree(factors, cond_sizes)
+
+# Then, also similarly the values:
+cond_values = copy.deepcopy(values)
+cond_values = cond_values[3][:,:,1:2]
+
+# Perform global propagation using conditioned values
+prop_values =  tree.propagate(cond_values)
 ```
 
 ### Marginalization
@@ -200,7 +167,11 @@ new_potentials = jt.propagate(init_potentials, data=data)
 From a collection of consistent clique potentials, the marginal value of variables of interest can be calculated
 
 ```
-value = jt.marginalize(new_potentials, ["D"])
+# Pr(sprinkler|wetGrass = true)
+marginal = np.sum(prop_values[1], axis=0)
+
+# The probabilities are unnormalized but we can calculate the normalized values:
+norm_marginal = marginal/np.sum(marginal)
 ```
 
 
