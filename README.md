@@ -83,6 +83,7 @@ in the compilation phase.
 ### Junction Tree construction
 
 Starting with the definition of a factor graph
+
 (Example taken from http://mensxmachina.org/files/software/demos/jtreedemo.html)
 ```
 import junctiontree.beliefpropagation as bp
