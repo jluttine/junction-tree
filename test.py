@@ -6,7 +6,6 @@ import networkx as nx
 import itertools
 import heapq
 import copy
-from junctiontree.junction_tree import JunctionTree
 import junctiontree.junctiontree as jt
 from junctiontree.sum_product import SumProduct
 import math
@@ -211,21 +210,6 @@ def assert_sum_product(junction_tree, node_order, potentials):
         )
     )
 
-def assert_sum_product2(junction_tree, potentials):
-    """ Test hugin vs brute force sum-product """
-
-    tree = junction_tree.get_struct()
-    node_list = junction_tree.get_node_list()
-
-    assert_potentials_equal(
-        brute_force_sum_product(tree, node_list, potentials),
-        bp.hugin(
-                tree,
-                node_list,
-                potentials,
-                bp.sum_product,
-        )
-    )
 
 def assert_junction_tree_consistent(tree, potentials):
     '''
@@ -923,580 +907,6 @@ class TestHUGINFunctionality(unittest.TestCase):
                         np.ones((3,)),
                     ]
         )
-
-    def test_can_observe_evidence_from_one_trial(self):
-        jt = JunctionTree(
-                            {
-                                0: 4,
-                                1: 8,
-                                2: 5,
-                                3: 3,
-                                4: 6
-                            },
-                            [
-                                0,
-                                (
-                                    1,
-                                    [
-                                        2,
-                                    ]
-                                ),
-                                (
-                                    3,
-                                    [
-                                        4,
-                                        (
-                                            5,
-                                            [
-                                                6,
-                                            ]
-                                        )
-                                    ]
-                                )
-                            ],
-                            [
-                                [0,2,4],
-                                [0,2],
-                                [0,1,2],
-                                [4],
-                                [3,4],
-                                [3],
-                                [1,2,3]
-                            ]
-                    )
-
-        # define arbitrary join tree potentials
-        phi = [
-                np.random.randn(4,5,6),
-                np.random.randn(4,5),
-                np.random.randn(4,8,5),
-                np.random.randn(6),
-                np.random.randn(3, 6),
-                np.random.randn(3),
-                np.random.randn(8,5,3)
-        ]
-
-        data = {0: 1, 2: 3, 4: 0}
-
-        likelihood, phi0, shrink_mapping = jt.observe(phi, data)
-        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
-        np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
-        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
-        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-
-        assert len(shrink_mapping) == len(phi0)
-
-        # check dimensions and keys potentials after observing evidence
-        assert shrink_mapping[0] == ((1,3,0),[])
-        assert type(phi0[0][shrink_mapping[0][0]]) == np.float64
-        assert shrink_mapping[1] == ((1,3),[])
-        assert type(phi0[1][shrink_mapping[1][0]]) == np.float64
-        assert shrink_mapping[2] == ((1,slice(None),3),[1])
-        assert phi0[2][shrink_mapping[2][0]].shape == (8,)
-        assert shrink_mapping[3] == ((0,),[])
-        assert type(phi0[3][shrink_mapping[3][0]]) == np.float64
-        assert shrink_mapping[4] == ((slice(None),0),[3])
-        assert phi0[4][shrink_mapping[4][0]].shape == (3,)
-        assert shrink_mapping[5] == ((slice(None),),[3])
-        assert phi0[5][shrink_mapping[5][0]].shape == (3,)
-        assert shrink_mapping[6] == ((slice(None),3,slice(None)),[1,3])
-        assert phi0[6][shrink_mapping[6][0]].shape == (8,3)
-
-        phi1 = bp.hugin(
-                    jt.get_struct(),
-                    jt.get_node_list(),
-                    phi0,
-                    bp.sum_product,
-        )
-        assert_junction_tree_consistent(jt, phi1)
-
-        # test that a potential containing observed variable is altered properly after observing data
-        # (Eventually this will be based on familial content of clique or a more optimal clique but
-        # for now just find one but for now just check the first clique containing the variable)
-
-        for var, val in data.items():
-            clique, _vars = bp.get_clique(jt.get_struct(), jt.get_node_list(), var)
-            pot = phi1[clique]
-            assert pot.shape == phi[clique].shape
-            var_ix = _vars.index(var)
-            # check that potential properly updated
-            mask = [val == dim for dim in range(pot.shape[var_ix])]
-            # values along var axis not equal to val will have a 0 value
-            assert np.all(np.compress(np.invert(mask), pot, axis=var_ix)) == 0
-            # ensure that var axis equal to val is equivalent in both original and new potentials
-            np.testing.assert_array_equal(
-                                            np.compress(mask, pot, axis=var_ix),
-                                            np.compress(mask, phi[clique], axis=var_ix)
-                                        )
-
-        # test that no change made to potential values for unobserved variables
-        for var in jt.get_key_sizes():
-            if var not in data.keys():
-                # we have not observed a value for this var
-                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), jt.get_node_list(), var):
-                    pot = phi1[clique_ix]
-                    # get the vals for the observed axes and set unobserved to -1
-                    test_arr = np.array([data[v] if v in data else -1 for v in _vars])
-                    # retain indices in array which all observed axes set to observed val
-                    # if none observed this should just evaluate to all indices of the potential
-                    test_indices = np.array([a_ix for a_ix in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_ix)) == (test_arr > -1).sum()]).transpose()
-                    flat_indices = np.ravel_multi_index(test_indices, pot.shape)
-                    # elements at these indices should not have changed by observations
-                    np.testing.assert_array_equal(
-                                                    np.take(pot, flat_indices),
-                                                    np.take(phi[clique_ix], flat_indices)
-                                                )
-
-
-    def test_can_observe_dynamic_evidence_using_global_update_single_variable(self):
-        jt = JunctionTree(
-                            {
-                                0: 4,
-                                1: 8,
-                                2: 5,
-                                3: 3,
-                                4: 6
-                            },
-                            [
-                                0,
-                                (
-                                    1,
-                                    [
-                                        2,
-                                    ]
-                                ),
-                                (
-                                    3,
-                                    [
-                                        4,
-                                        (
-                                            5,
-                                            [
-                                                6,
-                                            ]
-                                        )
-                                    ]
-                                )
-                            ],
-                            [
-                                [0,2,4],
-                                [0,2],
-                                [0,1,2],
-                                [4],
-                                [3,4],
-                                [3],
-                                [1,2,3]
-                            ]
-                    )
-
-        # define arbitrary join tree potentials
-        phi = [
-                np.random.randn(4, 5, 6),
-                np.random.randn(4,5),
-                np.random.randn(4,8,5),
-                np.random.randn(6),
-                np.random.randn(3, 6),
-                np.random.randn(3),
-                np.random.randn(8,5,3)
-        ]
-
-        data0 = {0: 1, 2: 3, 4: 0}
-
-        likelihood, phi0, shrink_mapping = jt.observe(phi, data0)
-        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
-        np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
-        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
-        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-
-        assert len(shrink_mapping) == len(phi0)
-
-        # check dimensions and keys potentials after observing evidence
-        assert shrink_mapping[0] == ((1,3,0),[])
-        assert type(phi0[0][shrink_mapping[0][0]]) == np.float64
-        assert shrink_mapping[1] == ((1,3),[])
-        assert type(phi0[1][shrink_mapping[1][0]]) == np.float64
-        assert shrink_mapping[2] == ((1,slice(None),3),[1])
-        assert phi0[2][shrink_mapping[2][0]].shape == (8,)
-        assert shrink_mapping[3] == ((0,),[])
-        assert type(phi0[3][shrink_mapping[3][0]]) == np.float64
-        assert shrink_mapping[4] == ((slice(None),0),[3])
-        assert phi0[4][shrink_mapping[4][0]].shape == (3,)
-        assert shrink_mapping[5] == ((slice(None),),[3])
-        assert phi0[5][shrink_mapping[5][0]].shape == (3,)
-        assert shrink_mapping[6] == ((slice(None),3,slice(None)),[1,3])
-        assert phi0[6][shrink_mapping[6][0]].shape == (8,3)
-
-        phi1 = bp.hugin(
-                    jt.get_struct(),
-                    jt.get_node_list(),
-                    phi0,
-                    bp.sum_product
-        )
-        assert_junction_tree_consistent(jt, phi1)
-
-        data = {0: 1, 1: 2, 2: 3, 4: 0}
-
-        likelihood, phi2, shrink_mapping = jt.observe(phi1, data)
-        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
-        np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
-        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
-        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-
-        assert len(shrink_mapping) == len(phi2)
-
-        # check dimensions and keys potentials after observing evidence
-        assert shrink_mapping[0] == ((1,3,0),[])
-        assert type(phi2[0][shrink_mapping[0][0]]) == np.float64
-        assert shrink_mapping[1] == ((1,3),[])
-        assert type(phi2[1][shrink_mapping[1][0]]) == np.float64
-        assert shrink_mapping[2] == ((1,2,3),[])
-        assert type(phi2[2][shrink_mapping[2][0]]) == np.float64
-        assert shrink_mapping[3] == ((0,),[])
-        assert type(phi2[3][shrink_mapping[3][0]]) == np.float64
-        assert shrink_mapping[4] == ((slice(None),0),[3])
-        assert phi2[4][shrink_mapping[4][0]].shape == (3,)
-        assert shrink_mapping[5] == ((slice(None),),[3])
-        assert phi2[5][shrink_mapping[5][0]].shape == (3,)
-        assert shrink_mapping[6] == ((2,3,slice(None)),[3])
-        assert phi2[6][shrink_mapping[6][0]].shape == (3,)
-
-
-        phi3 = bp.hugin(
-                    jt.get_struct(),
-                    jt.get_node_list(),
-                    phi2,
-                    bp.sum_product
-        )
-        assert_junction_tree_consistent(jt, phi3)
-
-        # test that a potential containing observed variable is altered properly after observing data
-        # (Eventually this will be based on familial content of clique or a more optimal clique but
-        # for now just find one but for now just check the first clique containing the variable)
-
-        for var, val in data.items():
-            clique, _vars = bp.get_clique(jt.get_struct(), jt.get_node_list(), var)
-            pot = phi3[clique]
-            assert pot.shape == phi[clique].shape
-            var_ix = _vars.index(var)
-            # check that potential properly updated
-            mask = [val == dim for dim in range(pot.shape[var_ix])]
-            # values along var axis not equal to val will have a 0 value
-            assert np.all(np.compress(np.invert(mask), pot, axis=var_ix)) == 0
-            # ensure that var axis equal to val is equivalent in both original and new potentials
-            np.testing.assert_array_equal(
-                                            np.compress(mask, pot, axis=var_ix),
-                                            np.compress(mask, phi[clique], axis=var_ix)
-                                        )
-
-        # test that no change made to potential values for unobserved variables
-        for var in jt.get_key_sizes():
-            if var not in data.keys():
-                # we have not observed a value for this var
-                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), jt.get_node_list(), var):
-                    pot = phi3[clique_ix]
-                    # get the vals for the observed axes and set unobserved to -1
-                    test_arr = np.array([data[v] if v in data else -1 for v in _vars])
-                    # retain indices in array which all observed axes set to observed val
-                    # if none observed this should just evaluate to all indices of the potential
-                    test_indices = np.array([a_ix for a_ix in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_ix)) == (test_arr > -1).sum()]).transpose()
-                    flat_indices = np.ravel_multi_index(test_indices, pot.shape)
-                    # elements at these indices should not have changed by observations
-                    np.testing.assert_array_equal(
-                                                    np.take(pot, flat_indices),
-                                                    np.take(phi[clique], flat_indices)
-                                                )
-
-    def test_can_observe_dynamic_evidence_using_global_update_multi_variable(self):
-        jt = JunctionTree(
-                            {
-                                0: 4,
-                                1: 8,
-                                2: 5,
-                                3: 3,
-                                4: 6
-                            },
-                            [
-                                0,
-                                (
-                                    1,
-                                    [
-                                        2,
-                                    ]
-                                ),
-                                (
-                                    3,
-                                    [
-                                        4,
-                                        (
-                                            5,
-                                            [
-                                                6,
-                                            ]
-                                        )
-                                    ]
-                                )
-                            ],
-                            [
-                                [0,2,4],
-                                [0,2],
-                                [0,1,2],
-                                [4],
-                                [3,4],
-                                [3],
-                                [1,2,3]
-                            ]
-                    )
-
-        # define arbitrary join tree potentials
-        phi = [
-                np.random.randn(4, 5, 6),
-                np.random.randn(4,5),
-                np.random.randn(4,8,5),
-                np.random.randn(6),
-                np.random.randn(3, 6),
-                np.random.randn(3),
-                np.random.randn(8,5,3)
-        ]
-
-        data0 = {0: 1, 2: 3, 4: 0}
-
-        likelihood, phi0, shrink_mapping = jt.observe(phi, data0)
-        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
-        np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
-        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
-        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-
-        assert len(shrink_mapping) == len(phi0)
-
-        # check dimensions and keys potentials after observing evidence
-        assert shrink_mapping[0] == ((1,3,0),[])
-        assert type(phi0[0][shrink_mapping[0][0]]) == np.float64
-        assert shrink_mapping[1] == ((1,3),[])
-        assert type(phi0[1][shrink_mapping[1][0]]) == np.float64
-        assert shrink_mapping[2] == ((1,slice(None),3),[1])
-        assert phi0[2][shrink_mapping[2][0]].shape == (8,)
-        assert shrink_mapping[3] == ((0,),[])
-        assert type(phi0[3][shrink_mapping[3][0]]) == np.float64
-        assert shrink_mapping[4] == ((slice(None),0),[3])
-        assert phi0[4][shrink_mapping[4][0]].shape == (3,)
-        assert shrink_mapping[5] == ((slice(None),),[3])
-        assert phi0[5][shrink_mapping[5][0]].shape == (3,)
-        assert shrink_mapping[6] == ((slice(None),3,slice(None)),[1,3])
-        assert phi0[6][shrink_mapping[6][0]].shape == (8,3)
-
-        phi1 = bp.hugin(
-                    jt.get_struct(),
-                    jt.get_node_list(),
-                    phi0,
-                    bp.sum_product
-        )
-        assert_junction_tree_consistent(jt, phi1)
-
-        data = {0: 1, 1: 2, 2: 3, 3: 2, 4: 0}
-
-
-        likelihood, phi2, shrink_mapping = jt.observe(phi1, data)
-        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
-        np.testing.assert_array_equal(likelihood[1], np.array([0,0,1,0,0,0,0,0]))
-        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([0,0,1]))
-        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-
-        assert len(shrink_mapping) == len(phi2)
-
-        # check dimensions and keys potentials after observing evidence
-        assert shrink_mapping[0] == ((1,3,0),[])
-        assert type(phi2[0][shrink_mapping[0][0]]) == np.float64
-        assert shrink_mapping[1] == ((1,3),[])
-        assert type(phi2[1][shrink_mapping[1][0]]) == np.float64
-        assert shrink_mapping[2] == ((1,2,3),[])
-        assert type(phi2[2][shrink_mapping[2][0]]) == np.float64
-        assert shrink_mapping[3] == ((0,),[])
-        assert type(phi2[3][shrink_mapping[3][0]]) == np.float64
-        assert shrink_mapping[4] == ((2,0),[])
-        assert type(phi2[4][shrink_mapping[4][0]]) == np.float64
-        assert shrink_mapping[5] == ((2,),[])
-        assert type(phi2[5][shrink_mapping[5][0]]) == np.float64
-        assert shrink_mapping[6] == ((2,3,2),[])
-        assert type(phi2[6][shrink_mapping[6][0]]) == np.float64
-
-        phi3 = bp.hugin(
-                    jt.get_struct(),
-                    jt.get_node_list(),
-                    phi2,
-                    bp.sum_product
-        )
-        assert_junction_tree_consistent(jt, phi3)
-
-        # test that a potential containing observed variable is altered properly after observing data
-        # (Eventually this will be based on familial content of clique or a more optimal clique but
-        # for now just find one but for now just check the first clique containing the variable)
-
-        for var, val in data.items():
-            clique, _vars = bp.get_clique(jt.get_struct(), jt.get_node_list(), var)
-            pot = phi3[clique]
-            assert pot.shape == phi[clique].shape
-            var_ix = _vars.index(var)
-            # check that potential properly updated
-            mask = [val == dim for dim in range(pot.shape[var_ix])]
-            # values along var axis not equal to val will have a 0 value
-            assert np.all(np.compress(np.invert(mask), pot, axis=var_ix)) == 0
-            # ensure that var axis equal to val is equivalent in both original and new potentials
-            np.testing.assert_array_equal(
-                                            np.compress(mask, pot, axis=var_ix),
-                                            np.compress(mask, phi[clique], axis=var_ix)
-                                        )
-
-        # test that no change made to potential values for unobserved variables
-        for var in jt.get_key_sizes():
-            if var not in data.keys():
-                # we have not observed a value for this var
-                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), jt.get_node_list(), var):
-                    pot = phi3[clique_ix]
-                    # get the vals for the observed axes and set unobserved to -1
-                    test_arr = np.array([data[v] if v in data else -1 for v in _vars])
-                    # retain indices in array which all observed axes set to observed val
-                    # if none observed this should just evaluate to all indices of the potential
-                    test_indices = np.array([a_ix for a_ix in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_ix)) == (test_arr > -1).sum()]).transpose()
-                    flat_indices = np.ravel_multi_index(test_indices, pot.shape)
-                    # elements at these indices should not have changed by observations
-                    np.testing.assert_array_equal(
-                                                    np.take(pot, flat_indices),
-                                                    np.take(phi[clique], flat_indices)
-                                                )
-
-    '''
-        skipping this test for now as explicitly handling retraction might be
-        unnecessary
-    def test_can_observe_dynamic_evidence_using_global_retraction(self):
-        # dim(0): 4, dim(1): 8, dim(2): 5, dim(3): 3, dim(4): 6
-        jt = JunctionTree(
-                            {
-                                0: 4,
-                                1: 8,
-                                2: 5,
-                                3: 3,
-                                4: 6
-                            },
-                            [
-                                0,
-                                (
-                                    1,
-                                    [
-                                        2,
-                                    ]
-                                ),
-                                (
-                                    3,
-                                    [
-                                        4,
-                                        (
-                                            5,
-                                            [
-                                                6,
-                                            ]
-                                        )
-                                    ]
-                                )
-                            ],
-                            [
-                                [0,2,4],
-                                [0,2],
-                                [0,1,2],
-                                [4],
-                                [3,4],
-                                [3],
-                                [1,2,3]
-                            ]
-                    )
-
-
-        # define arbitrary initial join tree potentials
-        phi = [
-                np.random.randn(4,5,6),
-                np.random.randn(4,5),
-                np.random.randn(4,8,5),
-                np.random.randn(6),
-                np.random.randn(3,6),
-                np.random.randn(3),
-                np.random.randn(8,5,3)
-        ]
-        data0 = {0: 1, 2: 3, 4: 0}
-
-        likelihood, phi0, shrink_mapping = jt.observe(phi, data0)
-        np.testing.assert_array_equal(likelihood[0], np.array([0,1,0,0]))
-        np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
-        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
-        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-
-        phi1 = bp.hugin(
-                    jt.get_struct(),
-                    jt.get_node_list(),
-                    phi0,
-                    bp.sum_product
-        )
-        assert_junction_tree_consistent(jt, phi1)
-
-        data = {0: 2, 2: 3, 4: 0}
-
-        likelihood, phi2, shrink_mapping = jt.observe(phi1, data, "retract")
-        np.testing.assert_array_equal(likelihood[0], np.array([0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[1], np.array([1,1,1,1,1,1,1,1]))
-        np.testing.assert_array_equal(likelihood[2], np.array([0,0,0,1,0]))
-        np.testing.assert_array_equal(likelihood[3], np.array([1,1,1]))
-        np.testing.assert_array_equal(likelihood[4], np.array([1,0,0,0,0,0]))
-
-        phi3 = bp.hugin(
-                    jt.get_struct(),
-                    jt.get_node_list(),
-                    phi2,
-                    bp.sum_product
-        )
-        assert_junction_tree_consistent(jt, phi3)
-
-        # test that a potential containing observed variable is altered properly after observing data
-        # (Eventually this will be based on familial content of clique or a more optimal clique but
-        # for now just find one but for now just check the first clique containing the variable)
-
-        for var, val in data.items():
-            clique, _vars = bp.get_clique(jt.get_struct(), jt.get_node_list(), var)
-            pot = phi3[clique]
-            assert pot.shape == phi[clique].shape
-            var_ix = _vars.index(var)
-            # check that potential properly updated
-            mask = [val == dim for dim in range(pot.shape[var_ix])]
-            # values along var axis not equal to val will have a 0 value
-            assert np.all(np.compress(np.invert(mask), pot, axis=var_ix)) == 0
-            # ensure that var axis equal to val is equivalent in both original and new potentials
-            np.testing.assert_array_equal(
-                                            np.compress(mask, pot, axis=var_ix),
-                                            np.compress(mask, phi[clique], axis=var_ix)
-                                        )
-
-        # test that no change made to potential values for unobserved variables
-        for var in jt.get_key_sizes():
-            if var not in data.keys():
-                # we have not observed a value for this var
-                for clique_ix, _vars in bp.get_cliques(jt.get_struct(), jt.get_node_list(), var):
-                    pot = phi3[clique_ix]
-                    # get the vals for the observed axes and set unobserved to -1
-                    test_arr = np.array([data[v] if v in data else -1 for v in _vars])
-                    # retain indices in array which all observed axes set to observed val
-                    # if none observed this should just evaluate to all indices of the potential
-                    test_indices = np.array([a_ix for a_ix in np.ndindex(*pot.shape) if np.sum(test_arr == np.array(a_ix)) == (test_arr > -1).sum()]).transpose()
-                    flat_indices = np.ravel_multi_index(test_indices, pot.shape)
-                    # elements at these indices should not have changed by observations
-                    np.testing.assert_array_equal(
-                                                    np.take(pot, flat_indices),
-                                                    np.take(phi[clique], flat_indices)
-                                                )
-
-        '''
 
     def test_evidence_shrinking(self):
         A = np.random.rand(3,4,2) # vars: a,b,c
@@ -2294,326 +1704,6 @@ class TestJunctionTreeConstruction(unittest.TestCase):
 
         assert_junction_tree_equal(output, merged_tree)
 
-    def test_index_vars(self):
-        var_lookup = {
-                "A": 0,
-                "B": 1,
-                "C": 2,
-                "D": 4,
-                "E": 8,
-                "F": 9,
-                "G": 10
-        }
-        in_tree = [
-                    2,
-                    (
-                        1,
-                        [
-                            0,
-                            (
-                                5,
-                                [
-                                    4,
-                                    (
-                                        7,
-                                        [
-                                            8,
-                                        ]
-                                    )
-                                ]
-                            ),
-                            (
-                                3,
-                                [
-                                    6,
-                                ]
-                            )
-                        ]
-                    )
-                ]
-
-        in_node_list = [
-                        ["A","C","D"],
-                        ["C"],
-                        ["B","C"],
-                        ["D"],
-                        ["A","E"],
-                        ["A"],
-                        ["D","F"],
-                        ["E"],
-                        ["E","G"]
-        ]
-
-        out_tree, out_node_list = JunctionTree.map_keys(in_tree, in_node_list, var_lookup)
-
-
-
-        test_tree = [
-                    2,
-                    (
-                        1,
-                        [
-                            0,
-                            (
-                                5,
-                                [
-                                    4,
-                                    (
-                                        7,
-                                        [
-                                            8,
-                                        ]
-                                    )
-                                ]
-                            ),
-                            (
-                                3,
-                                [
-                                    6,
-                                ]
-                            )
-                        ]
-                    )
-                ]
-
-        test_node_list = [
-                            [0,2,4],
-                            [2],
-                            [1,2],
-                            [4],
-                            [0,8],
-                            [0],
-                            [4,9],
-                            [8],
-                            [8, 10]
-        ]
-
-        assert len(in_node_list) == len(out_node_list)
-        for i in range(len(in_node_list)):
-            assert len(in_node_list[i]) == len(out_node_list[i])
-
-        assert out_node_list == test_node_list
-        assert_junction_tree_equal(out_tree, test_tree)
-
-    def test_unindex_vars(self):
-        var_lookup = {
-                "A": 0,
-                "B": 1,
-                "C": 2,
-                "D": 4,
-                "E": 8,
-                "F": 9,
-                "G": 10
-        }
-
-        in_tree = [
-                    2,
-                    (
-                        1,
-                        [
-                            0,
-                            (
-                                5,
-                                [
-                                    4,
-                                    (
-                                        7,
-                                        [
-                                            8,
-                                        ]
-                                    )
-                                ]
-                            ),
-                            (
-                                3,
-                                [
-                                    6,
-                                ]
-                            )
-                        ]
-                    )
-                ]
-
-        in_node_list = [
-                            [0,2,4],
-                            [2],
-                            [1,2],
-                            [4],
-                            [0,8],
-                            [0],
-                            [4,9],
-                            [8],
-                            [8, 10]
-        ]
-
-        out_tree, out_node_list = JunctionTree.map_keys(in_tree, in_node_list, {v:k for k, v in var_lookup.items()})
-
-        test_tree = [
-                    2,
-                    (
-                        1,
-                        [
-                            0,
-                            (
-                                5,
-                                [
-                                    4,
-                                    (
-                                        7,
-                                        [
-                                            8,
-                                        ]
-                                    )
-                                ]
-                            ),
-                            (
-                                3,
-                                [
-                                    6,
-                                ]
-                            )
-                        ]
-                    )
-                ]
-
-        test_node_list = [
-                        ["A","C","D"],
-                        ["C"],
-                        ["B","C"],
-                        ["D"],
-                        ["A","E"],
-                        ["A"],
-                        ["D","F"],
-                        ["E"],
-                        ["E","G"]
-        ]
-
-        assert len(in_node_list) == len(out_node_list)
-        for i in range(len(in_node_list)):
-            assert len(in_node_list[i]) == len(out_node_list[i])
-
-        assert out_node_list == test_node_list
-        assert_junction_tree_equal(out_tree, test_tree)
-
-    def test_join_cliques_into_junction_tree(self):
-        """
-            test_join_cliques_into_junction_tree
-
-            Example taken from section 4.4.3 (Huang and Darwiche, 1996)
-
-        """
-
-        key_sizes = {
-                        "A": 2,
-                        "B": 2,
-                        "C": 2,
-                        "D": 2,
-                        "E": 2,
-                        "F": 2,
-                        "G": 2,
-                        "H": 2
-        }
-
-        factors = [
-                    ["A"], # 0
-                    ["B"], # 1
-                    ["C"], # 2
-                    ["D"], # 3
-                    ["E"], # 4
-                    ["F"], # 5
-                    ["G"], # 6
-                    ["H"]  # 7
-        ]
-
-        cliques = [
-                    ["A","B","D"],#[0,1,3]
-                    ["A","C","E"],#[0,2,4]
-                    ["A","D","E"],#[0,3,4]
-                    ["C","E","G"],#[2,4,6]
-                    ["D","E","F"],#[3,4,5]
-                    ["E","G","H"],#[4,6,7]
-                ]
-
-        tree, sepsets = bp.construct_junction_tree(cliques, key_sizes)
-
-        jt0 = JunctionTree(key_sizes, tree, cliques+sepsets)
-        label_dict = jt0.get_label_order()
-
-        def __sepsets_using_tree_index(jt, sepsets):
-            label_dict = jt0.get_label_order()
-            r_sepsets = []
-            for ss in sepsets:
-                l = []
-                for key_label in sorted(ss):
-                    l.append(label_dict[key_label])
-                r_sepsets.append(tuple(l))
-            return r_sepsets
-
-        assert set(__sepsets_using_tree_index(jt0, sepsets)) == set([(0,3), (3,4), (0,4), (2,4), (4,6)])
-
-        # expected junction tree
-
-        jt1 = [
-                0,
-                (
-                    1,
-                    [
-                        2,
-                    ]
-                ),
-                (
-                    3,
-                    [
-                        4,
-                    ]
-                ),
-                (
-                    5,
-                    [
-                        6,
-                        (
-                            7,
-                            [
-                                8,
-                                (
-                                    9,
-                                    [
-                                        10,
-                                    ]
-                                )
-                            ]
-                        )
-                    ]
-
-                )
-            ]
-        node_list = [
-                        [0,3,4],
-                        [0,3],
-                        [0,1,3],
-                        [3,4],
-                        [3,4,5],
-                        [0,4],
-                        [0,2,4],
-                        [2,4],
-                        [2,4,6],
-                        [4,6],
-                        [4,6,7]
-        ]
-
-        # code below is equivalent to junction tree structure and nodes being equivalent
-        assert len(node_list) == len(jt0.get_node_list())
-        assert set([tuple(sorted(node)) for node in node_list]) == set([tuple(sorted(node)) for node in jt0.get_node_list()])
-        jt0_pairs = [sorted(pair) for pair in bp.generate_potential_pairs(jt0.get_struct())]
-        jt0_node_as_sets = [set(node) for node in jt0.get_node_list()]
-        for pair in bp.generate_potential_pairs(jt1):
-            node_ix1, node_ix2 = pair
-            node1 = set(node_list[node_ix1])
-            node2 = set(node_list[node_ix2])
-
-            matching_node1 = jt0_node_as_sets.index(node1)
-            matching_node2 = jt0_node_as_sets.index(node2)
-            assert sorted([matching_node1, matching_node2]) in jt0_pairs
 
 
 class TestJunctionTreeInference(unittest.TestCase):
@@ -2750,66 +1840,32 @@ class TestJunctionTreeInference(unittest.TestCase):
 
 
     def test_transformation(self):
-        tree = jt.JunctionTree(
-                    self.tree,
-                    self.node_list[6:],
-                    jt.CliqueGraph(
-                        maxcliques=self.node_list[:6],
-                        factor_to_maxclique=[0, 1, 3, 1, 3, 4, 2, 5],
-                        factor_graph=jt.FactorGraph(
-                            factors=self.factors,
-                            sizes=self.key_sizes
-                        )
-                    )
-        )
+        tree = jt.create_junction_tree(self.factors, self.key_sizes)
+        prop_values = tree.propagate(self.values)
 
         # check that marginal values are correct
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[0],
-                                    [0],
-                                    [0]
-                                ),
+                                prop_values[0],
                                 np.array([0.500,0.500])
         )
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[1],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[1], axis=0),
                                 np.array([0.550,0.450])
         )
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[2],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[2], axis=0),
                                 np.array([0.550,0.450])
         )
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[3],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[3], axis=0),
                                 np.array([0.320,0.680])
         )
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[4],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[4], axis=0),
                                 np.array([0.535,0.465])
         )
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[5],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[5], axis=0),
                                 np.array([0.855,0.145])
         )
 
@@ -2845,6 +1901,7 @@ class TestJunctionTreeInference(unittest.TestCase):
                         )
                     )
         )
+
         init_phi  = j_tree.clique_tree.evaluate(self.values)
 
         assert_potentials_equal(
@@ -2864,37 +1921,18 @@ class TestJunctionTreeInference(unittest.TestCase):
         )
 
     def test_global_propagation(self):
-        tree = jt.JunctionTree(
-                    self.tree,
-                    self.node_list[6:],
-                    jt.CliqueGraph(
-                        maxcliques=self.node_list[:6],
-                        factor_to_maxclique=[0, 1, 3, 1, 3, 4, 2, 5],
-                        factor_graph=jt.FactorGraph(
-                            factors=self.factors,
-                            sizes=self.key_sizes
-                        )
-                    )
-        )
-        phi = tree.propagate(self.values)
+        tree = jt.create_junction_tree(self.factors, self.key_sizes)
 
+        prop_values = tree.propagate(self.values)
         # P(A)
         assert_potentials_equal(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[0],
-                                    [0],
-                                    [0]
-                                ),
+                                prop_values[0],
                                 np.array([0.500,0.500])
         )
 
         # P(D)
         assert_potentials_equal(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[3],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[3], axis=0),
                                 np.array([0.32,0.68])
         )
 
@@ -2942,55 +1980,36 @@ class TestJunctionTreeInference(unittest.TestCase):
                     )
         ]
 
-        tri, ics, max_cliques, factor_to_maxclique = bp.find_triangulation(
-                                                            factors,
-                                                            key_sizes
-        )
-
-        #jt, init_phi = JunctionTree.from_factor_graph(fg)
+        tree = jt.create_junction_tree(factors, key_sizes)
 
         # grass is wet
-        #phi = jt.propagate(init_phi, in_place=False, data={"wet_grass":1})
-
-        fg = jt.FactorGraph(
-            factors=factors,
-            sizes=key_sizes
-        )
-        cg = fg.triangulate()
-        tree = cg.create_junction_tree()
-
-        '''
-        tree.clique_tree.factor_graph.
+        tree.clique_tree.factor_graph.sizes["wet_grass"] = 1
         cond_values = copy.deepcopy(values)
-        cond_values = cond_values[3][:,:,1:]
-        '''
+        cond_values[3] = cond_values[3][:,:,1:]
 
-        prop_values = tree.propagate(values)
+        prop_values = tree.propagate(cond_values)
+        marginal = np.sum(prop_values[1], axis=0)
 
         np.testing.assert_allclose(
-                                #jt.marginalize(phi, ["sprinkler"], normalize=True),
-                                bp.sum_product.einsum(
-                                                prop_values[1],
-                                                [0,1],
-                                                [1]
-                                ),
+                                marginal/np.sum(marginal),
                                 np.array([0.57024,0.42976]),
                                 atol=0.01
         )
 
         # grass is wet and it is raining
-        # no need to calculate init_phi in place because init_phi not used again
-        phi = jt.propagate(init_phi, data={"wet_grass":1, "rain": 1})
+        tree.clique_tree.factor_graph.sizes["rain"] = 1
+        cond_values[3] = cond_values[3][1:,:,:]
+        cond_values[2] = cond_values[2][:,1:]
+        prop_values = tree.propagate(cond_values)
+
+        marginal = np.sum(prop_values[1], axis=0)
+
         np.testing.assert_allclose(
-                                jt.marginalize(phi, ["sprinkler"], normalize=True),
+                                marginal/np.sum(marginal),
                                 np.array([0.8055,0.1945]),
                                 atol=0.01
         )
-        np.testing.assert_allclose(
-                                jt.marginalize(phi, ["rain"], normalize=True),
-                                np.array([0,1]),
-                                atol=0.01
-        )
+
 
 
 
@@ -3053,22 +2072,22 @@ class TestJunctionTreeInference(unittest.TestCase):
                     )
         ]
 
-        tree = [
+        struct = [
                     0,
                     (
-                        1,
+                        4,
                         [
-                            2,
+                            1,
                         ]
                     ),
                     (
-                        3,
+                        5,
                         [
-                            4,
+                            2,
                             (
-                                5,
+                                6,
                                 [
-                                    6,
+                                    3,
                                 ]
                             )
                         ]
@@ -3077,54 +2096,58 @@ class TestJunctionTreeInference(unittest.TestCase):
 
         node_list = [
                         ["C","D","E"],
-                        ["D","E"],
                         ["D","E","F"],
-                        ["C","D"],
                         ["B","C","D"],
+                        ["A","B","C"],
+                        ["D","E"],
+                        ["C","D"],
                         ["B","C"],
-                        ["A","B","C"]
         ]
 
-        fg = [key_sizes,factors,values]
-        jt = JunctionTree(key_sizes, tree, node_list)
-        init_phi = JunctionTree.init_potentials(jt, fg[1], fg[2])
+        tree = jt.create_junction_tree(factors, key_sizes)
 
-        phi = jt.propagate(init_phi)
-        assert math.isclose(phi[6][0,0,0], 0.072, abs_tol=0.01)
-        assert math.isclose(phi[6][0,0,1], 0.018, abs_tol=0.01)
-        assert math.isclose(phi[6][0,1,0], 0.648, abs_tol=0.01)
-        assert math.isclose(phi[6][0,1,1], 0.162, abs_tol=0.01)
-        assert math.isclose(phi[6][1,0,0], 0.027, abs_tol=0.01)
-        assert math.isclose(phi[6][1,0,1], 0.063, abs_tol=0.01)
-        assert math.isclose(phi[6][1,1,0], 0.003, abs_tol=0.01)
-        assert math.isclose(phi[6][1,1,1], 0.007, abs_tol=0.01)
+        prop_values = tree.propagate(values)
 
-        assert math.isclose(phi[4][0,0,0], 0.030, abs_tol=0.01)
-        assert math.isclose(phi[4][0,0,1], 0.069, abs_tol=0.01)
-        assert math.isclose(phi[4][0,1,0], 0.024, abs_tol=0.01)
-        assert math.isclose(phi[4][0,1,1], 0.057, abs_tol=0.01)
-        assert math.isclose(phi[4][1,0,0], 0.391, abs_tol=0.01)
-        assert math.isclose(phi[4][1,0,1], 0.260, abs_tol=0.01)
-        assert math.isclose(phi[4][1,1,0], 0.101, abs_tol=0.01)
-        assert math.isclose(phi[4][1,1,1], 0.068, abs_tol=0.01)
+        # P(C)
+        np.testing.assert_allclose(
+                            np.sum(prop_values[2], axis=1),
+                            np.array([0.75,0.25])
+        )
+        # P(A)
+        np.testing.assert_allclose(
+                            np.sum(prop_values[1], axis=0),
+                            np.array([0.9,0.1])
+        )
 
-        assert math.isclose(phi[2][0,0,0], 0.063, abs_tol=0.01)
-        assert math.isclose(phi[2][0,0,1], 0.252, abs_tol=0.01)
-        assert math.isclose(phi[2][0,1,0], 0.139, abs_tol=0.01)
-        assert math.isclose(phi[2][0,1,1], 0.092, abs_tol=0.01)
-        assert math.isclose(phi[2][1,0,0], 0.130, abs_tol=0.01)
-        assert math.isclose(phi[2][1,0,1], 0.130, abs_tol=0.01)
-        assert math.isclose(phi[2][1,1,0], 0.175, abs_tol=0.01)
-        assert math.isclose(phi[2][1,1,1], 0.019, abs_tol=0.01)
+        # P(B)
+        np.testing.assert_allclose(
+                            np.sum(prop_values[1], axis=1),
+                            np.array([0.18,0.82])
+        )
 
-        assert math.isclose(phi[0][0,0,0], 0.252, abs_tol=0.01)
-        assert math.isclose(phi[0][0,0,1], 0.168, abs_tol=0.01)
-        assert math.isclose(phi[0][0,1,0], 0.198, abs_tol=0.01)
-        assert math.isclose(phi[0][0,1,1], 0.132, abs_tol=0.01)
-        assert math.isclose(phi[0][1,0,0], 0.063, abs_tol=0.01)
-        assert math.isclose(phi[0][1,0,1], 0.063, abs_tol=0.01)
-        assert math.isclose(phi[0][1,1,0], 0.062, abs_tol=0.01)
-        assert math.isclose(phi[0][1,1,1], 0.062, abs_tol=0.01)
+        # P(D)
+        np.testing.assert_allclose(
+                            np.sum(prop_values[3], axis=0),
+                            np.array([0.546,0.454])
+        )
+
+        # P(E)
+        np.testing.assert_allclose(
+                            np.sum(prop_values[4], axis=0),
+                            np.array([0.575,0.425])
+        )
+
+        # P(F)
+        np.testing.assert_allclose(
+                            bp.sum_product.einsum(
+                                prop_values[5],
+                                [0,1,2],
+                                [2]
+                            ),
+                            np.array([0.507,0.493]),
+                            atol=0.001
+        )
+
 
 class TestJTTraversal(unittest.TestCase):
     def setUp(self):
