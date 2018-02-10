@@ -211,21 +211,6 @@ def assert_sum_product(junction_tree, node_order, potentials):
         )
     )
 
-def assert_sum_product2(junction_tree, potentials):
-    """ Test hugin vs brute force sum-product """
-
-    tree = junction_tree.get_struct()
-    node_list = junction_tree.get_node_list()
-
-    assert_potentials_equal(
-        brute_force_sum_product(tree, node_list, potentials),
-        bp.hugin(
-                tree,
-                node_list,
-                potentials,
-                bp.sum_product,
-        )
-    )
 
 def assert_junction_tree_consistent(tree, potentials):
     '''
@@ -2750,66 +2735,32 @@ class TestJunctionTreeInference(unittest.TestCase):
 
 
     def test_transformation(self):
-        tree = jt.JunctionTree(
-                    self.tree,
-                    self.node_list[6:],
-                    jt.CliqueGraph(
-                        maxcliques=self.node_list[:6],
-                        factor_to_maxclique=[0, 1, 3, 1, 3, 4, 2, 5],
-                        factor_graph=jt.FactorGraph(
-                            factors=self.factors,
-                            sizes=self.key_sizes
-                        )
-                    )
-        )
+        tree = jt.create_junction_tree(self.factors, self.key_sizes)
+        prop_values = tree.propagate(self.values)
 
         # check that marginal values are correct
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[0],
-                                    [0],
-                                    [0]
-                                ),
+                                prop_values[0],
                                 np.array([0.500,0.500])
         )
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[1],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[1], axis=0),
                                 np.array([0.550,0.450])
         )
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[2],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[2], axis=0),
                                 np.array([0.550,0.450])
         )
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[3],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[3], axis=0),
                                 np.array([0.320,0.680])
         )
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[4],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[4], axis=0),
                                 np.array([0.535,0.465])
         )
         np.testing.assert_allclose(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[5],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[5], axis=0),
                                 np.array([0.855,0.145])
         )
 
@@ -2845,6 +2796,7 @@ class TestJunctionTreeInference(unittest.TestCase):
                         )
                     )
         )
+
         init_phi  = j_tree.clique_tree.evaluate(self.values)
 
         assert_potentials_equal(
@@ -2864,37 +2816,18 @@ class TestJunctionTreeInference(unittest.TestCase):
         )
 
     def test_global_propagation(self):
-        tree = jt.JunctionTree(
-                    self.tree,
-                    self.node_list[6:],
-                    jt.CliqueGraph(
-                        maxcliques=self.node_list[:6],
-                        factor_to_maxclique=[0, 1, 3, 1, 3, 4, 2, 5],
-                        factor_graph=jt.FactorGraph(
-                            factors=self.factors,
-                            sizes=self.key_sizes
-                        )
-                    )
-        )
-        phi = tree.propagate(self.values)
+        tree = jt.create_junction_tree(self.factors, self.key_sizes)
 
+        prop_values = tree.propagate(self.values)
         # P(A)
         assert_potentials_equal(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[0],
-                                    [0],
-                                    [0]
-                                ),
+                                prop_values[0],
                                 np.array([0.500,0.500])
         )
 
         # P(D)
         assert_potentials_equal(
-                                bp.sum_product.einsum(
-                                    tree.propagate(self.values)[3],
-                                    [0,1],
-                                    [1]
-                                ),
+                                np.sum(prop_values[3], axis=0),
                                 np.array([0.32,0.68])
         )
 
@@ -2942,12 +2875,7 @@ class TestJunctionTreeInference(unittest.TestCase):
                     )
         ]
 
-        fg = jt.FactorGraph(
-            factors=factors,
-            sizes=key_sizes
-        )
-        cg = fg.triangulate()
-        tree = cg.create_junction_tree()
+        tree = jt.create_junction_tree(factors, key_sizes)
 
         # grass is wet
         tree.clique_tree.factor_graph.sizes["wet_grass"] = 1
@@ -2955,12 +2883,7 @@ class TestJunctionTreeInference(unittest.TestCase):
         cond_values[3] = cond_values[3][:,:,1:]
 
         prop_values = tree.propagate(cond_values)
-
-        marginal = bp.sum_product.einsum(
-                        prop_values[1],
-                        [0,1],
-                        [1]
-        )
+        marginal = np.sum(prop_values[1], axis=0)
 
         np.testing.assert_allclose(
                                 marginal/np.sum(marginal),
@@ -2974,11 +2897,7 @@ class TestJunctionTreeInference(unittest.TestCase):
         cond_values[2] = cond_values[2][:,1:]
         prop_values = tree.propagate(cond_values)
 
-        marginal = bp.sum_product.einsum(
-                        prop_values[1],
-                        [0,1],
-                        [1]
-        )
+        marginal = np.sum(prop_values[1], axis=0)
 
         np.testing.assert_allclose(
                                 marginal/np.sum(marginal),
@@ -3080,68 +2999,36 @@ class TestJunctionTreeInference(unittest.TestCase):
                         ["B","C"],
         ]
 
-        tree = jt.JunctionTree(
-                    struct,
-                    node_list[4:],
-                    jt.CliqueGraph(
-                        maxcliques=node_list[:4],
-                        factor_to_maxclique=[3, 3, 3, 2, 0, 1],
-                        factor_graph=jt.FactorGraph(
-                            factors=factors,
-                            sizes=key_sizes
-                        )
-                    )
-        )
-
+        tree = jt.create_junction_tree(factors, key_sizes)
 
         prop_values = tree.propagate(values)
 
         # P(C)
         np.testing.assert_allclose(
-                            bp.sum_product.einsum(
-                                prop_values[2],
-                                [0,1],
-                                [0]
-                            ),
+                            np.sum(prop_values[2], axis=1),
                             np.array([0.75,0.25])
         )
         # P(A)
         np.testing.assert_allclose(
-                            bp.sum_product.einsum(
-                                prop_values[1],
-                                [0,1],
-                                [1]
-                            ),
+                            np.sum(prop_values[1], axis=0),
                             np.array([0.9,0.1])
         )
 
         # P(B)
         np.testing.assert_allclose(
-                            bp.sum_product.einsum(
-                                prop_values[1],
-                                [0,1],
-                                [0]
-                            ),
+                            np.sum(prop_values[1], axis=1),
                             np.array([0.18,0.82])
         )
 
         # P(D)
         np.testing.assert_allclose(
-                            bp.sum_product.einsum(
-                                prop_values[3],
-                                [0,1],
-                                [1]
-                            ),
+                            np.sum(prop_values[3], axis=0),
                             np.array([0.546,0.454])
         )
 
         # P(E)
         np.testing.assert_allclose(
-                            bp.sum_product.einsum(
-                                prop_values[4],
-                                [0,1],
-                                [1]
-                            ),
+                            np.sum(prop_values[4], axis=0),
                             np.array([0.575,0.425])
         )
 
