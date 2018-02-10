@@ -168,7 +168,7 @@ prop_values =  tree.propagate(cond_values)
 From a collection of consistent clique potentials, the marginal value of variables of interest can be calculated
 
 ```
-# Pr(sprinkler|wetGrass = true)
+# Pr(sprinkler|wet_grass = 1)
 marginal = np.sum(prop_values[1], axis=0)
 
 # The probabilities are unnormalized but we can calculate the normalized values:
