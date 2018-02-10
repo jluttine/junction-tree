@@ -156,7 +156,7 @@ cond_tree = jt.create_junction_tree(factors, cond_sizes)
 
 # Then, also similarly the values:
 cond_values = values.copy()
-# remove axis corresponding to "wet_grass" = 0
+# remove axis corresponding to "wet_grass" == 0
 cond_values[3] = cond_values[3][:,:,1:2]
 
 # Perform global propagation using conditioned values
