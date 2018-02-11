@@ -43,7 +43,8 @@ if __name__ == "__main__":
     # Setup for BayesPy
     setup(
         install_requires = [
-            "numpy"
+            "numpy",
+            "attrs",
         ],
         packages         = find_packages(),
         name             = NAME,
