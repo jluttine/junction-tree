@@ -51,7 +51,7 @@ if __name__ == "__main__":
         author           = AUTHOR,
         description      = DESCRIPTION,
         url              = URL,
-        long_description = read('README.rst'),
+        long_description = read('README.md'),
         cmdclass         = versioneer.get_cmdclass(),
         keywords         = [
             'probabilistic programming',
