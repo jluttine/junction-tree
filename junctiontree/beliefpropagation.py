@@ -117,6 +117,16 @@ def find_triangulation(factors, key_sizes):
 
     edges = factors_to_undirected_graph(factors)
 
+    if len(edges) == 0:
+        # no edges present in factor graph
+        return (
+                [],
+                [factor for factor in factors],
+                [factor for factor in factors],
+                range(len(factors))
+        )
+
+
     factor_to_maxclique = [None]*len(factors)
     subsets = {}
     for ix, f1 in enumerate(factors):
