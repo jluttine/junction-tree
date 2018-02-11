@@ -17,7 +17,7 @@ with open(os.path.join(base_dir, 'junctiontree', '_meta.py')) as fp:
 NAME         = 'junctiontree'
 DESCRIPTION  = 'Junction tree and belief propagation algorithms'
 AUTHOR       = meta['__author__']
-URL          = 'http://bayespy.org'
+URL          = 'https://github.com/jluttine/junction-tree'
 VERSION      = versioneer.get_version()
 COPYRIGHT    = meta['__copyright__']
 
@@ -43,7 +43,8 @@ if __name__ == "__main__":
     # Setup for BayesPy
     setup(
         install_requires = [
-            "numpy"
+            "numpy",
+            "attrs",
         ],
         packages         = find_packages(),
         name             = NAME,
@@ -51,7 +52,7 @@ if __name__ == "__main__":
         author           = AUTHOR,
         description      = DESCRIPTION,
         url              = URL,
-        long_description = read('README.rst'),
+        long_description = read('README.md'),
         cmdclass         = versioneer.get_cmdclass(),
         keywords         = [
             'probabilistic programming',
