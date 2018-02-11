@@ -17,7 +17,7 @@ with open(os.path.join(base_dir, 'junctiontree', '_meta.py')) as fp:
 NAME         = 'junctiontree'
 DESCRIPTION  = 'Junction tree and belief propagation algorithms'
 AUTHOR       = meta['__author__']
-URL          = 'http://bayespy.org'
+URL          = 'https://github.com/jluttine/junction-tree'
 VERSION      = versioneer.get_version()
 COPYRIGHT    = meta['__copyright__']
 
