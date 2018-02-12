@@ -1,6 +1,6 @@
 # Changelog
 
-## Dev
+## 0.1.1 (2018-02-12)
 - Support factors without edges in triangulation.
 - Add `attrs` to dependencies.
 
