@@ -53,7 +53,8 @@ def factors_to_undirected_graph(factors):
         factor_set = set(factor)
         for v1 in factor:
             for v2 in factor_set - set([v1]):
-                edges[frozenset((v1,v2))] = factor_ix
+                edges.setdefault(frozenset((v1,v2)), set())
+                edges[frozenset((v1,v2))].add(factor_ix)
 
     return edges
 
@@ -143,13 +144,13 @@ def find_triangulation(factors, key_sizes):
 
 
     edges = factors_to_undirected_graph(factors)
-
     heap, entry_finder = initialize_triangulation_heap(
                                             key_sizes,
                                             edges
     )
 
     rem_keys = list(key_sizes.keys())
+
     while len(rem_keys) > 0:
         item, heap, entry_finder, rem_keys = remove_next(
                                                         heap,
@@ -158,32 +159,35 @@ def find_triangulation(factors, key_sizes):
                                                         key_sizes,
                                                         edges
         )
+
         key = item[2]
+
         # find neighbors that are in remaining keys
         rem_neighbors = []
         origin_factors = []
-        for edge, factor_ix in edges.items():
+        for edge, factor_ixs in edges.items():
             if key in edge:
                 neighbor = set(rem_keys).intersection(edge)
                 if len(neighbor) == 1:
                     rem_neighbors.append(neighbor.pop())
-                    if factor_ix != None and factor_to_maxclique[factor_ix] == None:
-                        origin_factors.extend(
-                                                sum(
-                                                    [[factor_ix]],
-                                                    [
-                                                        sub_factor_ix
-                                                        for sub_factor_ix in subsets.get(factor_ix, [])
-                                                    ]
-                                                )
-                        )
+                    for factor_ix in factor_ixs:
+                        if factor_to_maxclique[factor_ix] == None:
+                            origin_factors.extend(
+                                                    sum(
+                                                        [[factor_ix]],
+                                                        [
+                                                            sub_factor_ix
+                                                            for sub_factor_ix in subsets.get(factor_ix, [])
+                                                        ]
+                                                    )
+                            )
 
         new_clust = rem_neighbors + [key]
         # connect all unconnected neighbors of key
         for i, n1 in enumerate(rem_neighbors):
             for n2 in rem_neighbors[i+1:]:
                 if frozenset((n1,n2)) not in edges:
-                    edges[frozenset((n1,n2))] = None
+                    edges[frozenset((n1,n2))] = []
                     tri.append((n1,n2))
 
         new_ic_ix = len(induced_clusters)
