@@ -10,6 +10,7 @@ import attr
 
 def create_junction_tree(factors, sizes):
     """Create a Junction tree for a given factor graph."""
+    assert all(type(l) == list for l in factors), "Provided factor is not a list"
     fg = FactorGraph(factors=factors, sizes=sizes)
     return fg.triangulate().create_junction_tree()
 
