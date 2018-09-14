@@ -1303,6 +1303,10 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         assert ["G","H","J"] in cliques
 
 
+    def test_triangulate_factor_graph_with_duplicate_factors(self):
+        tri, ics, max_cliques, factor_to_maxclique = bp.find_triangulation([ ["x", "y"], ["x", "y"] ], {"x":2, "y":3})
+        assert None not in factor_to_maxclique
+
     def test_identify_cliques(self):
         """
             test_identify_cliques
