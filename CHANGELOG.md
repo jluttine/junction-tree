@@ -1,5 +1,9 @@
 # Changelog
 
+## Dev
+- Fix support for duplicate factors (#2).
+- Assert that factors are given as a list of lists.
+
 ## 0.1.1 (2018-02-12)
 - Support factors without edges in triangulation.
 - Add `attrs` to dependencies.
