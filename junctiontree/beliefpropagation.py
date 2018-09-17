@@ -277,7 +277,7 @@ def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
     h = heap if heap else []
     entry_finder = entry_finder if entry_finder else {}
     for key in remaining_keys:
-        rem_neighbors = [(set(edge) - set(key)).pop()
+        rem_neighbors = [(set(edge) - set([key])).pop()
                             for edge in edges if key in edge and len(set(remaining_keys).intersection(edge)) == 2]
 
         # determine how many of key's remaining neighbors need to be connected
