@@ -1307,6 +1307,11 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         tri, ics, max_cliques, factor_to_maxclique = bp.find_triangulation([ ["x", "y"], ["x", "y"] ], {"x":2, "y":3})
         assert None not in factor_to_maxclique
 
+    def test_can_use_integer_keys(self):
+        x = 0
+        y = 1
+        assert type(jt.create_junction_tree([ [x], [x, y] ], {x: 10, y: 20})) == jt.JunctionTree
+
     def test_identify_cliques(self):
         """
             test_identify_cliques
