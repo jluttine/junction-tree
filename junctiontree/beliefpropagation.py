@@ -181,6 +181,9 @@ def find_triangulation(factors, key_sizes):
                                                         ]
                                                     )
                             )
+        if len(origin_factors) == 0:
+            # all factors have been accounted for in existing maxcliques
+            continue
 
         new_clust = rem_neighbors + [key]
         # connect all unconnected neighbors of key
@@ -213,7 +216,6 @@ def find_triangulation(factors, key_sizes):
             # map factors to new maxclique
             for factor_ix in list(set(origin_factors)):
                 factor_to_maxclique[factor_ix] = new_maxclique_ix
-
 
     return tri, induced_clusters, max_cliques, factor_to_maxclique
 

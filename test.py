@@ -2273,3 +2273,43 @@ class TestJTTraversal(unittest.TestCase):
                                                         (8, 9),
                                                         (9, 10)
         ]
+
+class TestMisc(unittest.TestCase):
+
+    def test_index_error(self):
+        key_sizes = {'a': 10, 'b': 6, 'c': 3, 'd': 10, 'e': 27, 'f': 2, 'g': 3, 'h': 3, 'i': 3, 'j': 3, 'k': 5, 'l': 6}
+
+        factors = [
+            ['f', 'k', 'a'],
+            ['f', 'g', 'b'],
+            ['c'],
+            ['f', 'k', 'd'],
+            ['g', 'e'],
+            ['c', 'g', 'f'],
+            ['c', 'g'],
+            ['f', 'h'],
+            ['c', 'g', 'i'],
+            ['l', 'j'],
+            ['g', 'j', 'k'],
+            ['g', 'l']
+        ]
+
+        values = [
+
+        np.random.random((key_sizes['f'], key_sizes['k'], key_sizes['a'])),
+        np.random.random((key_sizes['f'], key_sizes['g'], key_sizes['b'])),
+        np.random.random((key_sizes['c'])),
+        np.random.random((key_sizes['f'], key_sizes['k'], key_sizes['d'])),
+        np.random.random((key_sizes['g'], key_sizes['e'])),
+        np.random.random((key_sizes['c'], key_sizes['g'], key_sizes['f'])),
+        np.random.random((key_sizes['c'], key_sizes['g'])),
+        np.random.random((key_sizes['f'], key_sizes['h'])),
+        np.random.random((key_sizes['c'], key_sizes['g'], key_sizes['i'])),
+        np.random.random((key_sizes['l'], key_sizes['j'])),
+        np.random.random((key_sizes['g'], key_sizes['j'], key_sizes['k'])),
+        np.random.random((key_sizes['g'], key_sizes['l']))
+
+        ]
+
+        tree = jt.create_junction_tree(factors, key_sizes)
+        prop_values = tree.propagate(values)
