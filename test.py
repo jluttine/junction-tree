@@ -2,7 +2,7 @@ import numpy as np
 
 from junctiontree import beliefpropagation as bp
 import unittest
-import networkx as nx
+#import networkx as nx
 import itertools
 import heapq
 import copy
@@ -64,13 +64,39 @@ def assert_triangulated(factors, triangulation):
 
 
 def build_graph(factors):
-    G=nx.Graph()
+    '''
+    Builds an adjacency matrix representation for a graph. Nodes in factors
+    are connected by edges (non-zero matrix entry) in the graph.
+
+    :param factors: list of factors from which to build a graph
+    :return: graph represented as a dictionary of adjacency lists
+    '''
+
+    sorted_nodes = sorted({node for factor in factors for node in factor})
+
+    G = {
+            'node_to_idx': {
+                                node: i
+                                for i, node in enumerate(sorted_nodes)
+
+            },
+            'adj_matrix': {
+                np.full(
+                    (len(sorted_nodes), len(sorted_nodes)),
+                    False
+                )
+            }
+    }
+
 
     for factor in factors:
         factor_set = set(factor)
-        for v1 in factor:
-            for v2 in factor_set - set([v1]):
-                G.add_edge(v1,v2)
+        for n1 in factor:
+            n1_idx = G['node_to_idx'][n1]
+            for n2 in factor_set - set([n1]):
+                n2_idx = G['node_to_idx'][n2]
+                # add an edge between nodes (only using upper-left triangle)
+                G['adj_matrix'][n1_idx, n2_idx] = True
 
     return G
 
