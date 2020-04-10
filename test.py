@@ -62,6 +62,36 @@ def assert_triangulated(factors, triangulation):
                     ]
         ) > 0
 
+def compute_num_combinations(n, r=2):
+    '''
+    Compute n choose r. (Function available in Python 3.8 but not requiring this version)
+
+    :param n: number of objects
+    :param r: number of objects in each combination
+    :return: number of combinations of r items from collection of n items
+    '''
+
+    return math.factorial(n) / (math.factorial(r) * math.factorial(n - r))
+
+
+def test_build_graph():
+
+    factors = [['A','B','C'], ['C','D','E'], ['B','F']]
+
+    # sum combinations to calculate total edge count
+
+    num_edges = sum(
+                    [
+                        compute_num_combinations(len(factor), 2)
+                        for factor in factors
+                    ]
+    )
+
+    node_list, adj_matrix = build_graph(factors)
+
+    assert len(node_list) == 6
+    assert node_list == ['A', 'B', 'C', 'D', 'E', 'F']
+    assert adj_matrix.sum() == num_edges
 
 def build_graph(factors):
     '''
@@ -69,41 +99,42 @@ def build_graph(factors):
     are connected by edges (non-zero matrix entry) in the graph.
 
     :param factors: list of factors from which to build a graph
-    :return: graph represented as a dictionary of adjacency lists
+    :return: node_list: a list which maps nodes to index in adjacency matrix
+    :return: adj_matrix: a 2-D numpy array representing upper triangular adjacency matrix
     '''
 
-    sorted_nodes = sorted({node for factor in factors for node in factor})
+    sorted_nodes = sorted({ node for factor in factors for node in factor })
 
-    G = {
-            'node_to_idx': {
-                                node: i
-                                for i, node in enumerate(sorted_nodes)
+    node_lookup = { node: i for i, node in enumerate(sorted_nodes) }
 
-            },
-            'adj_matrix': {
-                np.full(
-                    (len(sorted_nodes), len(sorted_nodes)),
-                    False
-                )
-            }
-    }
+    node_count = len(sorted_nodes)
+    adj_matrix = np.full((node_count, node_count), False)
 
 
     for factor in factors:
-        factor_set = set(factor)
-        for n1 in factor:
-            n1_idx = G['node_to_idx'][n1]
-            for n2 in factor_set - set([n1]):
-                n2_idx = G['node_to_idx'][n2]
-                # add an edge between nodes (only using upper-left triangle)
-                G['adj_matrix'][n1_idx, n2_idx] = True
+        for i, n1 in enumerate(factor):
+            n1_idx = node_lookup[n1]
+            for n2 in factor[i+1:]:
+                n2_idx = node_lookup[n2]
+                # add an edge between nodes
+                adj_matrix[n1_idx, n2_idx] = True
 
-    return G
+    return sorted_nodes, adj_matrix
+
+def create_cycle_basis(adj_matrix):
+    '''
+    Create a cycle basis from an adjancency matrix. A cycle basis
+
+    :param adj_matrix:
+    :return:
+    '''
+    pass
 
 def find_cycles(factors, num):
     G = build_graph(factors)
 
-    cb = nx.cycle_basis(G)
+    #cb = nx.cycle_basis(G)
+    cb = create_cycle_basis()
     cb_edges = [zip(nodes,(nodes[1:]+nodes[:1])) for nodes in cb]
     graph_edges = [set(edge) for edge in G.edges()]
     # generate a list of all cycles greater than or equal to num
@@ -369,15 +400,15 @@ class TestHUGINFunctionality(unittest.TestCase):
 
 
     def test_pass_message(self):
-        """
+        r"""
             Example taken from here: https://www.cs.ru.nl/~peterl/BN/examplesproofs.pdf
             Example will be processed under the assumption that potentials have been
             properly initialized outside of this test
 
             Variables: V1, V2, V3
-            \pi_{V1} = [V2] # parents of V1
-            \pi_{V2} = [] # parents of V2
-            \pi_{V3} = [V2] # parents of V3
+            \phi_{V1} = [V2] # parents of V1
+            \phi_{V2} = [] # parents of V2
+            \phi_{V3} = [V2] # parents of V3
             F_{V1} = [V1, V2]
             F_{V2} = [V2]
             F_{V3} = [V2, V3]
