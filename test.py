@@ -2,17 +2,16 @@ import numpy as np
 
 from junctiontree import beliefpropagation as bp
 import unittest
-#import networkx as nx
 import itertools
 import heapq
 import copy
 import junctiontree.junctiontree as jt
 from junctiontree.sum_product import SumProduct
 import math
+from scipy.sparse.csgraph import minimum_spanning_tree, depth_first_order
 
 
 # Tests here using pytest
-
 
 def assert_junction_tree_equal(t1, t2):
     """Test equality of two junction trees
@@ -105,7 +104,7 @@ def build_graph(factors):
 
     sorted_nodes = sorted({ node for factor in factors for node in factor })
 
-    node_lookup = { node: i for i, node in enumerate(sorted_nodes) }
+    node_lookup = { node : i for i, node in enumerate(sorted_nodes) }
 
     node_count = len(sorted_nodes)
     adj_matrix = np.full((node_count, node_count), False)
@@ -121,22 +120,118 @@ def build_graph(factors):
 
     return sorted_nodes, adj_matrix
 
+def test_find_base_cycle():
+    adj_matrix = np.array(
+        [[0, 1, 1, 1, 0, 1],
+        [0, 0, 1, 0, 1, 0],
+        [0, 0, 0, 1, 1, 0],
+        [0, 0, 0, 0, 1, 1],
+        [0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 0]]
+    )
+
+    mst = minimum_spanning_tree(adj_matrix).tolil()
+
+    assert mst.sum() <= adj_matrix.sum()
+
+    cycle_edge = (3,5)
+
+    assert find_base_cycle(mst, cycle_edge[0], cycle_edge[1]) == [5, 0, 3]
+
+
+
+def test_create_cycle_basis():
+    adj_matrix = np.array(
+        [[0, 1, 1, 1, 0, 1],
+        [0, 0, 1, 0, 1, 0],
+        [0, 0, 0, 1, 1, 0],
+        [0, 0, 0, 0, 1, 1],
+        [0, 0, 0, 0, 0, 1],
+        [0, 0, 0, 0, 0, 0]]
+    )
+
+    cycle_basis = create_cycle_basis(adj_matrix)
+
+    assert len(cycle_basis) == 6
+
+    exp_cycles = [
+                    [5, 0, 3],
+                    [3, 0, 2],
+                    [4, 1, 0, 3],
+                    [5, 0, 1, 4],
+                    [4, 1, 0, 2],
+                    [2, 0, 1]
+    ]
+    assert np.all(exp_cycle in cycle_basis for exp_cycle in exp_cycles)
+
+
+
+    # check for the 6 cycles from this article
+    # http://www.math.cmu.edu/~mradclif/teaching/241F18/CycleBases.pdf
+
+
+def find_base_cycle(mst, start_node, end_node):
+    '''
+    Uses a depth-first traversal to find the cycle created by adding edge
+
+    :param mst: the minimum spanning tree
+    :param start_node: one of the nodes in the cycle generating edge used as start node of depth-first traversal
+    :param end_node: the other node from the cycle generating edge where depth-first traversal should end
+    :return: list of nodes representing cycle in augmented MST
+    '''
+
+    # need to know the path from start node to end node provided by tracing path
+    # through predecessors starting at end node and ending at start node
+
+    nodes, predecessors = depth_first_order(mst, start_node, directed=False)
+
+    cycle = []
+
+    c_node = end_node
+
+    while c_node != start_node:
+        cycle.append(c_node)
+        c_node = predecessors[c_node]
+
+    cycle.append(c_node)
+
+    return cycle
+
 def create_cycle_basis(adj_matrix):
     '''
-    Create a cycle basis from an adjancency matrix. A cycle basis
+    Create a cycle basis from an adjancency matrix representation of a graph, G. A cycle basis is
+    formed by first finding a minimum spanning tree (MST) of G. Adding any edge in G that is not
+    in the MST results in the formation of a single cycle. Each cycle formed in this manner is
+    part of the cycle basis. This function returns all cycles in the cycle basis using the
+    index of the node in G as its representation in the cycle.
 
-    :param adj_matrix:
-    :return:
+    :param adj_matrix: adjacency matrix representation of the graph
+    :return: the list of cycles (list of nodes) representing the cycle basis
     '''
-    pass
+
+
+    mst = minimum_spanning_tree(adj_matrix)
+
+    cycle_edges = np.transpose(np.nonzero(adj_matrix - mst)) # provides non-zeros by index
+
+    # a single unique cycle is created when cycle edge added to min spanning tree
+    basis = [
+                find_base_cycle(mst, edge[0], edge[1])
+                for edge in cycle_edges
+    ]
+
+    return basis
+
 
 def find_cycles(factors, num):
-    G = build_graph(factors)
+    node_list, adj_mat = build_graph(factors)
 
-    #cb = nx.cycle_basis(G)
-    cb = create_cycle_basis()
+    cb = create_cycle_basis(adj_mat)
+
+    cb = [tuple([node_list[node_id] for node_id in cycle]) for cycle in cb]
     cb_edges = [zip(nodes,(nodes[1:]+nodes[:1])) for nodes in cb]
-    graph_edges = [set(edge) for edge in G.edges()]
+
+    graph_edges = [set(edge) for edge in np.transpose(np.nonzero(adj_mat))]
     # generate a list of all cycles greater than or equal to num
     # http://dspace.mit.edu/bitstream/handle/1721.1/68106/FTL_R_1982_07.pdf
     bit_seqs = np.zeros((len(cb_edges), len(graph_edges)), dtype=np.bool)
@@ -147,15 +242,15 @@ def find_cycles(factors, num):
             if graph_edges[j] in edge_list:
                 bit_seqs[i][j] = 1
 
-    cycles = [np.array(graph_edges)[[np.nonzero(cycle)[0]]]
+    cycles = [np.array(graph_edges)[np.nonzero(cycle)[0]]
                 for cycle in gibbs_elem_cycles(bit_seqs) if sum(cycle) >= num]
 
-    return list(G.edges()), cycles
+    return graph_edges, cycles
 
 def gibbs_elem_cycles(fcs):
     '''
         Generate all elementary cycles based on the set of fundamental cycles
-        of a undirected graph.
+        of an undirected graph.
 
         Norman E. Gibbs. 1969. A Cycle Generation Algorithm for Finite
             Undirected Linear Graphs. J. ACM 16, 4 (October 1969), 564-568.
@@ -1258,7 +1353,7 @@ class TestJunctionTreeConstruction(unittest.TestCase):
         tri1 = [(0,2)]
         assert_triangulated(factors, tri1)
 
-    def test_triangulate_factor_graph(self):
+    def test_triangulate_factor_graph1(self):
         _vars = {
                     "A": 2,
                     "B": 4,
