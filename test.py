@@ -228,6 +228,7 @@ def find_cycles(factors, num):
 
     cb = create_cycle_basis(adj_mat)
 
+    # re-index to original node labels
     cb = [tuple([node_list[node_id] for node_id in cycle]) for cycle in cb]
     cb_edges = [zip(nodes,(nodes[1:]+nodes[:1])) for nodes in cb]
 
