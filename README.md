@@ -4,7 +4,7 @@ Implementation of discrete factor graph inference utilizing the Junction Tree al
 Requirements:
 -------------
 
-* NumPy (>= 1.12)
+* Python3 (>= 3.5.5), NumPy (>= 1.13.3), SciPy (>= 1.1), attrs (>=17.4)
 
 Factor graphs:
 --------------
