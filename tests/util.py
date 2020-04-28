@@ -351,9 +351,10 @@ def potentials_consistent(pot1, keys1, pot2, keys2):
                 s_pot
             )
 
+
 def assert_sum_product(junction_tree, node_order, potentials):
     '''
-    Asserts that potentials computed by hugin and brute force sum-product are equal
+    Asserts that potentials computed by HUGIN and brute force sum-product are equal
 
     NOTE: node_order represents the order nodes are traversed in get_arrays_and_keys function
 

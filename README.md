@@ -184,3 +184,10 @@ S. M. Aji and R. J. McEliece, "The generalized distributive law," in IEEE Transa
 Cecil Huang, Adnan Darwiche, Inference in belief networks: A procedural guide, International Journal of Approximate Reasoning, Volume 15, Issue 3, 1996, Pages 225-263, ISSN 0888-613X, http://dx.doi.org/10.1016/S0888-613X(96)00069-2.
 
 F. R. Kschischang, B. J. Frey and H. A. Loeliger, "Factor graphs and the sum-product algorithm," in IEEE Transactions on Information Theory, vol. 47, no. 2, pp. 498-519, Feb 2001. doi: 10.1109/18.910572
+
+Kjærulff, Uffe. 1997. Nested junction trees. In Proceedings of the Thirteenth conference on Uncertainty in artificial intelligence (UAI’97). Morgan Kaufmann Publishers Inc., San Francisco, CA, USA, 294–301.
+
+### Other Python Junction Tree Implementations
+
+[symfer](https://mbsd.cs.ru.nl/symfer/index.html) - a tool suite, written mostly in Python, for performing probabilistic inference  
+[bayesian-belief-networks](https://github.com/eBay/bayesian-belief-networks) - a library for the creation of and exact inference on Bayesian Belief Networks specified as pure Python functions
