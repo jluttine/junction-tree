@@ -13,7 +13,7 @@ http://web4.cs.ucl.ac.uk/staff/D.Barber/textbook/171216.pdf
 '''
 
 
-def test_marginalize_variable(self):
+def test_marginalize_variable():
     '''
         given consistent clique potentials, calculate the marginal probability of
         a variable in the clique
@@ -58,7 +58,7 @@ def test_marginalize_variable(self):
     np.testing.assert_allclose(np.array([0.32,0.68]), np.array([0.320, 0.680]))
 
 
-def test_pass_message(self):
+def test_pass_message():
     r"""
         Example taken from here: https://www.cs.ru.nl/~peterl/BN/examplesproofs.pdf
         Example will be processed under the assumption that potentials have been
@@ -133,7 +133,7 @@ def test_pass_message(self):
                                 ]))
 
 
-def test_collect_messages(self):
+def test_collect_messages():
     # constructor for junction tree taking a list based definition
     # will have a function that can convert factor graph into JT
     jt = [
@@ -188,7 +188,7 @@ def test_collect_messages(self):
     )
 
 
-def test_distribute_messages(self):
+def test_distribute_messages():
     jt = [
             0,
             (
@@ -261,7 +261,7 @@ def test_distribute_messages(self):
     )
 
 
-def test_evidence_shrinking(self):
+def test_evidence_shrinking():
     # evidence shrinking can be incorporated by removing axis corresponding to observed
     # variable
     A = np.random.rand(3,4,2) # vars: a,b,c
