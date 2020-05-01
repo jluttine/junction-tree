@@ -1,27 +1,3 @@
-"""Belief propagation, junction trees etc
-
-General guidelines:
-
-- Use functional approach:
-
-  - pure functions (no side effects)
-
-  - immutable data structures
-
-  - prefer expressions over statements (e.g., if-else expression rather than
-    if-else statement)
-
-- Provide functions as a library so that users can use only some functions
-  alone without needing to use the full stack
-
-- Try to keep the implementation such that it would be possible to use, for
-  instance, TensorFlow or Theano for the library. Not a thing to focus now
-  but just something to keep in mind.
-
-- Write tests comprehensively, preferably before the actual implementation
-
-"""
-
 import numpy as np
 import heapq
 import copy
@@ -32,20 +8,12 @@ from .sum_product import SumProduct
 
 
 def factors_to_undirected_graph(factors):
-    """
-    Represent factor graph as undirected graph
+    ''' Represent factor graph as undirected graph
 
-    Inputs:
-    -------
-
-    List of factors
-
-    Output:
-    -------
-
-    Undirected graph as dictionary of edges mapped to the factor from
-            which edge originates
-    """
+        :param factors: list of factors
+        :return: undirected graph as dictionary with edges as keys and the factor from
+                which edge originates as values
+    '''
 
     edges = {}
 
@@ -60,44 +28,34 @@ def factors_to_undirected_graph(factors):
 
 
 def find_triangulation(factors, key_sizes):
-    """
-    Triangulate given factor graph.
+    ''' Triangulate given factor graph.
 
-    TODO: Provide different algorithms.
+        TODO: Provide different algorithms.
 
-    Inputs:
-    -------
+        :param factors: list of factors where each factor is given as a list of keys the factor contains:
 
-    A list of factor where each factor is given as a
-        list of keys the factor contains:
+                [keys1, ..., keysN]
 
-    [keys1, ..., keysN]
+        :param key_sizes: dictionary of variables consisting of ( key (node), size (num states) ) pairs
 
-    Also, give the sizes of the variables as a dictionary:
+                {
+                    key1: size1,
+                    ...
+                    keyM: sizeM
+                }
 
-    {
-        key1: size1,
-        ...
-        keyM: sizeM
-    }
+        :return tri: list of edges added to triangulate the undirected graph
+        :return induced_clusters: list of key (node) lists representing induced clusters from triangulation
+        :return max_cliques: list of maximal cliques generated during triangulation process
+        :return factor_to_maxclique: dictionary mapping each factor to the max_clique which contains the factor
+    '''
 
-    Output:
-    -------
-
-    A list of edges added to triangulate the undirected graph
-
-    A list of key lists representing induced clusters from triangulation
-
-    A list of maximal cliques generated during triangulation process
-
-    A dictionary mapping each factor to the max_clique which contains the factor
-
-    """
 
     # NOTE: Only keys that have been used at least in one factor should be
     # used. Ignore those key sizes that are not in any factor. Perhaps this
     # could be fixed elsewhere. Just added a quick fix here to filter key
     # sizes.
+
     used_keys = list(
         set(key for factor in factors for key in factor)
     )
@@ -142,8 +100,6 @@ def find_triangulation(factors, key_sizes):
         )[0]
         subsets.setdefault(subset_of_ix, []).append(ix)
 
-
-    edges = factors_to_undirected_graph(factors)
     heap, entry_finder = initialize_triangulation_heap(
                                             key_sizes,
                                             edges
@@ -221,30 +177,20 @@ def find_triangulation(factors, key_sizes):
 
 
 def initialize_triangulation_heap(key_sizes, edges):
-    """
-    Creates heap used for graph triangulation
+    ''' Create heap used for graph triangulation
 
-    Input:
-    ------
+        :param key_sizes: dictionary with key (node) label as keys and variable size as values
+        :param edges: list of pairs of keys (nodes) representing factor graph edges
+        :return heap: heap with entry structure:
 
-    A dictionary with key label as keys and variable size as values
+                [
+                    num edges added to triangulated graph by removal of key,
+                    induced cluster weight,
+                    tuple (key associated with first two elements, factor key added to
+                ]
+        :return entry_finder: dictionary with key label as key and reference to heap entry for key
 
-     A list of pairs of keys representing factor graph edges
-
-
-    Output:
-    -------
-    A heap of entries where entry has structure:
-
-    [
-        num edges added to triangulated graph by removal of key,
-        induced cluster weight,
-        tuple (key associated with first two elements, factor key added to
-    ]
-
-    A dictionary with key label as key and reference
-        to heap entry for key
-    """
+    '''
 
     heap, entry_finder = update_heap(key_sizes.keys(), edges, key_sizes)
 
@@ -252,29 +198,16 @@ def initialize_triangulation_heap(key_sizes, edges):
 
 
 def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
-    """
-    Updates entries in heap
+    ''' Update heap entries
 
-    Input:
-    ------
-
-    list of keys remaining
-
-    list of edges (key pairs)
-
-    dictionary of keys (key label is key, size is value)
-
-    heap to be updated (None if new heap is to be created)
-
-    entry_finder dictionary with references to heap elements
-
-    Output:
-    -------
-
-    updated (or newly created) heap
-
-    entry_finder dictionary with updated references to heap elements
-    """
+        :param remaining_keys: list of keys (nodes) remaining in the heap
+        :param edges: list of edges (pairs of keys (nodes) )
+        :param key_sizes: dictionary of keys (key label is key, size is value)
+        :param heap: heap to be updated (None if new heap is to be created)
+        :param entry_finder: entry_finder dictionary with references to heap elements
+        :return h: updated (or newly created) heap
+        :return entry_finder: dictionary with updated references to heap elements
+    '''
 
     h = heap if heap else []
     entry_finder = entry_finder if entry_finder else {}
@@ -292,7 +225,7 @@ def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
                             ]
         )
         # weight of a cluster is the product of all key lengths in cluster
-        weight = key_sizes[key]*np.prod([key_sizes[n] for n in rem_neighbors])
+        weight = key_sizes[key] * np.prod([key_sizes[n] for n in rem_neighbors])
         entry = [num_new_edges, weight, key]
         heapq.heappush(h, entry)
         # invalidate previous entry if it exists
@@ -306,33 +239,19 @@ def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
 
 
 def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
-    """
-    Removes next entry from heap
+    ''' Removes next entry from heap
 
-    Input:
-    ------
 
-    heap containing remaining factors and weights
-
-    entry_finder dictionary with updated references to heap elements
-
-    list of keys remaining in G'
-
-    key sizes
-
-    list of edge pairs in original graph G
-
-    Output:
-    -------
-
-    the entry removed from the heap
-
-    heap with updated keys after factor removal
-
-    entry_finder dictionary with updated references to heap elements
-
-    list of keys without most recently removed key
-    """
+        :param heap: heap structure containing remaining factors and weights
+        :param entry_finder: dictionary with updated references to heap elements
+        :param remaining_keys: list of keys (nodes) remaining in G'
+        :param key_sizes: key (node) sizes
+        :param edges: list of edge pairs in original graph G
+        :return entry: the entry removed from the heap
+        :return heap: heap structure with updated keys after factor removal
+        :return entry_finder: dictionary with updated references to heap elements
+        :return remaining_keys: list of keys without most recently removed key
+    '''
 
     entry = (None, None, "")
 
@@ -358,34 +277,20 @@ def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
     return entry, heap, entry_finder, remaining_keys
 
 def identify_cliques(induced_clusters):
-    """
-    Generate maximal cliques from induced clusters
+    ''' Generate maximal cliques from induced clusters
 
-    Input:
-    ------
+        A clique may be composed of multiple factors. See:
+        http://www.stat.washington.edu/courses/stat535/fall11/Handouts/l5-decomposable.pdf
 
-    A list of clusters generated when finding graph triangulation
+        :param induced_clusters: list of clusters generated when finding graph triangulation
+        :return: list of maximal cliques where each maximal clique is a list of key indices it contains:
 
-    Output:
-    -------
+        [clique1, ..., cliqueK]
 
-    A list of maximal cliques where each maximal clique is a list of
-        key indices it contains:
+        That is, if there are N keys, each clique contains some subset of numbers from {0, ..., N-1}
+        as a tuple/list.
 
-    [clique1, ..., cliqueK]
-
-    That is, if there are N keys, each clique contains some subset of
-        numbers from {0, ..., N-1} as a tuple/list.
-
-    Notes
-    -----
-    A clique may contain multiple factors.
-
-    See:
-    http://www.stat.washington.edu/courses/stat535/fall11/Handouts/l5-decomposable.pdf
-
-
-    """
+    '''
 
     # only retain clusters that are not a subset of another cluster
     sets=[frozenset(c) for c in induced_clusters]
@@ -669,7 +574,7 @@ def eliminate_variables(junction_tree):
         keys for numpy.einsum. It should hold that len(axis_keys) ==
         np.ndim(array). TODO: numpy.einsum supports only keys up to 32, thus in
         order to support arbitrary number keys in the whole tree, one should
-        map the keys for the curren numpy.einsum to unique integers starting
+        map the keys for the current numpy.einsum to unique integers starting
         from 0.
 
         """
@@ -752,23 +657,24 @@ def collect(tree, node_list, potentials, visited, distributive_law, shrink_mappi
                             distributive_law,
                             shrink_mapping
             )
+
             new_clique_pot, new_sep_pot = distributive_law.update(
                                         potentials[child_ix] if not sm else potentials[child_ix][sm[child_ix][0]],
                                         child_keys if not sm else sm[child_ix][1],
                                         potentials[clique_ix] if not sm else potentials[clique_ix][sm[clique_ix][0]],
                                         clique_keys if not sm else sm[clique_ix][1],
                                         potentials[sep_ix] if not sm else potentials[sep_ix][sm[sep_ix][0]],
-                                        sep_keys if not sm else sm[sep_ix][1],
                                         sep_keys if not sm else sm[sep_ix][1]
             )
 
-            # ensure that values are assigned to proper positions
+            # ensure that values are assigned to proper positions in potentials list
             if sm:
                 potentials[clique_ix][sm[clique_ix][0]] = new_clique_pot
                 potentials[sep_ix][sm[sep_ix][0]] = new_sep_pot
             else:
                 potentials[clique_ix] = new_clique_pot
                 potentials[sep_ix] = new_sep_pot
+
 
 
     # return the updated potentials
@@ -820,9 +726,9 @@ def distribute(tree, node_list, potentials, visited, distributive_law, shrink_ma
                                         potentials[child_ix] if not sm else potentials[child_ix][sm[child_ix][0]],
                                         child_keys if not sm else sm[child_ix][1],
                                         potentials[sep_ix] if not sm else potentials[sep_ix][sm[sep_ix][0]],
-                                        sep_keys if not sm else sm[sep_ix][1],
                                         sep_keys if not sm else sm[sep_ix][1]
             )
+
             # ensure that values are assigned to proper positions
             if sm:
                 potentials[child_ix][sm[child_ix][0]] = new_clique_pot
@@ -830,6 +736,7 @@ def distribute(tree, node_list, potentials, visited, distributive_law, shrink_ma
             else:
                 potentials[child_ix] = new_clique_pot
                 potentials[sep_ix] = new_sep_pot
+
             potentials = distribute(
                                 child,
                                 node_list,
@@ -1203,7 +1110,9 @@ def generate_potential_pairs(tree):
 
 # Sum-product distributive law for NumPy
 sum_product = SumProduct(np.einsum)
-# setting optimize to true allows einsum to benefit from speed up due to
-# contraction order optimization but at the cost of memory usage
-# need to evaulate tradeoff within library
+'''
+TODO: setting optimize to true allows einsum to benefit from speed up due to
+contraction order optimization but at the cost of memory usage
+need to evaluate tradeoff within library
+'''
 #sum_product = SumProduct(np.einsum,optimize=True)

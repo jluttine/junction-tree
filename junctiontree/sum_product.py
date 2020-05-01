@@ -2,7 +2,7 @@ import numpy as np
 
 
 class SumProduct():
-    """ Sum-product distributive law """
+    ''' Sum-product distributive law '''
 
 
     def __init__(self, einsum, *args, **kwargs):
@@ -14,29 +14,26 @@ class SumProduct():
         return
 
     def einsum(self, *args, **kwargs):
+        '''
+        Performs Einstein summation based on input arguments
+
+        :param args: the required positional arguments passed to underlying einsum function
+        :param kwargs: provides ability to pass key-word args to underlying function
+        :return: the resulting calculation based on the summation performed
+        '''
+
         return self.func(*args, *self.args, **kwargs, **self.kwargs)
 
 
     def project(self, clique_pot, clique_keys, sep_keys):
-        """
-        Compute sepset potential by summing over keys
-            in clique not shared by separator
+        '''
+        Compute sepset potential by summing over keys in clique not shared by separator
 
-        Input:
-        ------
-
-        Clique potential
-
-        Clique keys
-
-        Separator keys
-
-        Output:
-        -------
-
-        Updated separator potential
-
-        """
+        :param clique_pot: clique potential
+        :param clique_keys: keys (nodes) in clique
+        :param sep_keys: keys (nodes) in separator
+        :return: updated sepset potential after projection
+        '''
 
         # map keys to get around variable count limitation in einsum
         mapped_keys = []
@@ -52,30 +49,18 @@ class SumProduct():
         )
 
     def absorb(self, clique_pot, clique_keys, sep_pot, new_sep_pot, sep_keys):
-        """
-        Compute new clique potential as product of old clique potential
-            and quotient of new separator potential and old separator
-            potential
+        '''
+        Compute new clique potential as product of previous clique potential
+        and quotient of new separator potential and previous separator potential
 
-        Input:
-        ------
+        :param clique_pot: clique potential to be updated
+        :param clique_keys: clique keys (nodes)
+        :param sep_pot: previous separator potential
+        :param new_sep_pot: new separtor potential
+        :param sep_keys: separtory keys (nodes
+        :return: updated clique potential
+        '''
 
-        Clique potential to be updated
-
-        Clique keys
-
-        Old separator potential
-
-        New separator potential
-
-        Separator keys
-
-        Output:
-        -------
-
-        Updated clique potential
-
-        """
         if np.all(sep_pot) == 0:
             return np.zeros_like(clique_pot)
 
@@ -92,42 +77,28 @@ class SumProduct():
             mapped_keys
         )
 
-    def update(self, clique1_pot, clique1_keys, clique2_pot, clique2_keys, sep_pot, sep1_keys, sep2_keys):
-        """
-        A single update (message pass) from clique1 to clique2
-            through separator
+    def update(self, clique1_pot, clique1_keys, clique2_pot, clique2_keys, sep_pot, sep_keys):
+        '''
+        A single update (message pass) from clique1 to clique2 through separator
 
-        Input:
-        ------
-
-        Clique1 potential
-
-        Clique1 keys
-
-        Clique2 potential
-
-        Clique2 keys
-
-        Separator potential
-
-        Separator keys mapped to clique1 keys
-
-        Separator keys mapped to clique2 keys
-
-        Output:
-        -------
-
-        Updated clique2 potential and updated separator potential
-
-        """
         # See page 2:
         # http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf
 
-        # Sum keys in A that are not in B
+        :param clique1_pot: clique1 potential
+        :param clique1_keys: clique1 keys (nodes)
+        :param clique2_pot: clique2 potential
+        :param clique2_keys: clique2 keys (nodes)
+        :param sep_pot: separator potential
+        :param sep_keys: separator keys (nodes)
+        :return new_clique2_pot: updated clique2 potential
+        :return new_sep_pot: updated separator potential
+        '''
+
+        # Sum keys in clique 1 that are not in clique 2
         new_sep_pot = self.project(
                                 clique1_pot,
                                 clique1_keys,
-                                sep1_keys
+                                sep_keys
         )
 
         # Compensate the updated separator in the clique
@@ -136,8 +107,8 @@ class SumProduct():
                                 clique2_keys,
                                 sep_pot,
                                 new_sep_pot,
-                                sep2_keys
+                                sep_keys
         )
 
-        return (new_clique2_pot, new_sep_pot) # may return unchanged clique_a
+        return new_clique2_pot, new_sep_pot # may return unchanged clique_a
                                              # too if it helps elsewhere
