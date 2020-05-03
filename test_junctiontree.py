@@ -3,6 +3,19 @@ import numpy as np
 import junctiontree as jt
 
 
+def test_create_junction_tree():
+
+    # Just test that multiple-character names are supported
+    g = jt.create_junction_tree(
+        [["foo"], ["foo", "bar"]],
+        {"foo": 3, "bar": 4},
+    )
+
+    assert g.clique_tree.factor_to_maxclique == [0, 0]
+
+    return
+
+
 def test_clique_graph():
 
     def _run(factors, sizes, maxcliques, factor_to_maxclique, function):
