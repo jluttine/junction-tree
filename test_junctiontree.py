@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 import junctiontree as jt
 
@@ -138,7 +139,7 @@ def test_junction_tree():
 
         return
 
-    raise NotImplementedError("These tests aren't relevant yet.")
+    pytest.skip("These tests aren't relevant yet")
 
     _run(
         maxcliques=[
