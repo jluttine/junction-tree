@@ -6,6 +6,7 @@ import numpy as np
 import copy
 from .util import compute_num_combinations, build_graph, find_base_cycle, create_cycle_basis
 from scipy.sparse.csgraph import minimum_spanning_tree
+from scipy.spatial import Delaunay
 
 
 '''
@@ -331,6 +332,66 @@ def test_assert_triangulated():
     tri1 = [(0,2)]
     assert_triangulated(factors, tri1)
 
+
+def test_use_delaunay_triangulation():
+    _vars = {
+                "A": 2,
+                "B": 4,
+                "C": 3,
+                "D": 5,
+                "E": 2
+            }
+    factors = [
+                ["A", "B"],
+                ["B", "C"],
+                ["C", "D", "E"],
+                ["A", "E"]
+            ]
+    values = [
+                np.random.randn(2, 4),
+                np.random.randn(4, 3),
+                np.random.randn(3, 5, 2),
+                np.random.randn(2, 2),
+            ]
+    fg = [_vars, factors, values]
+
+    key_list, adj_matrix = build_graph(factors, full=True)
+
+    # place each node index on alternating sides of x-axis to avoid co-linearity
+    points = np.array([[node_ix, 1 if node_ix % 2 == 0 else -1] for node_ix in range(len(key_list))])
+    triangulation = Delaunay(points)
+
+    # extract every edge created by triangulation
+    tri_edges = sum(
+                    [
+                        [
+                            tuple(triangle[i:i+2])
+                            for i in range(0,2)
+                        ] + [
+                            tuple(
+                                    [
+                                        triangle[-1],
+                                        triangle[0]
+                                    ]
+                            )
+                        ]
+                        for triangle in triangulation.simplices
+                    ],
+                    []
+    )
+
+    # find the edges in triangulation that are not in adjacency matrix
+    induced_edges = set(tri_edges) - set([tuple(edge) for edge in np.transpose(np.nonzero(adj_matrix))])
+
+    print (set([tuple(edge) for edge in np.transpose(np.nonzero(adj_matrix))]))
+    print (tri_edges)
+
+    print(induced_edges)
+
+    # map indices back to original keys
+    print([(key_list[k1], key_list[k2]) for k1, k2 in induced_edges])
+
+
 def test_triangulate_factor_graph1():
     _vars = {
                 "A": 2,
@@ -363,6 +424,7 @@ def test_triangulate_factor_graph1():
     for factor_ix, clique_ix in enumerate(factor_to_maxclique):
         assert np.all([factor_key in max_cliques[clique_ix] for factor_key in factors[factor_ix]])
     assert_triangulated(fg[1], tri)
+
 
 def test_triangulate_factor_graph2():
     _vars = {

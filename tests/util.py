@@ -16,14 +16,15 @@ def compute_num_combinations(n, r=2):
     return math.factorial(n) / (math.factorial(r) * math.factorial(n - r))
 
 
-def build_graph(factors):
+def build_graph(factors, full=False):
     '''
     Builds an adjacency matrix representation for a graph. Nodes in factors
     are connected by edges (non-zero matrix entry) in the graph.
 
     :param factors: list of factors from which to build a graph
+    :param full: create the full (not just upper triangular) matrix
     :return: node_list: a list which maps nodes to index in adjacency matrix
-    :return: adj_matrix: a 2-D numpy array representing upper triangular adjacency matrix
+    :return: adj_matrix: a 2-D numpy array representing adjacency matrix
     '''
 
     sorted_nodes = sorted({ node for factor in factors for node in factor })
@@ -41,6 +42,8 @@ def build_graph(factors):
                 n2_idx = node_lookup[n2]
                 # add an edge between nodes
                 adj_matrix[n1_idx, n2_idx] = True
+                if full:
+                    adj_matrix[n2_idx, n1_idx] = True
 
     return sorted_nodes, adj_matrix
 
