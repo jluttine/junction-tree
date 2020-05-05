@@ -333,7 +333,7 @@ def test_assert_triangulated():
     assert_triangulated(factors, tri1)
 
 
-def test_use_delaunay_triangulation():
+def test_use_delaunay_triangulation1():
     _vars = {
                 "A": 2,
                 "B": 4,
@@ -354,6 +354,14 @@ def test_use_delaunay_triangulation():
                 np.random.randn(2, 2),
             ]
     fg = [_vars, factors, values]
+
+    # this graph is already triangulated
+    try:
+        assert_triangulated(factors, [])
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("Graph not triangulated by empty triangulation")
 
     key_list, adj_matrix = build_graph(factors, full=True)
 
@@ -383,13 +391,62 @@ def test_use_delaunay_triangulation():
     # find the edges in triangulation that are not in adjacency matrix
     induced_edges = set(tri_edges) - set([tuple(edge) for edge in np.transpose(np.nonzero(adj_matrix))])
 
-    print (set([tuple(edge) for edge in np.transpose(np.nonzero(adj_matrix))]))
-    print (tri_edges)
-
-    print(induced_edges)
-
+    print(set([tuple(edge) for edge in np.transpose(np.nonzero(adj_matrix))]) - set(tri_edges))
     # map indices back to original keys
-    print([(key_list[k1], key_list[k2]) for k1, k2 in induced_edges])
+    mapped_edges = [(key_list[k1], key_list[k2]) for k1, k2 in induced_edges]
+    assert_triangulated(factors, mapped_edges)
+
+def test_use_delaunay_triangulation2():
+    _vars = {
+        "A": 2,
+        "B": 2,
+        "C": 2,
+        "D": 2,
+        "E": 2,
+        "G": 2,
+    }
+
+    factors = [
+                ["A", "B"], #0
+                ["A", "C"], #1
+                ["B", "D"], #2
+                ["C", "E"], #3
+                ["C", "G"], #4
+                ["G", "E"], #5
+                ["D", "E"]  #6
+    ]
+
+    assert_triangulated(factors, [])
+    key_list, adj_matrix = build_graph(factors, full=True)
+
+def test_use_delaunay_triangulation3():
+    '''
+    Example taken from here:
+
+    https://courses.cs.washington.edu/courses/cse515/11sp/class7-exactinfalgos.pdf
+    '''
+
+    _vars = {
+        "C": 2,
+        "D": 2,
+        "I": 2,
+        "G": 2,
+        "S": 2,
+        "L": 2,
+        "J": 2,
+        "H": 2,
+    }
+
+    factors = [
+                ["C","D"], #0
+                ["D","I","G"], #1
+                ["I","S"], #2
+                ["G","H","J"], #3
+                ["G","L"], #4
+                ["S","L","J"], #5
+    ]
+
+    assert_triangulated(factors, [])
 
 
 def test_triangulate_factor_graph1():

@@ -111,13 +111,11 @@ def find_cycles(factors, num):
     :return: a list of cycles meeting minimum edge requirement
     '''
 
-    node_list, adj_mat = build_graph(factors)
+    key_list, adj_mat = build_graph(factors)
 
     cb = create_cycle_basis(adj_mat)
 
-    # re-index to original node labels
-    cb = [tuple([node_list[node_id] for node_id in cycle]) for cycle in cb]
-    cb_edges = [zip(nodes,(nodes[1:]+nodes[:1])) for nodes in cb]
+    cb_edges = [zip(keys,(keys[1:] + keys[:1])) for keys in cb]
 
     graph_edges = [set(edge) for edge in np.transpose(np.nonzero(adj_mat))]
 
@@ -133,6 +131,31 @@ def find_cycles(factors, num):
 
     cycles = [np.array(graph_edges)[np.nonzero(cycle)[0]]
                 for cycle in gibbs_elem_cycles(bit_seqs) if sum(cycle) >= num]
+
+
+    # replace indices with keys for edges and cycles representation
+    graph_edges = [
+                    set(
+                        [
+                            key_list[tuple(edge)[0]],
+                            key_list[tuple(edge)[1]]
+                        ]
+                    )
+                    for edge in graph_edges
+    ]
+
+    cycles = [
+                [
+                    set(
+                        [
+                            key_list[tuple(edge)[0]],
+                            key_list[tuple(edge)[1]]
+                        ]
+                    )
+                    for edge in cycle
+                ]
+                for cycle in cycles
+    ]
 
     return graph_edges, cycles
 
@@ -202,17 +225,27 @@ def assert_triangulated(factors, triangulation):
     '''
 
     graph_edges, cycles = find_cycles(factors, 4)
+    print("Graph eges: ")
+    print(graph_edges)
+    print("Cycles: ")
+    print(cycles)
 
     for cycle in cycles:
-        cycle_vars = set([var for edge in cycle for var in edge])
+        print("Cycle")
+        print(cycle)
+        cycle_keys = set([var for edge in cycle for var in edge])
+        print("Cycle keys: ")
+        print(cycle_keys)
 
         # at least one chord of cycle should be in triangulation or part of
         # original graph
-
+        print (
+            [edge for edge in triangulation + graph_edges]
+        )
         assert sum(
                     [
                         1 for edge in triangulation + graph_edges
-                        if set(edge) not in cycle and set(edge).issubset(cycle_vars)
+                        if set(edge) not in cycle and set(edge).issubset(cycle_keys)
                     ]
         ) > 0
 
