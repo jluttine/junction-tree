@@ -16,38 +16,6 @@ def compute_num_combinations(n, r=2):
     return math.factorial(n) / (math.factorial(r) * math.factorial(n - r))
 
 
-def build_graph(factors, full=False):
-    '''
-    Builds an adjacency matrix representation for a graph. Nodes in factors
-    are connected by edges (non-zero matrix entry) in the graph.
-
-    :param factors: list of factors from which to build a graph
-    :param full: create the full (not just upper triangular) matrix
-    :return: node_list: a list which maps nodes to index in adjacency matrix
-    :return: adj_matrix: a 2-D numpy array representing adjacency matrix
-    '''
-
-    sorted_nodes = sorted({ node for factor in factors for node in factor })
-
-    node_lookup = { node : i for i, node in enumerate(sorted_nodes) }
-
-    node_count = len(sorted_nodes)
-    adj_matrix = np.full((node_count, node_count), False)
-
-
-    for factor in factors:
-        for i, n1 in enumerate(factor):
-            n1_idx = node_lookup[n1]
-            for n2 in factor[i+1:]:
-                n2_idx = node_lookup[n2]
-                # add an edge between nodes
-                adj_matrix[n1_idx, n2_idx] = True
-                if full:
-                    adj_matrix[n2_idx, n1_idx] = True
-
-    return sorted_nodes, adj_matrix
-
-
 def find_base_cycle(mst, start_node, end_node):
     '''
     Uses a depth-first traversal to find the cycle created by adding edge
@@ -111,7 +79,7 @@ def find_cycles(factors, num):
     :return: a list of cycles meeting minimum edge requirement
     '''
 
-    key_list, adj_mat = build_graph(factors)
+    key_list, adj_mat = bp.build_graph(factors)
 
     cb = create_cycle_basis(adj_mat)
 
@@ -225,23 +193,13 @@ def assert_triangulated(factors, triangulation):
     '''
 
     graph_edges, cycles = find_cycles(factors, 4)
-    print("Graph eges: ")
-    print(graph_edges)
-    print("Cycles: ")
-    print(cycles)
 
     for cycle in cycles:
-        print("Cycle")
-        print(cycle)
         cycle_keys = set([var for edge in cycle for var in edge])
-        print("Cycle keys: ")
-        print(cycle_keys)
 
         # at least one chord of cycle should be in triangulation or part of
         # original graph
-        print (
-            [edge for edge in triangulation + graph_edges]
-        )
+
         assert sum(
                     [
                         1 for edge in triangulation + graph_edges

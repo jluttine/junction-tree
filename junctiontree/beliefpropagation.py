@@ -1,6 +1,7 @@
 import numpy as np
 import heapq
 import copy
+from scipy.spatial import Delaunay
 
 # FIXME: Cyclic import
 
@@ -303,6 +304,88 @@ def identify_cliques(induced_clusters):
 
 
     return cliques
+
+
+def build_graph(factors, full=False):
+    '''
+    Builds an adjacency matrix representation for a graph. Nodes in factors
+    are connected by edges (non-zero matrix entry) in the graph.
+
+    :param factors: list of factors from which to build a graph
+    :param full: create the full (not just upper triangular) matrix
+    :return: node_list: a list which maps nodes to index in adjacency matrix
+    :return: adj_matrix: a 2-D numpy array representing adjacency matrix
+    '''
+
+    sorted_nodes = sorted({ node for factor in factors for node in factor })
+
+    node_lookup = { node : i for i, node in enumerate(sorted_nodes) }
+
+    node_count = len(sorted_nodes)
+    adj_matrix = np.full((node_count, node_count), False)
+
+
+    for factor in factors:
+        for i, n1 in enumerate(factor):
+            n1_idx = node_lookup[n1]
+            for n2 in factor[i+1:]:
+                n2_idx = node_lookup[n2]
+                # add an edge between nodes
+                adj_matrix[n1_idx, n2_idx] = True
+                if full:
+                    adj_matrix[n2_idx, n1_idx] = True
+
+    return sorted_nodes, adj_matrix
+
+
+def triangulate_graph(factors):
+    '''Uses Delaunay triangulation to triangulate the provided factor graph
+
+    :param factors: a list of list of keys representing the factor graph
+    :return: list of edges added required to triangulate graph
+    '''
+
+    key_list, adj_matrix = build_graph(factors, full=True)
+
+    # place each node index on alternating sides of x-axis to avoid co-linearity
+    points = np.array([[key_ix, 1 if key_ix % 2 == 0 else -1] for key_ix in range(len(key_list))])
+    triangulation = Delaunay(points)
+
+    # extract every edge created by triangulation
+    tri_edges = sum(
+                    [
+                        [
+                            # generates first two edges from list of points in ascending order of key index
+                            tuple(triangle[i:i+2] if triangle[i] < triangle[i+1] else [triangle[i+1], triangle[i]] )
+                            for i in range(0,2)
+                        ] + [
+                            # third edge includes first and last point from triangle
+                            tuple(
+                                    [
+                                        triangle[-1],
+                                        triangle[0]
+                                    ] if triangle[-1] < triangle[0] else [
+                                        triangle[0],
+                                        triangle[-1]
+                                    ]
+                            )
+                        ]
+                        for triangle in triangulation.simplices
+                    ],
+                    []
+    )
+
+    # remove duplicated edges
+    tri_edges = set(tri_edges)
+
+    # find the edges in triangulation that are not in adjacency matrix
+    induced_edges = tri_edges - set([tuple(edge) for edge in np.transpose(np.nonzero(adj_matrix))])
+
+    # map indices back to original keys
+    mapped_edges = [(key_list[k1], key_list[k2]) for k1, k2 in induced_edges]
+
+    return mapped_edges
+
 
 def construct_junction_tree(cliques, key_sizes):
     """

@@ -4,7 +4,7 @@ from junctiontree import junctiontree as jt
 import heapq
 import numpy as np
 import copy
-from .util import compute_num_combinations, build_graph, find_base_cycle, create_cycle_basis
+from .util import compute_num_combinations, find_base_cycle, create_cycle_basis
 from scipy.sparse.csgraph import minimum_spanning_tree
 from scipy.spatial import Delaunay
 
@@ -33,7 +33,7 @@ def test_build_graph():
                     ]
     )
 
-    node_list, adj_matrix = build_graph(factors)
+    node_list, adj_matrix = bp.build_graph(factors)
 
     assert len(node_list) == 6
     assert node_list == ['A', 'B', 'C', 'D', 'E', 'F']
@@ -355,15 +355,14 @@ def test_use_delaunay_triangulation1():
             ]
     fg = [_vars, factors, values]
 
-    # this graph is already triangulated
     try:
         assert_triangulated(factors, [])
     except AssertionError:
         pass
     else:
-        raise AssertionError("Graph not triangulated by empty triangulation")
+        raise AssertionError("Graph incorrectly triangulated by empty edge list")
 
-    key_list, adj_matrix = build_graph(factors, full=True)
+    key_list, adj_matrix = bp.build_graph(factors, full=True)
 
     # place each node index on alternating sides of x-axis to avoid co-linearity
     points = np.array([[node_ix, 1 if node_ix % 2 == 0 else -1] for node_ix in range(len(key_list))])
@@ -391,7 +390,6 @@ def test_use_delaunay_triangulation1():
     # find the edges in triangulation that are not in adjacency matrix
     induced_edges = set(tri_edges) - set([tuple(edge) for edge in np.transpose(np.nonzero(adj_matrix))])
 
-    print(set([tuple(edge) for edge in np.transpose(np.nonzero(adj_matrix))]) - set(tri_edges))
     # map indices back to original keys
     mapped_edges = [(key_list[k1], key_list[k2]) for k1, k2 in induced_edges]
     assert_triangulated(factors, mapped_edges)
@@ -412,12 +410,19 @@ def test_use_delaunay_triangulation2():
                 ["B", "D"], #2
                 ["C", "E"], #3
                 ["C", "G"], #4
-                ["G", "E"], #5
-                ["D", "E"]  #6
+                ["G", "E", "H"], #5
+                ["D", "E", "F"]  #6
     ]
 
-    assert_triangulated(factors, [])
-    key_list, adj_matrix = build_graph(factors, full=True)
+    try:
+        assert_triangulated(factors, [])
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("Graph incorrectly triangulated by empty edge list")
+
+    tri_edges = bp.triangulate_graph(factors)
+    assert_triangulated(factors, tri_edges)
 
 def test_use_delaunay_triangulation3():
     '''
@@ -427,13 +432,13 @@ def test_use_delaunay_triangulation3():
     '''
 
     _vars = {
+        "A": 2,
+        "B": 2,
         "C": 2,
         "D": 2,
-        "I": 2,
+        "E": 2,
+        "F": 2,
         "G": 2,
-        "S": 2,
-        "L": 2,
-        "J": 2,
         "H": 2,
     }
 
@@ -446,7 +451,16 @@ def test_use_delaunay_triangulation3():
                 ["S","L","J"], #5
     ]
 
-    assert_triangulated(factors, [])
+
+    try:
+        assert_triangulated(factors, [])
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("Graph incorrectly triangulated by empty edge list")
+
+    tri_edges = bp.triangulate_graph(factors)
+    assert_triangulated(factors, tri_edges)
 
 
 def test_triangulate_factor_graph1():
@@ -507,7 +521,6 @@ def test_triangulate_factor_graph2():
 
     tri, ics, max_cliques, _ = bp.find_triangulation(factors, _vars)
     assert_triangulated(factors, tri)
-
 
     assert len(max_cliques) == 6
 
