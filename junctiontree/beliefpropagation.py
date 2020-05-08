@@ -101,6 +101,34 @@ def find_triangulation(factors, key_sizes):
                 )
         )
 
+    def find_unconnected_neighbors(neighbors, edges):
+        ''' Create a list of tuples representing edges between unconnected neighbors
+
+        :param neighbors: list of keys representing neighbors in a factor
+        :param edges: view of keys (frozensets representing a graph edge)
+        :return:
+        '''
+
+        return [
+                (k1,k2)
+                for k1,k2 in combinations(neighbors, 2)
+                if frozenset((k1, k2)) not in edges
+        ]
+
+    def find_maxclique(cluster, max_cliques):
+        ''' Identifies the index of max clique which contains cluster of keys
+
+        :param cluster: a list of keys
+        :param max_cliques: list of list of keys (representing a max clique)
+        :return: the id of the clique for which the cluster is a subset, -1 otherwise
+        '''
+        search_results = [
+            clique_ix
+            for clique_ix, clique in enumerate(max_cliques)
+            if set(cluster) < set(clique)
+        ]
+        return -1 if len(search_results) == 0 else search_results[0]
+
 
     # NOTE: Only keys that have been used at least in one factor should be
     # used. Ignore those key sizes that are not in any factor. Perhaps this
@@ -159,13 +187,9 @@ def find_triangulation(factors, key_sizes):
         if len(origin_factors) > 0:
             # implies that list of origin factors not yet accounted for in existing maxcliques
 
-            # connect all unconnected neighbors of key
-            new_edges = [
-                (k1,k2)
-                for k1,k2 in combinations(rem_neighbors, 2)
-                if frozenset((k1, k2)) not in factor_edges
-            ]
+            new_edges = find_unconnected_neighbors(rem_neighbors, factor_edges.keys())
 
+            # connect all unconnected neighbors of key
             factor_edges.update({frozenset(edge): set() for edge in new_edges})
             tri.extend(new_edges)
 
@@ -174,16 +198,12 @@ def find_triangulation(factors, key_sizes):
 
             new_cluster = rem_neighbors + [key]
 
-            clusters_maxclique = [
-                clique_ix
-                for clique_ix, clique in enumerate(max_cliques)
-                if set(new_cluster) < set(clique)
-            ]
+            maxclique_ix = find_maxclique(new_cluster, max_cliques)
 
-            # new maxclique discovered if length of clusters_maxclique is 0
+            # new maxclique discovered if maxclique == -1
 
-            max_cliques.extend( [] if len(clusters_maxclique) > 0 else [sorted(new_cluster)] )
-            maxclique_ix = clusters_maxclique[0] if len(clusters_maxclique) > 0 else len(max_cliques) - 1
+            max_cliques.extend( [] if maxclique_ix != -1 else [sorted(new_cluster)] )
+            maxclique_ix = maxclique_ix if maxclique_ix != -1 else len(max_cliques) - 1
 
             for factor_ix in set(origin_factors):
                 factor_to_maxclique[factor_ix] = maxclique_ix
