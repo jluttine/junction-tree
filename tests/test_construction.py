@@ -100,12 +100,12 @@ def test_convert_factor_graph_to_undirected_graph():
                 ["A", "D"]
             ]
 
-    edges = bp.factors_to_undirected_graph(factors)
-    assert frozenset(("A","C")) in edges
-    assert frozenset(("A","D")) in edges
-    assert frozenset(("B","C")) in edges
-    assert frozenset(("B","D")) in edges
-    assert frozenset(("C","D")) in edges
+    factor_edges = bp.factors_to_undirected_graph(factors)
+    assert frozenset(("A","C")) in factor_edges
+    assert frozenset(("A","D")) in factor_edges
+    assert frozenset(("B","C")) in factor_edges
+    assert frozenset(("B","D")) in factor_edges
+    assert frozenset(("C","D")) in factor_edges
 
 
 def test_store_nodes_in_heap():
@@ -147,10 +147,10 @@ def test_node_heap_construction():
                 ["B", "C", "D"], # weight: 60
                 ["A", "D"] # weight: 10
             ]
-    edges = bp.factors_to_undirected_graph(factors)
+    factor_edges = bp.factors_to_undirected_graph(factors)
     hp, ef = bp.initialize_triangulation_heap(
                                             _vars,
-                                            edges
+                                            factor_edges
     )
 
     assert len(hp) == 4
@@ -183,10 +183,10 @@ def test_heap_update_after_node_removal():
                 ["A", "D"]
             ]
 
-    edges = bp.factors_to_undirected_graph(factors)
+    factor_edges = bp.factors_to_undirected_graph(factors)
     heap, entry_finder = bp.initialize_triangulation_heap(
                                                     _vars,
-                                                    edges,
+                                                    factor_edges
     )
 
     item, heap, entry_finder, rem_vars = bp.remove_next(
@@ -194,7 +194,7 @@ def test_heap_update_after_node_removal():
                                                     entry_finder,
                                                     list(_vars.keys()),
                                                     _vars,
-                                                    edges
+                                                    factor_edges
     )
 
     assert item == [0, 30, "A"]
@@ -217,7 +217,7 @@ def test_heap_update_after_node_removal():
                                                     entry_finder,
                                                     rem_vars,
                                                     _vars,
-                                                    edges
+                                                    factor_edges
     )
 
     assert item == [0, 60, "B"]
@@ -238,7 +238,7 @@ def test_heap_update_after_node_removal():
                                                     entry_finder,
                                                     rem_vars,
                                                     _vars,
-                                                    edges,
+                                                    factor_edges
     )
 
     assert item == [0, 15, "C"]
@@ -257,7 +257,7 @@ def test_heap_update_after_node_removal():
                                                     entry_finder,
                                                     rem_vars,
                                                     _vars,
-                                                    edges
+                                                    factor_edges
     )
     assert item == [0, 5, "D"]
 
@@ -331,136 +331,6 @@ def test_assert_triangulated():
 
     tri1 = [(0,2)]
     assert_triangulated(factors, tri1)
-
-
-def test_use_delaunay_triangulation1():
-    _vars = {
-                "A": 2,
-                "B": 4,
-                "C": 3,
-                "D": 5,
-                "E": 2
-            }
-    factors = [
-                ["A", "B"],
-                ["B", "C"],
-                ["C", "D", "E"],
-                ["A", "E"]
-            ]
-    values = [
-                np.random.randn(2, 4),
-                np.random.randn(4, 3),
-                np.random.randn(3, 5, 2),
-                np.random.randn(2, 2),
-            ]
-    fg = [_vars, factors, values]
-
-    try:
-        assert_triangulated(factors, [])
-    except AssertionError:
-        pass
-    else:
-        raise AssertionError("Graph incorrectly triangulated by empty edge list")
-
-    key_list, adj_matrix = bp.build_graph(factors, full=True)
-
-    # place each node index on alternating sides of x-axis to avoid co-linearity
-    points = np.array([[node_ix, 1 if node_ix % 2 == 0 else -1] for node_ix in range(len(key_list))])
-    triangulation = Delaunay(points)
-
-    # extract every edge created by triangulation
-    tri_edges = sum(
-                    [
-                        [
-                            tuple(triangle[i:i+2])
-                            for i in range(0,2)
-                        ] + [
-                            tuple(
-                                    [
-                                        triangle[-1],
-                                        triangle[0]
-                                    ]
-                            )
-                        ]
-                        for triangle in triangulation.simplices
-                    ],
-                    []
-    )
-
-    # find the edges in triangulation that are not in adjacency matrix
-    induced_edges = set(tri_edges) - set([tuple(edge) for edge in np.transpose(np.nonzero(adj_matrix))])
-
-    # map indices back to original keys
-    mapped_edges = [(key_list[k1], key_list[k2]) for k1, k2 in induced_edges]
-    assert_triangulated(factors, mapped_edges)
-
-def test_use_delaunay_triangulation2():
-    _vars = {
-        "A": 2,
-        "B": 2,
-        "C": 2,
-        "D": 2,
-        "E": 2,
-        "G": 2,
-    }
-
-    factors = [
-                ["A", "B"], #0
-                ["A", "C"], #1
-                ["B", "D"], #2
-                ["C", "E"], #3
-                ["C", "G"], #4
-                ["G", "E", "H"], #5
-                ["D", "E", "F"]  #6
-    ]
-
-    try:
-        assert_triangulated(factors, [])
-    except AssertionError:
-        pass
-    else:
-        raise AssertionError("Graph incorrectly triangulated by empty edge list")
-
-    tri_edges = bp.triangulate_graph(factors)
-    assert_triangulated(factors, tri_edges)
-
-def test_use_delaunay_triangulation3():
-    '''
-    Example taken from here:
-
-    https://courses.cs.washington.edu/courses/cse515/11sp/class7-exactinfalgos.pdf
-    '''
-
-    _vars = {
-        "A": 2,
-        "B": 2,
-        "C": 2,
-        "D": 2,
-        "E": 2,
-        "F": 2,
-        "G": 2,
-        "H": 2,
-    }
-
-    factors = [
-                ["C","D"], #0
-                ["D","I","G"], #1
-                ["I","S"], #2
-                ["G","H","J"], #3
-                ["G","L"], #4
-                ["S","L","J"], #5
-    ]
-
-
-    try:
-        assert_triangulated(factors, [])
-    except AssertionError:
-        pass
-    else:
-        raise AssertionError("Graph incorrectly triangulated by empty edge list")
-
-    tri_edges = bp.triangulate_graph(factors)
-    assert_triangulated(factors, tri_edges)
 
 
 def test_triangulate_factor_graph1():

@@ -5,8 +5,7 @@ import itertools
 from junctiontree import beliefpropagation as bp
 
 def compute_num_combinations(n, r=2):
-    '''
-    Compute n choose r. (Function available in Python 3.8 but not requiring this version)
+    '''Compute n choose r. (Function available in Python 3.8 but not requiring this version)
 
     :param n: number of objects
     :param r: number of objects in each combination
@@ -17,8 +16,7 @@ def compute_num_combinations(n, r=2):
 
 
 def find_base_cycle(mst, start_node, end_node):
-    '''
-    Uses a depth-first traversal to find the cycle created by adding edge
+    '''Uses a depth-first traversal to find the cycle created by adding edge
 
     :param mst: the minimum spanning tree
     :param start_node: one of the nodes in the cycle generating edge used as start node of depth-first traversal
@@ -45,8 +43,7 @@ def find_base_cycle(mst, start_node, end_node):
 
 
 def create_cycle_basis(adj_matrix):
-    '''
-    Create a cycle basis from an adjacency matrix representation of a graph, G. A cycle basis is
+    '''Create a cycle basis from an adjacency matrix representation of a graph, G. A cycle basis is
     formed by first finding a minimum spanning tree (MST) of G. Adding any edge in G that is not
     in the MST results in the formation of a single cycle. Each cycle formed in this manner is
     part of the cycle basis. This function returns all cycles in the cycle basis using the
@@ -71,8 +68,7 @@ def create_cycle_basis(adj_matrix):
 
 
 def find_cycles(factors, num):
-    '''
-    Generate a list of all cycles from a factor graph with edge count greater than or equal to num.
+    '''Generate a list of all cycles from a factor graph with edge count greater than or equal to num.
 
     :param factors: a list of factors (a list of nodes) representing node connections
     :param num: the minimum number of edges in each cycle
@@ -128,8 +124,7 @@ def find_cycles(factors, num):
     return graph_edges, cycles
 
 def gibbs_elem_cycles(fcs):
-    '''
-    Generate all elementary cycles based on the set of fundamental cycles of an undirected graph.
+    '''Generate all elementary cycles based on the set of fundamental cycles of an undirected graph.
 
     Norman E. Gibbs. 1969. A Cycle Generation Algorithm for Finite
         Undirected Linear Graphs. J. ACM 16, 4 (October 1969), 564-568.
@@ -180,8 +175,7 @@ def gibbs_elem_cycles(fcs):
 
 
 def assert_triangulated(factors, triangulation):
-    '''
-    Asserts that an undirected graph represented by list of factors is triangulated by addition of edges
+    '''Asserts that an undirected graph represented by list of factors is triangulated by addition of edges
     specified in triangulation
 
     An undirected graph is triangulated iff every cycle of length four or
@@ -209,8 +203,7 @@ def assert_triangulated(factors, triangulation):
 
 
 def assert_junction_trees_equal(t1, t2):
-    '''
-    Assert two junction trees are equal (both trees contain same edges and node indices)
+    '''Assert two junction trees are equal (both trees contain same edges and node indices)
 
     :param t1: a junction tree
     :param t2: a second junction tree
@@ -222,8 +215,7 @@ def assert_junction_trees_equal(t1, t2):
 
 
 def assert_potentials_equal(p1, p2):
-    '''
-    Asserts that list of potentials has same number and all are equal
+    '''Asserts that list of potentials has same number and all are equal
 
     :param p1: a list of factor graph potentials
     :param p2: a second list of factor graph potentials
@@ -241,8 +233,7 @@ def assert_potentials_equal(p1, p2):
 
 
 def get_arrays_and_keys(tree, node_list, potentials):
-    '''
-    Get all potential arrays and their keys as a flat list
+    '''Get all potential arrays and their keys as a flat list
     Output: [array1, keys1, ..., arrayN, keysN]
 
     :param tree: list of lists representing junction tree
@@ -261,8 +252,7 @@ def get_arrays_and_keys(tree, node_list, potentials):
 
 
 def brute_force_sum_product(tree, node_list, potentials):
-    '''
-    Compute brute force sum-product with einsum
+    '''Compute brute force sum-product with einsum
 
     :param tree: list of lists representing junction tree
     :param node_list: list of nodes (keys) present in tree
@@ -284,8 +274,7 @@ def brute_force_sum_product(tree, node_list, potentials):
 
 
 def assert_junction_tree_consistent(tree, potentials):
-    r'''
-    Asserts that a junction tree is globally consistent meaning that each clique and
+    r'''Asserts that a junction tree is globally consistent meaning that each clique and
     neighboring sepset are locally consistent. Local consistency is achieved when
     the sum over the potentials in a max_clique (excluding the nodes in a neighboring sepset)
     is equal to the potential of the neighboring sepset:
@@ -312,8 +301,7 @@ def assert_junction_tree_consistent(tree, potentials):
 
 
 def potentials_consistent(pot1, keys1, pot2, keys2):
-    '''
-    Ensure that summing over clique potentials for variables not present in
+    '''Ensure that summing over clique potentials for variables not present in
     sepset generates a potential equal to sepset potential (definition of
     consistent)
 
@@ -347,8 +335,7 @@ def potentials_consistent(pot1, keys1, pot2, keys2):
 
 
 def assert_sum_product(junction_tree, node_order, potentials):
-    '''
-    Asserts that potentials computed by HUGIN and brute force sum-product are equal
+    ''' Asserts that potentials computed by HUGIN and brute force sum-product are equal
 
     NOTE: node_order represents the order nodes are traversed in get_arrays_and_keys function
 

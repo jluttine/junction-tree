@@ -1,7 +1,7 @@
 import numpy as np
 import heapq
 import copy
-from scipy.spatial import Delaunay
+from itertools import combinations
 
 # FIXME: Cyclic import
 
@@ -11,45 +11,95 @@ from .sum_product import SumProduct
 def factors_to_undirected_graph(factors):
     ''' Represent factor graph as undirected graph
 
-        :param factors: list of factors
-        :return: undirected graph as dictionary with edges as keys and the factor from
-                which edge originates as values
+    :param factors: list of factors
+    :return: undirected graph as dictionary with edges as keys and the factor from
+            which edge originates as values
     '''
 
-    edges = {}
+    #edges = {}
+    #adj_list = {}
+    factor_edges = {}
 
     for factor_ix, factor in enumerate(factors):
-        factor_set = set(factor)
-        for v1 in factor:
-            for v2 in factor_set - set([v1]):
-                edges.setdefault(frozenset((v1,v2)), set())
-                edges[frozenset((v1,v2))].add(factor_ix)
+        for ix, k1 in enumerate(factor):
+            for k2 in factor[ix+1:]:
 
-    return edges
+                #adj_list.setdefault(k1, set()).add(k2)
+                #adj_list.setdefault(k2, set()).add(k1)
+
+                factor_edges.setdefault( frozenset( (k1,k2) ), set() ).add(factor_ix)
+
+    return factor_edges#, adj_list
+    #return edges
 
 
 def find_triangulation(factors, key_sizes):
     ''' Triangulate given factor graph.
 
-        TODO: Provide different algorithms.
+    TODO: Provide different algorithms.
 
-        :param factors: list of factors where each factor is given as a list of keys the factor contains:
+    :param factors: list of factors where each factor is given as a list of keys the factor contains:
 
-                [keys1, ..., keysN]
+            [keys1, ..., keysN]
 
-        :param key_sizes: dictionary of variables consisting of ( key (node), size (num states) ) pairs
+    :param key_sizes: dictionary of variables consisting of ( key (node), size (num states) ) pairs
 
-                {
-                    key1: size1,
-                    ...
-                    keyM: sizeM
-                }
+            {
+                key1: size1,
+                ...
+                keyM: sizeM
+            }
 
-        :return tri: list of edges added to triangulate the undirected graph
-        :return induced_clusters: list of key (node) lists representing induced clusters from triangulation
-        :return max_cliques: list of maximal cliques generated during triangulation process
-        :return factor_to_maxclique: dictionary mapping each factor to the max_clique which contains the factor
+    :return tri: list of edges added to triangulate the undirected graph
+    :return induced_clusters: list of key (node) lists representing induced clusters from triangulation
+    :return max_cliques: list of maximal cliques generated during triangulation process
+    :return factor_to_maxclique: dictionary mapping each factor to the max_clique which contains the factor
     '''
+
+    def generate_subsets(factors):
+        ''' For each factor, identify all factors that are subset of that factor
+
+        :param factors: list of factors (list of keys) representing the factor graph
+        :return: a dictionary with factor index as key and a list of the factor indices for which the factor
+            is a superset as value
+        '''
+
+        subsets = {}
+        for ix, f1 in enumerate(factors):
+            subset_of_ix = max(
+                    enumerate(
+                        [
+                            -1 if not set(f1) <= set(f2) else len(set(f2) - set(f1))
+                            for f2 in factors
+                        ]
+                    ),
+                    key=lambda t: t[1]
+            )[0]
+            subsets.setdefault(subset_of_ix, []).append(ix)
+
+        return subsets
+
+    def find_origin_factors(factor_ixs, subsets, factor_to_maxclique):
+        ''' Creates a list of original factors that contain an edge
+
+        :param factor_ixs: the original factors containing the edge
+        :param subsets: dictionary of factor id as key and factor id of subset factors as value
+        :param factor_to_maxclique: list mapping factor by id to assigned maxclique
+        :return: a list of the original factors of factor graph which contain the edge
+        '''
+
+        return (
+                sum(
+                    [
+                        sum( # adding this factor id and factor ids of factors that are subsets
+                            [[factor_ix]],
+                            subsets.get(factor_ix, [])
+                        ) if (factor_to_maxclique[factor_ix] is None) else []
+                        for factor_ix in factor_ixs
+                    ],
+                    []
+                )
+        )
 
 
     # NOTE: Only keys that have been used at least in one factor should be
@@ -71,108 +121,86 @@ def find_triangulation(factors, key_sizes):
     induced_clusters = []
     induced_cluster_to_maxclique = {}
     max_cliques = []
-    # assign factor to maxclique which is either
-    # the factor itself or a factor which it is a subset of
 
+    factor_edges = factors_to_undirected_graph(factors)
 
-    edges = factors_to_undirected_graph(factors)
-
-    if len(edges) == 0:
+    if len(factor_edges) == 0:
         # no edges present in factor graph
         return (
                 [],
                 [factor for factor in factors],
                 [factor for factor in factors],
-                range(len(factors))
+                {i:i for i in range(len(factors))}
         )
 
 
     factor_to_maxclique = [None]*len(factors)
-    subsets = {}
-    for ix, f1 in enumerate(factors):
-        subset_of_ix = max(
-                enumerate(
-                    [
-                        -1 if not set(f1) <= set(f2) else len(set(f2) - set(f1))
-                        for f2 in factors
-                    ]
-                ),
-                key=lambda t: t[1]
-        )[0]
-        subsets.setdefault(subset_of_ix, []).append(ix)
 
-    heap, entry_finder = initialize_triangulation_heap(
-                                            key_sizes,
-                                            edges
-    )
+    subsets = generate_subsets(factors)
 
-    rem_keys = list(key_sizes.keys())
+    heap, entry_finder = initialize_triangulation_heap(key_sizes, factor_edges)
+
+    rem_keys = used_keys
 
     while len(rem_keys) > 0:
-        item, heap, entry_finder, rem_keys = remove_next(
+        entry, heap, entry_finder, rem_keys = remove_next(
                                                         heap,
                                                         entry_finder,
                                                         rem_keys,
                                                         key_sizes,
-                                                        edges
+                                                        factor_edges
         )
 
-        key = item[2]
+        # key is the 3rd element in entry list
+        key = entry[2]
 
-        # find neighbors that are in remaining keys
         rem_neighbors = []
         origin_factors = []
-        for edge, factor_ixs in edges.items():
-            if key in edge:
-                neighbor = set(rem_keys).intersection(edge)
-                if len(neighbor) == 1:
-                    rem_neighbors.append(neighbor.pop())
-                    for factor_ix in factor_ixs:
-                        if factor_to_maxclique[factor_ix] == None:
-                            origin_factors.extend(
-                                                    sum(
-                                                        [[factor_ix]],
-                                                        [
-                                                            sub_factor_ix
-                                                            for sub_factor_ix in subsets.get(factor_ix, [])
-                                                        ]
-                                                    )
-                            )
-        if len(origin_factors) == 0:
-            # all factors have been accounted for in existing maxcliques
-            continue
 
-        new_clust = rem_neighbors + [key]
-        # connect all unconnected neighbors of key
-        for i, n1 in enumerate(rem_neighbors):
-            for n2 in rem_neighbors[i+1:]:
-                if frozenset((n1,n2)) not in edges:
-                    edges[frozenset((n1,n2))] = []
-                    tri.append((n1,n2))
+        # find neighbors that are in remaining keys
+        for r_key in rem_keys:
+            edge_set = frozenset([key, r_key])
 
-        new_ic_ix = len(induced_clusters)
+            if edge_set in factor_edges:
+                rem_neighbors.append(r_key)
+                origin_factors.extend(find_origin_factors(factor_edges[edge_set], subsets, factor_to_maxclique))
 
-        for ic_ix, s2 in enumerate(induced_clusters):
-            if frozenset(new_clust) < frozenset(s2):
-                # new cluster is just subset of existing cluster
-                induced_cluster_to_maxclique[new_ic_ix] = induced_cluster_to_maxclique[ic_ix]
+        if len(origin_factors) > 0:
+            # implies that list of origin factors not yet accounted for in existing maxcliques
 
-                # map factors to existing maxclique
-                for factor_ix in set(origin_factors):
-                    factor_to_maxclique[factor_ix] = induced_cluster_to_maxclique[new_ic_ix]
+            # connect all unconnected neighbors of key
+            new_edges = [
+                (k1,k2)
+                for k1,k2 in combinations(rem_neighbors, 2)
+                if frozenset((k1, k2)) not in factor_edges
+            ]
 
-                break
+            factor_edges.update({frozenset(edge): set() for edge in new_edges})
+            tri.extend(new_edges)
 
-        induced_clusters.append(new_clust)
+            new_ic_ix = len(induced_clusters)
 
-        if new_ic_ix not in induced_cluster_to_maxclique:
-            # new maxclique discovered
-            max_cliques.append(sorted(new_clust))
-            new_maxclique_ix = len(max_cliques) - 1
-            induced_cluster_to_maxclique[new_ic_ix] = new_maxclique_ix
-            # map factors to new maxclique
-            for factor_ix in list(set(origin_factors)):
-                factor_to_maxclique[factor_ix] = new_maxclique_ix
+            # assign factor to maxclique which is either
+            # the factor itself or a factor which it is a subset of
+
+            new_cluster = rem_neighbors + [key]
+
+            clusters_maxclique = [
+                induced_cluster_to_maxclique[ic_ix]
+                for ic_ix, cluster in enumerate(induced_clusters)
+                if set(new_cluster) < set(cluster)
+            ]
+
+            # new maxclique discovered if length of clusters_maxclique > 0
+
+            max_cliques.extend( [] if len(clusters_maxclique) > 0 else [sorted(new_cluster)] )
+            maxclique_ix = clusters_maxclique[0] if len(clusters_maxclique) > 0 else len(max_cliques) - 1
+            induced_clusters.extend( [] if len(clusters_maxclique) > 0 else [new_cluster] )
+
+            induced_cluster_to_maxclique[new_ic_ix] = maxclique_ix
+
+            for factor_ix in set(origin_factors):
+                factor_to_maxclique[factor_ix] = induced_cluster_to_maxclique[new_ic_ix]
 
     return tri, induced_clusters, max_cliques, factor_to_maxclique
 
@@ -242,7 +270,6 @@ def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
 def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
     ''' Removes next entry from heap
 
-
         :param heap: heap structure containing remaining factors and weights
         :param entry_finder: dictionary with updated references to heap elements
         :param remaining_keys: list of keys (nodes) remaining in G'
@@ -307,8 +334,7 @@ def identify_cliques(induced_clusters):
 
 
 def build_graph(factors, full=False):
-    '''
-    Builds an adjacency matrix representation for a graph. Nodes in factors
+    ''' Builds an adjacency matrix representation for a graph. Nodes in factors
     are connected by edges (non-zero matrix entry) in the graph.
 
     :param factors: list of factors from which to build a graph
@@ -338,79 +364,17 @@ def build_graph(factors, full=False):
     return sorted_nodes, adj_matrix
 
 
-def triangulate_graph(factors):
-    '''Uses Delaunay triangulation to triangulate the provided factor graph
+def construct_junction_tree(cliques, key_sizes):
+    ''' Construct junction tree from input cliques
 
-    :param factors: a list of list of keys representing the factor graph
-    :return: list of edges added required to triangulate graph
+    :param cliques: a list of maximal cliques where each maximal clique is a list of key indices it contains
+    :param key_sizes: a dictionary of (key label, key size) pairs
+    :return tree: a junction tree structure from the input cliques
+    :return separators: a list of separators in the order in which they appear in the tree.
+
+    Note: Empty separator sets indicate the presence of distinct unconnected trees in the structure
     '''
 
-    key_list, adj_matrix = build_graph(factors, full=True)
-
-    # place each node index on alternating sides of x-axis to avoid co-linearity
-    points = np.array([[key_ix, 1 if key_ix % 2 == 0 else -1] for key_ix in range(len(key_list))])
-    triangulation = Delaunay(points)
-
-    # extract every edge created by triangulation
-    tri_edges = sum(
-                    [
-                        [
-                            # generates first two edges from list of points in ascending order of key index
-                            tuple(triangle[i:i+2] if triangle[i] < triangle[i+1] else [triangle[i+1], triangle[i]] )
-                            for i in range(0,2)
-                        ] + [
-                            # third edge includes first and last point from triangle
-                            tuple(
-                                    [
-                                        triangle[-1],
-                                        triangle[0]
-                                    ] if triangle[-1] < triangle[0] else [
-                                        triangle[0],
-                                        triangle[-1]
-                                    ]
-                            )
-                        ]
-                        for triangle in triangulation.simplices
-                    ],
-                    []
-    )
-
-    # remove duplicated edges
-    tri_edges = set(tri_edges)
-
-    # find the edges in triangulation that are not in adjacency matrix
-    induced_edges = tri_edges - set([tuple(edge) for edge in np.transpose(np.nonzero(adj_matrix))])
-
-    # map indices back to original keys
-    mapped_edges = [(key_list[k1], key_list[k2]) for k1, k2 in induced_edges]
-
-    return mapped_edges
-
-
-def construct_junction_tree(cliques, key_sizes):
-    """
-    Construct junction tree from input cliques
-
-    Input:
-    ------
-
-    A list of maximal cliques where each maximal clique is a list of
-        key indices it contains
-
-    A dictionary of (key label, key size) pairs
-
-    Output:
-    -------
-
-    A junction tree structure from the input cliques
-
-    A list of separators in the order in which they appear in the tree.
-        Empty separator sets indicate the presence of distinct unconnected
-        trees in the structure
-
-    """
-
-    #trees = [[c_ix, clique] for c_ix, clique in enumerate(cliques)]
     trees = [[c_ix] for c_ix, clique in enumerate(cliques)]
     # set of candidate sepsets
     sepsets = list()
@@ -460,26 +424,14 @@ def construct_junction_tree(cliques, key_sizes):
 
 
 def build_sepset_heap(sepsets, cliques, key_sizes):
-    """
-    Build sepset heap to be used for building junction tree
-        from cliques
+    '''Build sepset heap to be used for building junction tree from cliques
 
-    Input:
-    ------
-
-    Set of candidate sepsets consisting of sets of factor ids and
-        tuple of clique ids which produce sepset
-
-    Cliques of the tree
-
-    Dictionary of key label as key and key size as value
-
-    Output:
-    -------
-
-    Heap of sepset entries
-
-    """
+    :param sepsets: set of candidate sepsets consisting of sets of factor ids and tuple
+                    of clique ids which produce sepset
+    :param cliques: list of cliques (represented by list of keys)
+    :param key_sizes: dictionary of key label as key and key size as value
+    :return sepset_heap: heap of sepset entries
+    '''
 
     heap = []
 
@@ -494,64 +446,34 @@ def build_sepset_heap(sepsets, cliques, key_sizes):
     return heap
 
 def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix):
-    """
-    Merge two trees into one separated by sepset
+    '''Merge two trees into one separated by sepset
 
-    Input:
-    ------
-
-    Tree structure (list) containing clique_1
-
-    The clique id for clique_1
-
-    Tree structure (list) containing clique_2
-
-    The clique id for clique_2
-
-    The sepset id for the sepset to be inserted
-
-
-    Output:
-    -------
-
-    A tree structure (list) containing clique_1, clique_2, and sepset
-
-    """
+    :param tree1: tree structure (a list) containing clique_1
+    :param clique1_ix: clique_id for clique_1
+    :param tree2: tree structure (a list) containing clique_2
+    :param clique2_ix: clique_id for clique_2
+    :param sepset_ix: sepset id for the sepset to be inserted
+    :return tree: tree structure (a list) containing clique_1, clique_2, and sepset
+    '''
 
     t2 = copy.deepcopy(tree2)
 
     # combine tree2 (rooted by clique2) with sepset
     sepset_group = (sepset_ix, change_root(t2, clique2_ix))
 
-    # merged tree
     merged_tree = insert_sepset(tree1, clique1_ix, sepset_group)
 
-
-    # return the merged trees
     return merged_tree
 
 
 def insert_sepset(tree, clique_ix, sepset_group):
-    """
-    Inserts sepset into tree as child of clique
+    ''' Inserts sepset into tree as child of clique
 
-    Input:
-    ------
-
-    Tree structure in which to insert sepset
-
-    The clique id of the sepset's parent
-
-    The sepset group being inserted
-
-    Output:
-    -------
-
-    A new tree structure with the sepset inserted as a
-        child of clique
-
-    """
-
+    :param tree: tree structure (a list) in which to insert sepset
+    :param clique_ix: clique id of the sepset's parent
+    :param sepset_group: sepset group being inserted
+    :return new_tree: tree structure with the sepset inserted as a child of clique
+    '''
 
     return [tree[0]] + sum(
         [
@@ -563,62 +485,38 @@ def insert_sepset(tree, clique_ix, sepset_group):
 
 
 def find_subtree(tree, clique_ix):
-    """
-    Find subtree rooted by clique
+    ''' Find subtree rooted by clique
 
-    Input:
-    ------
-
-    Tree (potentially) containing clique as root
-
-    The id of the clique serving as root of subtree
-
-    Output:
-    -------
-
-    A (new) tree rooted by clique_ix if clique_ix is in tree.
-        Otherwise return an empty tree ([])
-
-
-    """
+    :param tree: tree structure (a list) to search
+    :param clique_ix: id of the clique serving as root of subtree
+    :return sub_tree: a copy of the subtree rooted by clique_ix if present, an empty list otherwise
+    '''
 
     #TODO: Try to return a reference to the subtree rather than
     #a newly allocated version
 
     return ([] if tree[0] != clique_ix else tree) + sum(
-        [
-            find_subtree(child_tree, clique_ix)
-            for child_tree in tree[1:]
-        ],
-        []
+                            [
+                                find_subtree(child_tree, clique_ix)
+                                for child_tree in tree[1:]
+                            ],
+                            []
     )
 
 
 def change_root(tree, clique_ix, child=[], sep=[]):
-    """
-    Restructures tree so that clique becomes root
+    ''' Restructures tree so that clique becomes root
 
-    Input:
-    ------
+    :param tree: tree to be altered
+    :param clique_ix: id of the clique that will become tree's root
+    :param child: child tree to be added to new root of tree
+    :param sep: separator connecting root to recursively constructed child tree
+    :return: tree with clique_ix as root
 
-    Tree to be altered
+    If clique_ix is already root of tree, original tree is returned.
+    If clique_ix not in tree, empty list is returned.
+    '''
 
-    ID of the clique that will become tree's root
-
-    Child tree to be added to new root of tree (constructed during recursion)
-
-    Separator connecting root to recursively constructed child tree
-
-    Output:
-    -------
-
-    Tree with clique_ix as root
-
-
-    If clique_ix is already root of tree, tree is returned
-
-    If clique_ix not in tree, empty list is returned
-    """
 
     if tree[0] == clique_ix:
         if len(child) > 0:
@@ -885,26 +783,17 @@ def hugin(tree, node_list, potentials, distributive_law, shrink_mapping=None):
                     shrink_mapping
     )
 
-def get_clique(tree, node_list, key_label):
-    """
-    Finds a clique containing key with label key_label
+def get_clique(tree, key_list, key_label):
+    ''' Finds a single clique containing key with label key_label
 
-    Input:
-    ------
-
-    The tree structure of the junction tree
-
-    Label for key
-
-    Output:
-    -------
-
-    Clique ID/clique keys pair or None if key not in any cliques
-
-    """
+    :param tree: the tree structure (a list) of the junction tree
+    :param key_list: contains the keys indexed by clique id for all cliques in tree
+    :param key_label: label used for key
+    :return: a clique containing the key or None if no such clique exists in tree
+    '''
 
     ix = tree[0]
-    keys = node_list[ix]
+    keys = key_list[ix]
     separators = tree[1:]
     if key_label in keys:
         return ix, keys
@@ -913,10 +802,13 @@ def get_clique(tree, node_list, key_label):
 
     for separator in separators:
         separator_ix, c_tree = separator
-        separator_keys = node_list[separator_ix]
+        separator_keys = key_list[separator_ix]
+
         if key_label in separator_keys:
             return separator_ix, separator_keys
-        clique_info = get_clique(c_tree, node_list, key_label)
+
+        clique_info = get_clique(c_tree, key_list, key_label)
+
         if clique_info:
             return clique_info
 
