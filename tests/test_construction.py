@@ -354,7 +354,8 @@ def test_triangulate_factor_graph1():
                 np.random.randn(2, 2),
             ]
     fg = [_vars, factors, values]
-    tri, ics, max_cliques, factor_to_maxclique = bp.find_triangulation(fg[1], fg[0])
+
+    tri, max_cliques, factor_to_maxclique = bp.find_triangulation(fg[1], fg[0])
 
     # triangulation should consist of 1 edge
     assert len(tri) == 1
@@ -389,7 +390,7 @@ def test_triangulate_factor_graph2():
                 ["D", "E", "F"]  #6
     ]
 
-    tri, ics, max_cliques, _ = bp.find_triangulation(factors, _vars)
+    tri, max_cliques, _ = bp.find_triangulation(factors, _vars)
     assert_triangulated(factors, tri)
 
     assert len(max_cliques) == 6
@@ -422,21 +423,20 @@ def test_triangulate_factor_graph3():
                 ["S","L","J"], #5
     ]
 
-    tri, ics, max_cliques, _ = bp.find_triangulation(factors, _vars)
+    tri, max_cliques, _ = bp.find_triangulation(factors, _vars)
     assert_triangulated(factors, tri)
-    cliques = bp.identify_cliques(ics)
 
     assert len(max_cliques) == 5
 
-    assert ["C","D"] in cliques
-    assert ["D","G","I"] in cliques
-    assert ["G","I","S"] in cliques
-    assert ["G","J","L","S"] in cliques
-    assert ["G","H","J"] in cliques
+    assert ["C","D"] in max_cliques
+    assert ["D","G","I"] in max_cliques
+    assert ["G","I","S"] in max_cliques
+    assert ["G","J","L","S"] in max_cliques
+    assert ["G","H","J"] in max_cliques
 
 
 def test_triangulate_factor_graph_with_duplicate_factors():
-    tri, ics, max_cliques, factor_to_maxclique = bp.find_triangulation([ ["x", "y"], ["x", "y"] ], {"x":2, "y":3})
+    tri, max_cliques, factor_to_maxclique = bp.find_triangulation([ ["x", "y"], ["x", "y"] ], {"x":2, "y":3})
     assert None not in factor_to_maxclique
 
 def test_can_use_integer_keys():
@@ -444,46 +444,6 @@ def test_can_use_integer_keys():
     y = 1
     assert type(jt.create_junction_tree([ [x], [x, y] ], {x: 10, y: 20})) == jt.JunctionTree
 
-def test_identify_cliques():
-    """
-    test_identify_cliques
-
-    Example taken from section 4.4.3 (Huang and Darwiche, 1996)
-
-    """
-
-    # Factors based on moralized graph from example
-
-    factors = [
-                ["A"], #0
-                ["A", "B"], #1
-                ["A", "C"], #2
-                ["B", "D"], #3
-                ["C", "E", "G"], #4
-                ["G", "E", "H"], #5
-                ["D", "E", "F"]  #6
-    ]
-
-    tri = [
-        ["D","E"], #0
-        ["D"], #1
-        ["E"], #2
-        [], #3
-        [], #4
-        [], #5
-        [] #6
-    ]
-
-    cliques = bp.identify_cliques([f+t for f,t in zip(factors,tri)])
-
-    assert len(cliques) == 6
-
-    assert ["E","G","H"] in cliques
-    assert ["C","E","G"] in cliques
-    assert ["D","E","F"] in cliques
-    assert ["A","C","E"] in cliques
-    assert ["A","B","D"] in cliques
-    assert ["A","D","E"] in cliques
 
 def test_join_trees_with_single_cliques():
     tree1 = [0,]

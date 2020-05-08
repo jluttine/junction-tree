@@ -103,7 +103,7 @@ class FactorGraph():
 
         # Let's use the triangulation methods of undirected graphs.
 
-        (_, _, maxcliques, factor_to_maxclique) = bp.find_triangulation(
+        (_, maxcliques, factor_to_maxclique) = bp.find_triangulation(
             self.factors,
             self.sizes
         )

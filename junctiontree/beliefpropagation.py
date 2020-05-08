@@ -118,8 +118,6 @@ def find_triangulation(factors, key_sizes):
 
 
     tri = []
-    induced_clusters = []
-    induced_cluster_to_maxclique = {}
     max_cliques = []
 
     factor_edges = factors_to_undirected_graph(factors)
@@ -178,31 +176,26 @@ def find_triangulation(factors, key_sizes):
             factor_edges.update({frozenset(edge): set() for edge in new_edges})
             tri.extend(new_edges)
 
-            new_ic_ix = len(induced_clusters)
-
-            # assign factor to maxclique which is either
+            # if possible, assign factor to maxclique which is either
             # the factor itself or a factor which it is a subset of
 
             new_cluster = rem_neighbors + [key]
 
             clusters_maxclique = [
-                induced_cluster_to_maxclique[ic_ix]
-                for ic_ix, cluster in enumerate(induced_clusters)
-                if set(new_cluster) < set(cluster)
+                clique_ix
+                for clique_ix, clique in enumerate(max_cliques)
+                if set(new_cluster) < set(clique)
             ]
 
-            # new maxclique discovered if length of clusters_maxclique > 0
+            # new maxclique discovered if length of clusters_maxclique is 0
 
             max_cliques.extend( [] if len(clusters_maxclique) > 0 else [sorted(new_cluster)] )
             maxclique_ix = clusters_maxclique[0] if len(clusters_maxclique) > 0 else len(max_cliques) - 1
-            induced_clusters.extend( [] if len(clusters_maxclique) > 0 else [new_cluster] )
-
-            induced_cluster_to_maxclique[new_ic_ix] = maxclique_ix
 
             for factor_ix in set(origin_factors):
-                factor_to_maxclique[factor_ix] = induced_cluster_to_maxclique[new_ic_ix]
+                factor_to_maxclique[factor_ix] = maxclique_ix
 
-    return tri, induced_clusters, max_cliques, factor_to_maxclique
+    return tri, max_cliques, factor_to_maxclique
 
 
 def initialize_triangulation_heap(key_sizes, edges):
@@ -303,34 +296,6 @@ def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
 
 
     return entry, heap, entry_finder, remaining_keys
-
-def identify_cliques(induced_clusters):
-    ''' Generate maximal cliques from induced clusters
-
-        A clique may be composed of multiple factors. See:
-        http://www.stat.washington.edu/courses/stat535/fall11/Handouts/l5-decomposable.pdf
-
-        :param induced_clusters: list of clusters generated when finding graph triangulation
-        :return: list of maximal cliques where each maximal clique is a list of key indices it contains:
-
-        [clique1, ..., cliqueK]
-
-        That is, if there are N keys, each clique contains some subset of numbers from {0, ..., N-1}
-        as a tuple/list.
-
-    '''
-
-    # only retain clusters that are not a subset of another cluster
-    sets=[frozenset(c) for c in induced_clusters]
-    cliques=[]
-    for s1 in sets:
-        if any(s1 < s2 for s2 in sets):
-            continue
-        else:
-            cliques.append(sorted(s1))
-
-
-    return cliques
 
 
 def build_graph(factors, full=False):
