@@ -374,9 +374,9 @@ def construct_junction_tree(cliques, key_sizes):
         tree1, tree2 = None, None
         for tree in trees:
             # find tree (tree1) containing cliq1_ix
-            tree1 = tree1 if tree1 else (tree if find_subtree(tree,cliq1_ix) != [] else None)
+            tree1 = tree1 if tree1 else (tree if find_subtree(tree,cliq1_ix) else None)
             # find tree (tree2) containing cliq2_ix
-            tree2 = tree2 if tree2 else (tree if find_subtree(tree,cliq2_ix) != [] else None)
+            tree2 = tree2 if tree2 else (tree if find_subtree(tree,cliq2_ix) else None)
 
         if tree1 != tree2:
             ss_tree_ix = len(cliques) + num_selected
@@ -463,23 +463,24 @@ def insert_sepset(tree, clique_ix, sepset_group):
 
 
 def find_subtree(tree, clique_ix):
-    ''' Find subtree rooted by clique
+    ''' Evaluates if subtree rooted by clique exists in tree
 
     :param tree: tree structure (a list) to search
     :param clique_ix: id of the clique serving as root of subtree
-    :return sub_tree: a copy of the subtree rooted by clique_ix if present, an empty list otherwise
+    :return tree_found: True if subtree rooted by clique_ix, False otherwise
     '''
 
-    #TODO: Try to return a reference to the subtree rather than
-    #a newly allocated version
+    if tree[0] == clique_ix:
+        return True
+    elif len(tree) == 1:
+        return False
+    else:
+        for child_tree in tree[1:]:
+            if find_subtree(child_tree, clique_ix):
+                return True
 
-    return ([] if tree[0] != clique_ix else tree) + sum(
-                            [
-                                find_subtree(child_tree, clique_ix)
-                                for child_tree in tree[1:]
-                            ],
-                            []
-    )
+    return False
+
 
 
 def change_root(tree, clique_ix, child=[], sep=[]):
