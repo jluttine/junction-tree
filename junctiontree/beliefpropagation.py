@@ -9,32 +9,26 @@ from .sum_product import SumProduct
 
 
 def factors_to_undirected_graph(factors):
-    ''' Represent factor graph as undirected graph
+    '''Represent factor graph as undirected graph
 
     :param factors: list of factors
     :return: undirected graph as dictionary with edges as keys and the factor from
             which edge originates as values
     '''
 
-    #edges = {}
-    #adj_list = {}
     factor_edges = {}
 
     for factor_ix, factor in enumerate(factors):
         for ix, k1 in enumerate(factor):
             for k2 in factor[ix+1:]:
 
-                #adj_list.setdefault(k1, set()).add(k2)
-                #adj_list.setdefault(k2, set()).add(k1)
-
                 factor_edges.setdefault( frozenset( (k1,k2) ), set() ).add(factor_ix)
 
-    return factor_edges#, adj_list
-    #return edges
+    return factor_edges
 
 
 def find_triangulation(factors, key_sizes):
-    ''' Triangulate given factor graph.
+    '''Triangulate given factor graph.
 
     TODO: Provide different algorithms.
 
@@ -57,7 +51,7 @@ def find_triangulation(factors, key_sizes):
     '''
 
     def generate_subsets(factors):
-        ''' For each factor, identify all factors that are subset of that factor
+        '''For each factor, identify all factors that are subset of that factor
 
         :param factors: list of factors (list of keys) representing the factor graph
         :return: a dictionary with factor index as key and a list of the factor indices for which the factor
@@ -80,7 +74,7 @@ def find_triangulation(factors, key_sizes):
         return subsets
 
     def find_origin_factors(factor_ixs, subsets, factor_to_maxclique):
-        ''' Creates a list of original factors that contain an edge
+        '''Creates a list of original factors that contain an edge
 
         :param factor_ixs: the original factors containing the edge
         :param subsets: dictionary of factor id as key and factor id of subset factors as value
@@ -102,7 +96,7 @@ def find_triangulation(factors, key_sizes):
         )
 
     def find_unconnected_neighbors(neighbors, edges):
-        ''' Create a list of tuples representing edges between unconnected neighbors
+        '''Create a list of tuples representing edges between unconnected neighbors
 
         :param neighbors: list of keys representing neighbors in a factor
         :param edges: view of keys (frozensets representing a graph edge)
@@ -116,7 +110,7 @@ def find_triangulation(factors, key_sizes):
         ]
 
     def find_maxclique(cluster, max_cliques):
-        ''' Identifies the index of max clique which contains cluster of keys
+        '''Identifies the index of max clique which contains cluster of keys
 
         :param cluster: a list of keys
         :param max_cliques: list of list of keys (representing a max clique)
@@ -212,18 +206,18 @@ def find_triangulation(factors, key_sizes):
 
 
 def initialize_triangulation_heap(key_sizes, edges):
-    ''' Create heap used for graph triangulation
+    '''Create heap used for graph triangulation
 
-        :param key_sizes: dictionary with key (node) label as keys and variable size as values
-        :param edges: list of pairs of keys (nodes) representing factor graph edges
-        :return heap: heap with entry structure:
+    :param key_sizes: dictionary with key (node) label as keys and variable size as values
+    :param edges: list of pairs of keys (nodes) representing factor graph edges
+    :return heap: heap with entry structure:
 
-                [
-                    num edges added to triangulated graph by removal of key,
-                    induced cluster weight,
-                    tuple (key associated with first two elements, factor key added to
-                ]
-        :return entry_finder: dictionary with key label as key and reference to heap entry for key
+            [
+                num edges added to triangulated graph by removal of key,
+                induced cluster weight,
+                tuple (key associated with first two elements, factor key added to
+            ]
+    :return entry_finder: dictionary with key label as key and reference to heap entry for key
 
     '''
 
@@ -233,15 +227,15 @@ def initialize_triangulation_heap(key_sizes, edges):
 
 
 def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
-    ''' Update heap entries
+    '''Update heap entries
 
-        :param remaining_keys: list of keys (nodes) remaining in the heap
-        :param edges: list of edges (pairs of keys (nodes) )
-        :param key_sizes: dictionary of keys (key label is key, size is value)
-        :param heap: heap to be updated (None if new heap is to be created)
-        :param entry_finder: entry_finder dictionary with references to heap elements
-        :return h: updated (or newly created) heap
-        :return entry_finder: dictionary with updated references to heap elements
+    :param remaining_keys: list of keys (nodes) remaining in the heap
+    :param edges: list of edges (pairs of keys (nodes) )
+    :param key_sizes: dictionary of keys (key label is key, size is value)
+    :param heap: heap to be updated (None if new heap is to be created)
+    :param entry_finder: entry_finder dictionary with references to heap elements
+    :return h: updated (or newly created) heap
+    :return entry_finder: dictionary with updated references to heap elements
     '''
 
     h = heap if heap else []
@@ -274,17 +268,17 @@ def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
 
 
 def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
-    ''' Removes next entry from heap
+    '''Removes next entry from heap
 
-        :param heap: heap structure containing remaining factors and weights
-        :param entry_finder: dictionary with updated references to heap elements
-        :param remaining_keys: list of keys (nodes) remaining in G'
-        :param key_sizes: key (node) sizes
-        :param edges: list of edge pairs in original graph G
-        :return entry: the entry removed from the heap
-        :return heap: heap structure with updated keys after factor removal
-        :return entry_finder: dictionary with updated references to heap elements
-        :return remaining_keys: list of keys without most recently removed key
+    :param heap: heap structure containing remaining factors and weights
+    :param entry_finder: dictionary with updated references to heap elements
+    :param remaining_keys: list of keys (nodes) remaining in G'
+    :param key_sizes: key (node) sizes
+    :param edges: list of edge pairs in original graph G
+    :return entry: the entry removed from the heap
+    :return heap: heap structure with updated keys after factor removal
+    :return entry_finder: dictionary with updated references to heap elements
+    :return remaining_keys: list of keys without most recently removed key
     '''
 
     entry = (None, None, "")
@@ -311,39 +305,8 @@ def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
     return entry, heap, entry_finder, remaining_keys
 
 
-def build_graph(factors, full=False):
-    ''' Builds an adjacency matrix representation for a graph. Nodes in factors
-    are connected by edges (non-zero matrix entry) in the graph.
-
-    :param factors: list of factors from which to build a graph
-    :param full: create the full (not just upper triangular) matrix
-    :return: node_list: a list which maps nodes to index in adjacency matrix
-    :return: adj_matrix: a 2-D numpy array representing adjacency matrix
-    '''
-
-    sorted_nodes = sorted({ node for factor in factors for node in factor })
-
-    node_lookup = { node : i for i, node in enumerate(sorted_nodes) }
-
-    node_count = len(sorted_nodes)
-    adj_matrix = np.full((node_count, node_count), False)
-
-
-    for factor in factors:
-        for i, n1 in enumerate(factor):
-            n1_idx = node_lookup[n1]
-            for n2 in factor[i+1:]:
-                n2_idx = node_lookup[n2]
-                # add an edge between nodes
-                adj_matrix[n1_idx, n2_idx] = True
-                if full:
-                    adj_matrix[n2_idx, n1_idx] = True
-
-    return sorted_nodes, adj_matrix
-
-
 def construct_junction_tree(cliques, key_sizes):
-    ''' Construct junction tree from input cliques
+    '''Construct junction tree from input cliques
 
     :param cliques: a list of maximal cliques where each maximal clique is a list of key indices it contains
     :param key_sizes: a dictionary of (key label, key size) pairs
@@ -445,7 +408,7 @@ def merge_trees(tree1, clique1_ix, tree2, clique2_ix, sepset_ix):
 
 
 def insert_sepset(tree, clique_ix, sepset_group):
-    ''' Inserts sepset into tree as child of clique
+    '''Inserts sepset into tree as child of clique
 
     :param tree: tree structure (a list) in which to insert sepset
     :param clique_ix: clique id of the sepset's parent
@@ -463,7 +426,7 @@ def insert_sepset(tree, clique_ix, sepset_group):
 
 
 def find_subtree(tree, clique_ix):
-    ''' Evaluates if subtree rooted by clique exists in tree
+    '''Evaluates if subtree rooted by clique exists in tree
 
     :param tree: tree structure (a list) to search
     :param clique_ix: id of the clique serving as root of subtree
@@ -484,7 +447,7 @@ def find_subtree(tree, clique_ix):
 
 
 def change_root(tree, clique_ix, child=[], sep=[]):
-    ''' Restructures tree so that clique becomes root
+    '''Restructures tree so that clique becomes root
 
     :param tree: tree to be altered
     :param clique_ix: id of the clique that will become tree's root
@@ -522,21 +485,16 @@ def eliminate_variables(junction_tree):
 
     def __run(tree, variables):
         """Run variable elimination recursively
-
         Construct trees with nested lists as:
-
         [array, axis_keys, child_tree1, ..., child_treeN]
-
         where each child tree has the same syntax recursively.
-
         Axis keys are some unique identifiers used to determine which axis in
         different array correspond to each other and they are used directly as
         keys for numpy.einsum. It should hold that len(axis_keys) ==
         np.ndim(array). TODO: numpy.einsum supports only keys up to 32, thus in
         order to support arbitrary number keys in the whole tree, one should
-        map the keys for the current numpy.einsum to unique integers starting
+        map the keys for the curren numpy.einsum to unique integers starting
         from 0.
-
         """
 
         common_child_variables = [
@@ -568,33 +526,18 @@ def eliminate_variables(junction_tree):
     return __run(junction_tree, junction_tree[1])
 
 
-
 def collect(tree, node_list, potentials, visited, distributive_law, shrink_mapping=None):
-    """
-    Used by Hugin algorithm to collect messages
+    '''Used by Hugin algorithm to collect messages.
 
-    Input:
-    ------
+    :param tree: the tree structure of the junction tree
+    :param node_list: list of nodes in tree
+    :param potentials: list of clique potentials
+    :param visited: list of boolean entries representing visited status of cliques
+    :param distributive_law: distributive law for performing sum product calculations
+    :param shrink_mapping:
+    :return potentials: updated potentials for collect phase of propagation
+    '''
 
-    The tree structure of the junction tree
-
-    List of nodes in tree
-
-    List of clique potentials
-
-    List of boolean entries representing visited status of cliques
-
-    Distributive law for performing sum product calculations
-
-    Shrink mapping for cliques
-
-    Output:
-    -------
-
-    Updated potentials for collect phase of propagation
-
-
-    """
     sm = shrink_mapping
     clique_ix = tree[0]
     clique_keys = node_list[clique_ix]
@@ -763,7 +706,7 @@ def hugin(tree, node_list, potentials, distributive_law, shrink_mapping=None):
     )
 
 def get_clique(tree, key_list, key_label):
-    ''' Finds a single clique containing key with label key_label
+    '''Finds a single clique containing key with label key_label
 
     :param tree: the tree structure (a list) of the junction tree
     :param key_list: contains the keys indexed by clique id for all cliques in tree
