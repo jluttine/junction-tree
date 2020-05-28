@@ -14,8 +14,7 @@ class SumProduct():
         return
 
     def einsum(self, *args, **kwargs):
-        '''
-        Performs Einstein summation based on input arguments
+        '''Performs Einstein summation based on input arguments
 
         :param args: the required positional arguments passed to underlying einsum function
         :param kwargs: provides ability to pass key-word args to underlying function
@@ -26,8 +25,7 @@ class SumProduct():
 
 
     def project(self, clique_pot, clique_keys, sep_keys):
-        '''
-        Compute sepset potential by summing over keys in clique not shared by separator
+        ''' Compute sepset potential by summing over keys in clique not shared by separator
 
         :param clique_pot: clique potential
         :param clique_keys: keys (nodes) in clique
@@ -49,8 +47,7 @@ class SumProduct():
         )
 
     def absorb(self, clique_pot, clique_keys, sep_pot, new_sep_pot, sep_keys):
-        '''
-        Compute new clique potential as product of previous clique potential
+        '''Compute new clique potential as product of previous clique potential
         and quotient of new separator potential and previous separator potential
 
         :param clique_pot: clique potential to be updated
@@ -78,8 +75,7 @@ class SumProduct():
         )
 
     def update(self, clique1_pot, clique1_keys, clique2_pot, clique2_keys, sep_pot, sep_keys):
-        '''
-        A single update (message pass) from clique1 to clique2 through separator
+        '''A single update (message pass) from clique1 to clique2 through separator
 
         # See page 2:
         # http://compbio.fmph.uniba.sk/vyuka/gm/old/2010-02/handouts/junction-tree.pdf

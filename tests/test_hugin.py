@@ -262,15 +262,15 @@ def test_distribute_messages():
 
 
 def test_evidence_shrinking():
-    # evidence shrinking can be incorporated by removing axis corresponding to observed
-    # variable
+    # evidence shrinking can be incorporated by removing axis
+    # corresponding to observed variable
     A = np.random.rand(3,4,2) # vars: a,b,c
     a = [0]*3
-    a[2]=1
+    a[2] = 1
     b = [0]*4
-    b[2]=1
-    c=[0]*2
-    c[0]=1
+    b[2] = 1
+    c = [0]*2
+    c[0] = 1
 
     # update potential A based on observing a=2
     A_updated = bp.sum_product.einsum(A, [0,1,2], a, [0], [0,1,2])
@@ -281,11 +281,14 @@ def test_evidence_shrinking():
     assert A_updated_es.shape == (4,2)
 
     # imagine we have another potential sharing vars b and c
-    B = np.random.rand(4,2) # vars: a,c
+    B = np.random.rand(4,2) # vars: b,c
     B_updated = bp.sum_product.einsum(A_updated, [0,1,2], B, [1,2], [1,2])
 
     B_updated_es = bp.sum_product.einsum(A_updated_es, [1,2], B, [1,2], [1,2])
 
+    # the result of the calculation should be the same regardless of if we use
+    # the updated potentials from A_updated (without evidence shrinking)
+    # or A_updated_es (with evidence shrinking)
     np.testing.assert_allclose(
                             B_updated,
                             B_updated_es
@@ -294,7 +297,7 @@ def test_evidence_shrinking():
     # what happens if the only shared variables between potentials is
     # the single variable in potential
 
-    C = np.random.rand(3)
+    C = np.random.rand(3) # vars: a
     C_updated = bp.sum_product.einsum(C, [0], a, [0], [0])
     C_updated_es = C_updated[2]
 
@@ -302,7 +305,11 @@ def test_evidence_shrinking():
                     bp.sum_product.einsum(A_updated, [0,1,2], C_updated, [0], []),
                     bp.sum_product.einsum(A_updated_es, [1,2], C_updated_es, [], [])
     )
+
     np.testing.assert_allclose(
                     bp.sum_product.einsum(A_updated, [0,1,2], C_updated, [0], [1,2]),
                     bp.sum_product.einsum(A_updated_es, [1,2], C_updated_es, [], [1,2])
     )
+
+def test_evidence_shrinking_in_hugin():
+    pass

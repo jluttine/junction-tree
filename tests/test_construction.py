@@ -4,9 +4,8 @@ from junctiontree import junctiontree as jt
 import heapq
 import numpy as np
 import copy
-from .util import compute_num_combinations, find_base_cycle, create_cycle_basis
+from .util import compute_num_combinations, find_base_cycle, create_cycle_basis, build_graph
 from scipy.sparse.csgraph import minimum_spanning_tree
-from scipy.spatial import Delaunay
 
 
 '''
@@ -33,7 +32,7 @@ def test_build_graph():
                     ]
     )
 
-    node_list, adj_matrix = bp.build_graph(factors)
+    node_list, adj_matrix = build_graph(factors)
 
     assert len(node_list) == 6
     assert node_list == ['A', 'B', 'C', 'D', 'E', 'F']
@@ -305,13 +304,6 @@ def test_gibbs_algo_implementation():
                 ]
     assert set(ecs_str) == set(test_str)
 
-
-'''
-The relevant material from Aji and McEliece seems to indicate
-that we should only need to construct the triangulation graph from the
-factor arguments (local domains). Each of the variables for the factor
-graph will be represented in the resulting junction tree.
-'''
 
 def test_assert_triangulated():
     factors = [
