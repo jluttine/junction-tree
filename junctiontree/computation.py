@@ -248,7 +248,7 @@ def compute_beliefs(tree, potentials, clique_vars):
 
     def remove_message(msg_prod, prod_ixs, msg, msg_ixs, out_ixs):
         ''' Removes (divides out) sepset message from
-            product of all neighbor sepset messages for a clique
+        product of all neighbor sepset messages for a clique
 
         :param msg_prod: product of all messages for clique
         :param prod_ixs: variable indices in clique
@@ -309,9 +309,9 @@ def compute_beliefs(tree, potentials, clique_vars):
 
         all_neighbor_vars = [
             var
-            for ss_ix, subtree in tree[1:]
-            for var in clique_vars[ss_ix]
-        ] + clique_vars[sepset_ix]
+            for vars in messages[1::2]
+            for var in vars
+        ]
 
         neighbor_vars = list(set(all_neighbor_vars))
 
@@ -350,13 +350,6 @@ def compute_beliefs(tree, potentials, clique_vars):
             m_sepset = [var_map[var] for var in clique_vars[ss_ix]]
 
             # divide product of messages by message for this neighbor
-            out_vars = set(
-                        [
-                            var
-                            for var in all_neighbor_vars
-                            if var not in clique_vars[ss_ix] or all_neighbor_vars.count(var) > 1
-                        ]
-            )
 
             mask = np.in1d(
                             m_neighbor_vars,
@@ -405,20 +398,13 @@ def compute_beliefs(tree, potentials, clique_vars):
 
     def __run(tree, beliefs, clique_vars):
         ''' Collect messages from neighbors recursively. Then, send messages
-            recursively. Updated beliefs when this
+        recursively. Updated beliefs when this
 
         :param tree: list representing the structure of the junction tree
         :param briefs: list of numpy arrays for cliques in junction tree
         :param clique_vars: list of variables included in each clique in potentials list
         :return beliefs: consistent beliefs after Shafer-Shenoy updates applied
         '''
-        # collect messages from neighbors (no child messages for leaf node)
-        # keep some order so messages are associated to neighbor
-        # a loop over cluster variables which makes recursive call at each
-        # iteration
-
-        # can we just use this function to kick-off get_message and send_message
-        # without doing any computations here?
 
         # get messages from each neighbor
         get_message(slice(0), tree, beliefs, clique_vars)
