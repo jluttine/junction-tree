@@ -254,43 +254,34 @@ def compute_beliefs(tree, potentials, clique_vars):
         :param prod_ixs: variable indices in clique
         :param msg: sepset message to be removed from product
         :param msg_ixs: variable indices in sepset
+        :param out_ixs: variables indices expected in result
         :return: the product of messages with sepset msg removed (divided out)
         '''
 
-        mask = np.in1d(prod_ixs, msg_ixs)
-
-        if all(mask):
-            # no need to expand indices for division (just align indices)
-
-            return (
-                prod_ixs,
-                np.divide(
-                    msg_prod,
-                    np.moveaxis(msg, msg_ixs, prod_ixs) if msg_ixs != prod_ixs else msg
-                )
-            )
-
+        exp_mask = np.in1d(prod_ixs, msg_ixs)
 
         # use mask to specify expanded dimensions in message
         exp_ixs = np.full(msg_prod.ndim, None)
-        #exp_ixs[mask] = ...
-        exp_ixs[mask] = slice(None)
+        exp_ixs[exp_mask] = slice(None)
 
         # use mask to select slice dimensions
-        mask = np.in1d(prod_ixs, out_ixs)
+        slice_mask = np.in1d(prod_ixs, out_ixs)
         slice_ixs = np.full(msg_prod.ndim, slice(None))
-        slice_ixs[~mask] = 0
+        slice_ixs[~slice_mask] = 0
 
         # create dummy dimensions for performing division (with exp_ix)
-        # slice out dimensions of sepset variables from division result (with slice_ix)
+        # slice out dimensions of sepset variables from division result (with slice_ixs)
 
-        return (
-                np.array(prod_ixs)[mask].tolist(),
-                np.divide(
+
+        return np.divide(
                     msg_prod,
-                    msg[ tuple(exp_ixs) ]
-                )[ tuple(slice_ixs) ]
-        )
+                    msg[ tuple(exp_ixs) ] \
+
+                        # axis must be re-ordered if all variables shared but order is different
+                        if not (all(exp_mask) and msg_ixs != prod_ixs) else \
+
+                    np.moveaxis(msg, prod_ixs, msg_ixs)
+        )[ tuple(slice_ixs) ]
 
 
     def send_message(message, sepset_ix, tree, beliefs, clique_vars):
@@ -367,19 +358,22 @@ def compute_beliefs(tree, potentials, clique_vars):
                         ]
             )
 
-            mask = np.in1d(m_neighbor_vars, [var_map[var] for var in out_vars])
+            mask = np.in1d(
+                            m_neighbor_vars,
+                            list(
+                                set(
+                                    [
+                                        var
+                                        for vars in messages[1::2][0:ss_num] + messages[1::2][ss_num+1:]
+                                        for var in vars
+                                    ]
+                                )
+                            )
+            )
 
-            mod_neighbor_vars = np.array(m_neighbor_vars)[mask]
+            mod_neighbor_vars = np.array(m_neighbor_vars)[mask].tolist()
 
-            '''mod_neighbor_vars, mod_msg_prod = remove_message(
-                                    msg_prod,
-                                    m_neighbor_vars,
-                                    beliefs[ss_ix],
-                                    m_sepset,
-                                    mod_neighbor_vars
-            ) if set(m_neighbor_vars) != set(m_sepset) else (m_neighbor_vars, np.ones_like(msg_prod))'''
-
-            mod_neighbor_vars, mod_msg_prod = remove_message(
+            mod_msg_prod = remove_message(
                                     msg_prod,
                                     m_neighbor_vars,
                                     beliefs[ss_ix],

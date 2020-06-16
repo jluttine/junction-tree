@@ -599,7 +599,7 @@ def test_divide_matrix_product():
     # dividing messages from product when neighbor message is excluded
     # this avoids re-doing einsum calculations to accomplish the same
     # one full message product is calculated and messages are removed from the
-    # product by doing the divisioin operation
+    # product by performing the division operation
 
     potentials = [
                 np.random.randn(2, 3, 6),
@@ -632,7 +632,7 @@ def test_divide_matrix_product():
 
     mask = np.in1d(variables[0], variables[6])
     exp_ix = np.full(msg_prod.ndim, None)
-    exp_ix[mask] = ...
+    exp_ix[mask] = slice(None)
 
     slice_ix = np.full(msg_prod.ndim, slice(None))
     slice_ix[mask] = 0
