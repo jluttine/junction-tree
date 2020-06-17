@@ -158,8 +158,34 @@ def eliminate_variables(factors, variables, order, evidence={}):
     )
 
 
+def apply_evidence(potentials, variables, evidence):
+    ''' Shrink potentials based on given evidence
+
+    :param potentials: list of numpy arrays subject to evidence
+    :param variables: list of varialables corresponding to potentials
+    :param evidence: dictionary with variables as keys and assigned value as value
+    :return: a new list of potentials after evidence applied
+    '''
+
+    return [
+                [
+                    # index array based on evidence value when evidence provided otherwise use full array
+                    pot[
+                        tuple(
+                                [
+                                    slice(evidence.get(var, 0), evidence.get(var, pot.shape[i]) + 1)
+                                    for i, var in enumerate(vars)
+                                ]
+                        )
+                    # workaround for scalar factors
+                    ] if not np.isscalar(pot) else pot
+                ]
+                for pot, vars in zip(potentials, variables)
+    ]
+
+
 def compute_beliefs(tree, potentials, clique_vars):
-    ''' Computes beliefs for clique potentials in a junction tree
+    '''Computes beliefs for clique potentials in a junction tree
     using Shafer-Shenoy updates.
 
     :param tree: list representing the structure of the junction tree
@@ -169,7 +195,7 @@ def compute_beliefs(tree, potentials, clique_vars):
     '''
 
     def get_message(sepset_ix, tree, beliefs, clique_vars):
-        ''' Computes message with scope defined by sepset
+        '''Computes message from root of tree with scope defined by sepset
 
         :param sepset_ix: index of sepset scope in which to return message
         (use slice(0) for no sepset)
@@ -179,8 +205,6 @@ def compute_beliefs(tree, potentials, clique_vars):
         :param clique_vars: list of variables included in each clique in potentials list
         :return: message: potential with scope defined by sepset (or None if tree includes root)
         '''
-
-        clique = clique_vars[tree[0]]
 
         messages = [
             comp # message or sepset variables in order processed
@@ -199,43 +223,19 @@ def compute_beliefs(tree, potentials, clique_vars):
 
         neighbor_vars = list(set(neighbor_vars))
 
-        # reindex vars before doing einsum computation
-        var_map = {
-            var:i
-            for i, var in enumerate(list(set(
-                clique_vars[sepset_ix] + clique + neighbor_vars
-            )))
-        }
-
-        # map sepset vars using new indices
-        messages[1::2] = [
-            [
-                var_map[var]
-                for var in ss
-            ]
-            for ss in messages[1::2]
-        ]
-
-
-        m_neighbor_vars = [var_map[var] for var in neighbor_vars]
-
         # multiply neighbor messages
         messages = messages if len(messages) else [1]
 
         msg_prod = sum_product.einsum(
                                 *messages,
-                                m_neighbor_vars
+                                neighbor_vars
         )
 
-        m_sepset = [var_map[var] for var in clique_vars[sepset_ix]]
-
-        args = [msg_prod, m_neighbor_vars] + [beliefs[tree[0]], [var_map[var] for var in clique], m_sepset]
+        args = [msg_prod, neighbor_vars] + [beliefs[tree[0]], clique_vars[tree[0]], clique_vars[sepset_ix]]
 
         # compute message as marginalization over non-sepset values
-        # multiplied by product of messages
-        # with output being vars in input sepset
+        # multiplied by product of messages with output being vars in input sepset
         message = sum_product.einsum(*args)
-
 
         try:
             # attempt to update belief
@@ -247,7 +247,7 @@ def compute_beliefs(tree, potentials, clique_vars):
 
 
     def remove_message(msg_prod, prod_ixs, msg, msg_ixs, out_ixs):
-        ''' Removes (divides out) sepset message from
+        '''Removes (divides out) sepset message from
         product of all neighbor sepset messages for a clique
 
         :param msg_prod: product of all messages for clique
@@ -269,23 +269,20 @@ def compute_beliefs(tree, potentials, clique_vars):
         slice_ixs = np.full(msg_prod.ndim, slice(None))
         slice_ixs[~slice_mask] = 0
 
+        if all(exp_mask) and msg_ixs != prod_ixs:
+            # axis must be labeled starting at 0
+            var_map = {var:i for i, var in enumerate(set(msg_ixs + prod_ixs))}
+
+            # axis must be re-ordered if all variables shared but order is different
+            msg = np.moveaxis(msg, [var_map[var] for var in prod_ixs], [var_map[var] for var in msg_ixs])
+
         # create dummy dimensions for performing division (with exp_ix)
         # slice out dimensions of sepset variables from division result (with slice_ixs)
-
-
-        return np.divide(
-                    msg_prod,
-                    msg[ tuple(exp_ixs) ] \
-
-                        # axis must be re-ordered if all variables shared but order is different
-                        if not (all(exp_mask) and msg_ixs != prod_ixs) else \
-
-                    np.moveaxis(msg, prod_ixs, msg_ixs)
-        )[ tuple(slice_ixs) ]
+        return np.divide( msg_prod, msg[ tuple(exp_ixs) ] )[ tuple(slice_ixs) ]
 
 
     def send_message(message, sepset_ix, tree, beliefs, clique_vars):
-        ''' Sends message to cluster at root of tree
+        '''Sends message from clique at root of tree
 
         :param message: message sent by neighbor
                 (use np.array(1) for no message)
@@ -296,10 +293,7 @@ def compute_beliefs(tree, potentials, clique_vars):
         :param clique_vars: list of variables included in each clique in potentials list
         '''
 
-        clique = clique_vars[tree[0]]
-
         # computed messages stored in beliefs for neighbor sepsets
-
         messages = [
                 comp
                 for ss_ix, _ in tree[1:]
@@ -315,45 +309,18 @@ def compute_beliefs(tree, potentials, clique_vars):
 
         neighbor_vars = list(set(all_neighbor_vars))
 
-        # reindex vars before doing einsum computation
-        var_map = {
-            var:i
-            for i, var in enumerate(list(set(
-                clique_vars[sepset_ix] + clique + neighbor_vars
-            )))
-        }
-
-        # map sepset vars using new indices
-        messages[1::2] = [
-            [
-                var_map[var]
-                for var in ss
-            ]
-            for ss in messages[1::2]
-        ]
-
-        m_neighbor_vars = [var_map[var] for var in neighbor_vars]
-
         # multiply neighbor messages
         msg_prod = sum_product.einsum(
                                 *messages,
-                                m_neighbor_vars
+                                neighbor_vars
         )
-
-        m_clique_vars = [var_map[var] for var in clique]
 
         # send message to each neighbor
         ss_num = 0
         for ss_ix, subtree in tree[1:]:
 
-            # sum over vars not in sepset
-            m_sepset = [var_map[var] for var in clique_vars[ss_ix]]
-
-            # divide product of messages by message for this neighbor
-
-            mask = np.in1d(
-                            m_neighbor_vars,
-                            list(
+            # divide product of messages by current sepset message for this neighbor
+            output_vars = list(
                                 set(
                                     [
                                         var
@@ -361,25 +328,30 @@ def compute_beliefs(tree, potentials, clique_vars):
                                         for var in vars
                                     ]
                                 )
-                            )
             )
 
-            mod_neighbor_vars = np.array(m_neighbor_vars)[mask].tolist()
+            mask = np.in1d(
+                            neighbor_vars,
+                            output_vars
+
+            )
+
+            mod_neighbor_vars = np.array(neighbor_vars)[mask].tolist()
 
             mod_msg_prod = remove_message(
                                     msg_prod,
-                                    m_neighbor_vars,
+                                    neighbor_vars,
                                     beliefs[ss_ix],
-                                    m_sepset,
+                                    clique_vars[ss_ix],
                                     mod_neighbor_vars
             )
 
-            args = [mod_msg_prod, mod_neighbor_vars] + [beliefs[tree[0]], m_clique_vars, m_sepset]
+            args = [mod_msg_prod, mod_neighbor_vars] + [beliefs[tree[0]], clique_vars[tree[0]], clique_vars[ss_ix]]
             # calculate message to be sent
             message = sum_product.einsum( *args )
 
             # update sepset belief
-            beliefs[ss_ix] = beliefs[ss_ix] * message
+            beliefs[ss_ix] *= message
 
             send_message(message, ss_ix, subtree, beliefs, clique_vars)
             ss_num += 1
@@ -387,17 +359,17 @@ def compute_beliefs(tree, potentials, clique_vars):
         # update belief for clique
         args = [
             beliefs[tree[0]],
-            m_clique_vars,
+            clique_vars[tree[0]],
             msg_prod,
-            m_neighbor_vars,
-            m_clique_vars
+            neighbor_vars,
+            clique_vars[tree[0]]
         ]
 
         beliefs[tree[0]] = sum_product.einsum(*args)
 
 
     def __run(tree, beliefs, clique_vars):
-        ''' Collect messages from neighbors recursively. Then, send messages
+        '''Collect messages from neighbors recursively. Then, send messages
         recursively. Updated beliefs when this
 
         :param tree: list representing the structure of the junction tree

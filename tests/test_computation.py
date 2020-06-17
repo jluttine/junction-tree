@@ -75,8 +75,8 @@ def brute_force_sum_product(tree, node_list, potentials):
     """Compute brute force sum-product with einsum """
 
     # Function to compute the sum-product with brute force einsum
-    factors_vars = get_arrays_and_keys(tree, node_list, potentials)
-    f = lambda output_vars: np.einsum(*(factors_vars + [output_vars]))
+    arrays_keys = get_arrays_and_keys(tree, node_list, potentials)
+    f = lambda output_vars: np.einsum(*(arrays_keys + [output_vars]))
 
     def __run(tree, node_list, p, f, res=[]):
         res.append(f(node_list[tree[0]]))
@@ -645,4 +645,37 @@ def test_divide_matrix_product():
 
     msg_prod_x2 = np.einsum(msg1, variables[3], msg3, variables[5], [5,7])
     assert np.allclose(msg_prod_x2, np.divide(msg_prod, msg2[..., None, None])[0,:,:])
+
+def test_apply_evidence_to_potentials():
+    potentials = [
+                np.random.randn(2, 3, 6),
+                np.random.randn(3, 4),
+                np.random.randn(2, 5),
+                np.ones((3,)),
+                np.ones((2,)),
+                np.ones((6,)),
+                np.random.randn(4, 6)
+    ]
+
+    variables = [
+                [3, 5, 7],
+                [5, 9],
+                [3, 1],
+                [5],
+                [3],
+                [7],
+                [2, 7]
+    ]
+
+    evidence = {3:0, 9:2}
+
+    shrunken_potentials = comp.apply_evidence(potentials, variables, evidence)
+
+    np.allclose(potentials[0][0, :, :], shrunken_potentials[0])
+    np.allclose(potentials[1][:, 2], shrunken_potentials[1])
+    np.allclose(potentials[2][0, 1], shrunken_potentials[2])
+    np.allclose(potentials[3], shrunken_potentials[3])
+    np.allclose(potentials[4][0], shrunken_potentials[4])
+    np.allclose(potentials[5], shrunken_potentials[5])
+    np.allclose(potentials[6], shrunken_potentials[6])
 
