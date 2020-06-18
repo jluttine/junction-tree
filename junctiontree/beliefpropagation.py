@@ -1,7 +1,7 @@
 import numpy as np
 import heapq
 import copy
-from itertools import combinations
+from itertools import combinations, chain
 
 # FIXME: Cyclic import
 
@@ -82,17 +82,19 @@ def find_triangulation(factors, key_sizes):
         :return: a list of the original factors of factor graph which contain the edge
         '''
 
-        return (
-                sum(
-                    [
-                        sum( # adding this factor id and factor ids of factors that are subsets
-                            [[factor_ix]],
-                            subsets.get(factor_ix, [])
-                        ) if (factor_to_maxclique[factor_ix] is None) else []
-                        for factor_ix in factor_ixs
-                    ],
-                    []
-                )
+        return list(
+                    chain(
+                        *[
+                            # adding this factor id and factor ids of factors that are subsets
+                            list(
+                                set(
+                                    subsets.get(factor_ix, []) + [factor_ix]
+                                )
+                            )
+                            for factor_ix in factor_ixs
+                            if factor_to_maxclique[factor_ix] is None
+                        ]
+                    )
         )
 
     def find_unconnected_neighbors(neighbors, edges):
@@ -416,12 +418,14 @@ def insert_sepset(tree, clique_ix, sepset_group):
     :return new_tree: tree structure with the sepset inserted as a child of clique
     '''
 
-    return [tree[0]] + sum(
-        [
-            [(child_sepset[0], insert_sepset(child_sepset[1], clique_ix, sepset_group))]
-            for child_sepset in tree[1:]
-        ],
-        [] if tree[0] != clique_ix else [(sepset_group)]
+    return [tree[0]] + list(
+                            chain(
+                                *[
+                                    [(child_sepset[0], insert_sepset(child_sepset[1], clique_ix, sepset_group))]
+                                    for child_sepset in tree[1:]
+                                ],
+                                [] if tree[0] != clique_ix else [(sepset_group)]
+                            )
     )
 
 
@@ -465,9 +469,9 @@ def change_root(tree, clique_ix, child=[], sep=[]):
             tree.append((sep[0],child))
         return tree
 
-
-    return  sum(
-                [
+    return list(
+        chain(
+                *[
                     change_root(
                                 child_sepset[1],
                                 clique_ix,
@@ -475,55 +479,9 @@ def change_root(tree, clique_ix, child=[], sep=[]):
                                 [child_sepset[0]]
                     )
                     for c_ix, child_sepset in enumerate(tree[1:])
-                ],
-                []
-            )
-
-
-def eliminate_variables(junction_tree):
-    """Eliminate all other variables except the root variables"""
-
-    def __run(tree, variables):
-        """Run variable elimination recursively
-        Construct trees with nested lists as:
-        [array, axis_keys, child_tree1, ..., child_treeN]
-        where each child tree has the same syntax recursively.
-        Axis keys are some unique identifiers used to determine which axis in
-        different array correspond to each other and they are used directly as
-        keys for numpy.einsum. It should hold that len(axis_keys) ==
-        np.ndim(array). TODO: numpy.einsum supports only keys up to 32, thus in
-        order to support arbitrary number keys in the whole tree, one should
-        map the keys for the curren numpy.einsum to unique integers starting
-        from 0.
-        """
-
-        common_child_variables = [
-            [
-                variable
-                for variable in variables
-                if variable in child_tree[1]
-            ]
-            for child_tree in tree[2:]
-        ]
-
-        xs = [
-            __run(
-                child_tree,
-                child_variables
-            )
-            for (child_tree, child_variables) in zip(tree[2:], common_child_variables)
-        ]
-
-        xs_is = zip(xs, common_child_variables)
-        args = [
-            z
-            for x_i in xs_is
-            for z in x_i
-        ] + [tree[0], tree[1], variables]
-
-        return sum_product.einsum(*args)
-
-    return __run(junction_tree, junction_tree[1])
+                ]
+        )
+    )
 
 
 def collect(tree, node_list, potentials, visited, distributive_law, shrink_mapping=None):

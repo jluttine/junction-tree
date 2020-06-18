@@ -21,7 +21,20 @@ class SumProduct():
         :return: the resulting calculation based on the summation performed
         '''
 
-        return self.func(*args, *self.args, **kwargs, **self.kwargs)
+        args_list = list(args)
+
+        var_indices = args_list[1::2] + [args_list[-1]] if len(args_list) % 2 == 1 else []
+
+        var_map = {var:i for i, var in enumerate(set([var for vars in var_indices for var in vars]))}
+
+        args_list[1::2] = [
+            [ var_map[var] for var in vars ] if len(vars) > 0 else [] for vars in args_list[1::2]
+        ]
+
+        # explicit output indices may be provided requiring one additional mapping
+        args_list[-1] = [var_map[var] for var in args_list[-1]]
+
+        return self.func(*args_list, *self.args, **kwargs, **self.kwargs)
 
 
     def project(self, clique_pot, clique_keys, sep_keys):
