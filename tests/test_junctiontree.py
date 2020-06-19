@@ -1,8 +1,9 @@
 import numpy as np
 import junctiontree as jt
-from .util import assert_sum_product
+from .util import assert_sum_product, assert_potentials_equal
 import unittest
-
+from junctiontree import computation as comp
+import copy
 
 def test_one_scalar_node():
     assert_sum_product(
@@ -481,12 +482,6 @@ def test_clique_graph():
 
     return
 
-import numpy as np
-from junctiontree import beliefpropagation as bp
-import copy
-import junctiontree.junctiontree as jt
-from .util import assert_potentials_equal
-
 
 tree = [
         0,
@@ -650,7 +645,7 @@ def test_transformation():
     )
 
     np.testing.assert_allclose(
-                            bp.sum_product.einsum(
+                            comp.sum_product.einsum(
                                 _tree.propagate(values)[6],
                                 [0, 1, 2],
                                 [2]
@@ -659,7 +654,7 @@ def test_transformation():
                             atol=0.01
     )
     np.testing.assert_allclose(
-                            bp.sum_product.einsum(
+                            comp.sum_product.einsum(
                                 _tree.propagate(values)[7],
                                 [0, 1, 2],
                                 [2]
@@ -892,7 +887,7 @@ def test_inference():
 
     # P(F)
     np.testing.assert_allclose(
-                        bp.sum_product.einsum(
+                        comp.sum_product.einsum(
                             prop_values[5],
                             [0,1,2],
                             [2]
@@ -900,6 +895,128 @@ def test_inference():
                         np.array([0.507,0.493]),
                         atol=0.001
     )
+
+
+def test_marginalize_variable():
+    '''
+        given consistent clique potentials, calculate the marginal probability of
+        a variable in the clique
+        use example from Huang and Darwiche (H&D)
+
+         a   b   d  |  phi_ABD(abd)
+        --------------------------
+        on  on  on  |   0.225
+        on  on  off |   0.025
+        on  off on  |   0.125
+        on  off off |   0.125
+        off on  on  |   0.180
+        off on  off |   0.020
+        off off on  |   0.150
+        off off off |   0.150
+
+        >>> ABD = np.ndarray(shape=(2,2,2))
+        >>> ABD[1,1,1] = 0.225
+        >>> ABD[1,1,0] = 0.025
+        >>> ABD[1,0,1] = 0.125
+        >>> ABD[1,0,0] = 0.125
+        >>> ABD[0,1,1] = 0.180
+        >>> ABD[0,1,0] = 0.020
+        >>> ABD[0,0,1] = 0.150
+        >>> ABD[0,0,0] = 0.150
+    '''
+
+    phiABD=np.array([
+                        [
+                            [ 0.15 ,  0.15 ],
+                            [ 0.02 ,  0.18 ]
+                        ],
+                        [
+                            [ 0.125,  0.125],
+                            [ 0.025,  0.225]
+                        ]
+                    ])
+    # https://obilaniu6266h16.wordpress.com/2016/02/04/einstein-summation-in-numpy/
+    # marginal probability of A, P(A)
+    np.testing.assert_allclose(comp.sum_product.einsum(phiABD, [0,1,2], [0]), np.array([0.500, 0.500]))
+    # marginal probability of D, P(D)
+    np.testing.assert_allclose(np.array([0.32,0.68]), np.array([0.320, 0.680]))
+
+
+def test_pass_message():
+    r"""
+        Example taken from here: https://www.cs.ru.nl/~peterl/BN/examplesproofs.pdf
+        Example will be processed under the assumption that potentials have been
+        properly initialized outside of this test
+
+        Variables: V1, V2, V3
+        \phi_{V1} = [V2] # parents of V1
+        \phi_{V2} = [] # parents of V2
+        \phi_{V3} = [V2] # parents of V3
+        F_{V1} = [V1, V2]
+        F_{V2} = [V2]
+        F_{V3} = [V2, V3]
+
+        P(v1|v2) = 0.2
+        P(v1|~v2) = 0.6
+        P(~v1|v2) = 0.8
+        P(~v1|~v2) = 0.4
+        P(v3|v2) = 0.5
+        P(v3|~v2) = 0.7
+        P(~v3|v2) = 0.5
+        P(~v3|~v2) = 0.3
+        P(v2) = 0.9
+        P(~v2) = 0.1
+
+
+        V1  V2  |   \phi_{V1V2} (P(V1|V2))
+        ------------------------
+        0   0   |   0.4
+        0   1   |   0.8
+        1   0   |   0.6
+        1   1   |   0.2
+
+
+        V2  |   \phi_{V2} (1)
+        -----------------
+        0   |   1
+        1   |   1
+
+        V2  V3  |   \phi_{V2V3} (P(V3|V2)P(V2))
+        -------------------------
+        0   0   |   0.3 * 0.1 = 0.03
+        0   1   |   0.7 * 0.1 = 0.07
+        1   0   |   0.5 * 0.9 = 0.45
+        1   1   |   0.5 * 0.9 = 0.45
+    """
+
+    phi12 = np.array([
+                        [0.4, 0.8],
+                        [0.6, 0.2]
+                    ])
+
+    phi2 = np.array([1, 1])
+    phi23 = np.array([
+                        [0.03, 0.07],
+                        [0.45, 0.45]
+                    ])
+
+    phi2n = comp.sum_product.project(phi12, [0,1], [1])
+    np.testing.assert_allclose(phi2n, np.array([1,1]))
+    phi23 = comp.sum_product.absorb(phi23, [0,1], phi2, phi2n, [1])
+    np.testing.assert_allclose(phi23, np.array([
+                                    [0.03,0.07],
+                                    [0.45,0.45]
+                                ]))
+
+    phi2nn = comp.sum_product.project(phi23, [0,1], [0])
+    np.testing.assert_allclose(phi2nn, np.array([0.1, 0.9]))
+    phi12 = comp.sum_product.absorb(phi12, [0,1], phi2n, phi2nn, [1])
+    np.testing.assert_allclose(phi12, np.array([
+                                    [0.04,0.72],
+                                    [0.06,0.18]
+                                ]))
+
+
 
 @unittest.skip("Tests are not relevant yet")
 def test_junction_tree():
@@ -980,3 +1097,5 @@ def test_junction_tree():
     )
 
     return
+
+

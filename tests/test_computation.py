@@ -437,6 +437,7 @@ def test_divide_matrix_product():
     msg_prod_x2 = np.einsum(msg1, variables[3], msg3, variables[5], [5,7])
     assert np.allclose(msg_prod_x2, np.divide(msg_prod, msg2[..., None, None])[0,:,:])
 
+
 def test_apply_evidence_to_potentials():
     potentials = [
                 np.random.randn(2, 3, 6),
@@ -470,3 +471,53 @@ def test_apply_evidence_to_potentials():
     np.allclose(potentials[5], shrunken_potentials[5])
     np.allclose(potentials[6], shrunken_potentials[6])
 
+
+def test_evidence_shrinking():
+    # evidence shrinking can be incorporated by removing axis
+    # corresponding to observed variable
+    A = np.random.rand(3,4,2) # vars: a,b,c
+    a = [0]*3
+    a[2] = 1
+    b = [0]*4
+    b[2] = 1
+    c = [0]*2
+    c[0] = 1
+
+    # update potential A based on observing a=2
+    A_updated = comp.sum_product.einsum(A, [0,1,2], a, [0], [0,1,2])
+
+    # shrinking from evidence
+    # set the axis representing a (ax=0) to the value of a
+    A_updated_es = A_updated[2,:,:]
+    assert A_updated_es.shape == (4,2)
+
+    # imagine we have another potential sharing vars b and c
+    B = np.random.rand(4,2) # vars: b,c
+    B_updated = comp.sum_product.einsum(A_updated, [0,1,2], B, [1,2], [1,2])
+
+    B_updated_es = comp.sum_product.einsum(A_updated_es, [1,2], B, [1,2], [1,2])
+
+    # the result of the calculation should be the same regardless of if we use
+    # the updated potentials from A_updated (without evidence shrinking)
+    # or A_updated_es (with evidence shrinking)
+    np.testing.assert_allclose(
+                            B_updated,
+                            B_updated_es
+    )
+
+    # what happens if the only shared variables between potentials is
+    # the single variable in potential
+
+    C = np.random.rand(3) # vars: a
+    C_updated = comp.sum_product.einsum(C, [0], a, [0], [0])
+    C_updated_es = C_updated[2]
+
+    np.testing.assert_allclose(
+                    comp.sum_product.einsum(A_updated, [0,1,2], C_updated, [0], []),
+                    comp.sum_product.einsum(A_updated_es, [1,2], C_updated_es, [], [])
+    )
+
+    np.testing.assert_allclose(
+                    comp.sum_product.einsum(A_updated, [0,1,2], C_updated, [0], [1,2]),
+                    comp.sum_product.einsum(A_updated_es, [1,2], C_updated_es, [], [1,2])
+    )

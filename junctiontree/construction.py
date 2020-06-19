@@ -446,3 +446,93 @@ def insert_sepset(tree, clique_ix, sepset_group):
                             )
     )
 
+
+def generate_potential_pairs(tree):
+    '''Returns a list of tuples consisting of clique id and child separator ids
+
+    :param tree: tree structure in list format
+    :return: list of clique id/child sep id tuples
+
+    [
+        (clique_id0, child0_sep_id0),
+        (clique_id0, child1_sep_id0),
+        (clique_id1, child0_sep_id1),
+        ...
+        (clique_idN, child(M-1)_sep_idN),
+        (clique_idN, childM_sep_idN)
+    ]
+    '''
+
+    return list(bf_traverse(tree, func=yield_clique_pairs))
+
+
+def yield_id(tree):
+    '''Yields id of tree's root
+
+    :param tree: tree structure in list format
+    '''
+
+    yield tree[0]
+
+
+def bf_traverse(tree, clique_ix=None, func=yield_id):
+    '''Breadth-first search traversal with optional early termination
+
+    :param tree: tree structure in list format
+    :param clique_ix: clique id used to terminate traversal
+    :param func: function controlling component of tree output
+
+    Output: Depends on func argument. Default is list of clique ids
+
+    [id1, ..., idN] (or [id1, ..., cid])
+    '''
+
+    queue = [tree]
+    while queue:
+        tree = queue.pop(0)
+        yield from func(tree)
+        if tree[0] == clique_ix:
+            raise StopIteration
+        queue.extend([child for child in tree[1:]])
+
+
+def yield_clique_pairs(tree):
+    '''Yields tuples of root clique id and sepset id
+
+    :param tree: tree structure in list format
+    '''
+
+    for child in tree[1:]:
+        yield (tree[0], child[0])
+
+
+def get_clique_vars(clique_vars, clique_ix):
+    '''Get variables of the clique with id clique_ix
+
+    :param clique_vars: list of variables (maxclique + separators)
+    :param clique_ix: clique id to find
+    :return: list of variables in clique clique_ix (or None if clique_ix not in tree)
+    '''
+
+    return clique_vars[clique_ix] if len(clique_vars) > clique_ix else None
+
+
+def df_traverse(tree, clique_ix=None, func=yield_id):
+    '''Depth-first traversal with optional early termination
+
+    :param tree: tree structure in list format
+    :param clique_ix: clique id used to terminate traversal
+    :param func: function controlling component of tree output
+
+    Output: Depends on func argument. Default is list of clique ids
+
+    [id1, ..., idN] (or [id1, ..., cid])
+    '''
+
+    stack = [tree]
+    while stack:
+        tree = stack.pop()
+        yield from func(tree)
+        if tree[0] == clique_ix:
+            raise StopIteration
+        stack.extend([child for child in reversed(tree[1:])])
