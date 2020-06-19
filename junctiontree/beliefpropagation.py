@@ -695,115 +695,37 @@ def get_clique(tree, key_list, key_label):
     return None
 
 
-def compute_marginal(potential, clique_keys, key_ix):
-    """
-    Compute marginal over potential for key
-
-    Input:
-    ------
-
-    Potential to use for marginalization
-
-    List of keys included in clique
-
-    Key to use for marginalization
-
-    Output:
-    -------
-
-    Marginal value of key
-
-    """
-
-    if key_ix not in clique_keys:
-        return 0.0
-
-
-    return sum_product.einsum(
-                        potential,
-                        clique_keys,
-                        [key_ix]
-    )
-
 def yield_id(tree):
-    """
-    Function making it possible to yield id of tree's root
+    '''Yields id of tree's root
 
-    Input:
-    ------
+    :param tree: tree structure in list format
+    '''
 
-    The tree structure of the junction tree
-
-    Output:
-    -------
-
-    Clique ID of tree root
-
-    """
     yield tree[0]
 
-def yield_id_and_keys(tree):
-    """
-    Function making it possible to yield id and keys of tree's root
-
-    Input:
-    ------
-
-    The tree structure of the junction tree
-
-    Output:
-    -------
-
-    Clique ID and clique keys of tree root
-
-    """
-    yield tree[0]
-    yield tree[1]
 
 def yield_clique_pairs(tree):
-    """
+    '''Yields tuples of root clique id and sepset id
 
-    Function making it possible to yield clique id/keys and
-        child separators
+    :param tree: tree structure in list format
+    :return:
+    '''
 
-    Input:
-    ------
-
-    The tree structure of the junction tree
-
-    Output:
-    -------
-
-    Tuples of root clique id and child separator ids
-
-    """
     for child in tree[1:]:
         yield (tree[0], child[0])
 
 
 def bf_traverse(tree, clique_ix=None, func=yield_id):
-    """
-    Breadth-first traversal of tree
+    '''Breadth-first search traversal with optional early termination
 
-    Early termination of search is performed if clique_id provided
+    :param tree: tree structure in list format
+    :param clique_ix: clique id used to terminate traversal
+    :param func: function controlling component of tree output
 
-    Input:
-    ------
-
-    Tree structure to traverse
-
-    (Optional) Clique ID used to terminate traversal
-
-    (Optional) Function controlling output
-
-    Output:
-    -------
-
-    Depends on func argument. Default is list of clique
-        ids
+    Output: Depends on func argument. Default is list of clique ids
 
     [id1, ..., idN] (or [id1, ..., cid])
-    """
+    '''
 
     queue = [tree]
     while queue:
@@ -815,30 +737,16 @@ def bf_traverse(tree, clique_ix=None, func=yield_id):
 
 
 def df_traverse(tree, clique_ix=None, func=yield_id):
-    """
-    Depth-first traversal of tree
+    '''Depth-first traversal with optional early termination
 
-    Early termination of search is performed if clique_id provided
+    :param tree: tree structure in list format
+    :param clique_ix: clique id used to terminate traversal
+    :param func: function controlling component of tree output
 
-    Input:
-    ------
-
-    Tree structure to traverse
-
-    (Optional) Clique ID used to terminate traversal
-
-    (Optional) Function controlling output
-
-
-    Output:
-    -------
-
-    Depends on func argument. Default is list of clique
-        ids
+    Output: Depends on func argument. Default is list of clique ids
 
     [id1, ..., idN] (or [id1, ..., cid])
-
-    """
+    '''
 
     stack = [tree]
     while stack:
@@ -849,105 +757,72 @@ def df_traverse(tree, clique_ix=None, func=yield_id):
         stack.extend([child for child in reversed(tree[1:])])
 
 
-def get_clique_keys(node_list, clique_ix):
-    """
-    Return keys for clique with ID clique_ix
-        (if clique_ix not in tree return None)
+def get_clique_vars(clique_vars, clique_ix):
+    '''Get variables of the clique with id clique_ix
 
-    Input:
-    ------
+    :param clique_vars: list of variables (maxclique + separators)
+    :param clique_ix: clique id to find
+    :return: list of variables in clique clique_ix (or None if clique_ix not in tree)
+    '''
 
-    List of nodes (maxcliques + separators)
-
-    Clique ID to find
-
-    Output:
-    -------
-
-    A list containing clique keys (or None)
-
-    """
-
-    return node_list[clique_ix] if len(node_list) > clique_ix else None
+    return clique_vars[clique_ix] if len(clique_vars) > clique_ix else None
 
 
-def get_cliques(tree, node_list, key):
-    """
-    Return the (M) cliques (clique id/clique keys pairs) which
-        include key and all other keys in clique
+def get_cliques(tree, clique_vars, v):
+    '''Returns the (m) cliques (clique id/clique key pairs) which include key
+    and all other keys in clique
 
-    Input:
-    ------
+    :param tree: tree structure in list format
+    :param clique_vars: list of clique variables in tree
+    :param v: variable to find
+    :return: list of clique ids and corresponding variable list containing v
 
-    Tree structure to traverse
-
-    Key to find
-
-    Output:
-    -------
-
-    List of clique ids and corresponding keys containing key
-
-    [clique_wkey_id1, clique_wkey_keys1, ..., clique_wkey_idM, clique_wkey_keysM]
-    """
+    [clique_wvar_id1, clique_wvar_vars1, ..., clique_wvar_idM, clique_wvar_varsM]
+    '''
 
     flist = list(bf_traverse(tree))
     return [
-            (clique_ix, node_list[clique_ix])
-                for clique_ix in flist if key in node_list[clique_ix]
+            (clique_ix, clique_vars[clique_ix])
+                for clique_ix in flist if v in clique_vars[clique_ix]
     ]
 
-def get_clique_of_key(tree, node_list, key):
-    """
-    Returns a clique ID/keys containing key (if exists)
 
-    Input:
-    ------
+def get_clique_of_key(tree, clique_vars, v):
+    ''' Returns a tuple of clique id and variables containing variable (if exists)
 
-    Tree structure of the junction tree
-
-    Key to find
-
-    Output:
-    -------
-
-    First clique ID/clique keys which contains key (or (None,None) pair)
-
-    """
+    :param tree: tree structure in list format
+    :param clique_vars: list of clique variables in tree
+    :param v: variable to find
+    :return: tuple with first clique id and clique variables which contains
+                variable (or (None,None) tuple)
+    '''
 
     ix = tree[0]
-    keys = node_list[ix]
+    vars = clique_vars[ix]
     separators = tree[1:]
 
-    if key in keys:
-        return ix, keys
+    if v in vars:
+        return ix, vars
     if separators == (): # base case reached (leaf)
         return None, None
 
     for separator in separators:
         separator_ix, c_tree = separator
-        separator_keys = node_list[separator_ix]
-        if key in separator_keys:
-            return separator_ix, separator_keys
-        clique_ix, clique_keys = get_clique_of_key(c_tree, node_list, key)
+        separator_vars = clique_vars[separator_ix]
+        if v in separator_vars:
+            return separator_ix, separator_vars
+        clique_ix, clique_vars = get_clique_of_key(c_tree, clique_vars, v)
         if clique_ix != None:
-            return clique_ix, clique_keys
+            return clique_ix, clique_vars
 
     return None, None
 
+
 def generate_potential_pairs(tree):
-    """
-    Returns cliques and child separators
+    '''Returns a list of tuples consisting of clique id and child separator ids
 
-    Input:
-    ------
-
-    Tree structure of the junction tree
-
-    Output:
-    -------
-
-    List of clique id/child sep id pairs
+    :param tree: tree structure in list format
+    :return: list of clique id/child sep id tuples
 
     [
         (clique_id0, child0_sep_id0),
@@ -957,17 +832,15 @@ def generate_potential_pairs(tree):
         (clique_idN, child(M-1)_sep_idN),
         (clique_idN, childM_sep_idN)
     ]
+    '''
 
-    """
     return list(bf_traverse(tree, func=yield_clique_pairs))
-
 
 
 # Sum-product distributive law for NumPy
 sum_product = SumProduct(np.einsum)
-'''
-TODO: setting optimize to true allows einsum to benefit from speed up due to
+'''TODO: Setting optimize to true allows einsum to benefit from speed up due to
 contraction order optimization but at the cost of memory usage
-need to evaluate tradeoff within library
+Need to evaluate tradeoff within library
 '''
 #sum_product = SumProduct(np.einsum,optimize=True)

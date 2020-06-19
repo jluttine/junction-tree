@@ -30,7 +30,7 @@ def test_traversal():
     assert list(bp.df_traverse(tree)) == [0,1,2,3,4,5,6,]
 
 
-def test_get_clique_keys():
+def test_get_clique_vars():
     node_list = [
                     [0, 2, 4],
                     [0, 2],
@@ -41,14 +41,14 @@ def test_get_clique_keys():
                     [1, 2, 3]
 
     ]
-    assert bp.get_clique_keys(node_list, 0) == [0, 2, 4]
-    assert bp.get_clique_keys(node_list, 1) == [0, 2]
-    assert bp.get_clique_keys(node_list, 2) == [0, 1, 2]
-    assert bp.get_clique_keys(node_list, 3) == [4]
-    assert bp.get_clique_keys(node_list, 4) == [3, 4]
-    assert bp.get_clique_keys(node_list, 5) == [3]
-    assert bp.get_clique_keys(node_list, 6) == [1, 2, 3]
-    assert bp.get_clique_keys(node_list, 7) == None
+    assert bp.get_clique_vars(node_list, 0) == [0, 2, 4]
+    assert bp.get_clique_vars(node_list, 1) == [0, 2]
+    assert bp.get_clique_vars(node_list, 2) == [0, 1, 2]
+    assert bp.get_clique_vars(node_list, 3) == [4]
+    assert bp.get_clique_vars(node_list, 4) == [3, 4]
+    assert bp.get_clique_vars(node_list, 5) == [3]
+    assert bp.get_clique_vars(node_list, 6) == [1, 2, 3]
+    assert bp.get_clique_vars(node_list, 7) == None
 
 def test_generate_potential_pairs():
     tree = [

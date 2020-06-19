@@ -1,4 +1,5 @@
 from junctiontree import beliefpropagation as bp
+from junctiontree import construction as cons
 from .util import assert_triangulated, gibbs_elem_cycles, assert_junction_trees_equal
 from junctiontree import junctiontree as jt
 import heapq
@@ -88,7 +89,7 @@ def test_create_cycle_basis():
 def test_can_locate_clique_containing_variable():
     tree = [0, (1, [2, ])]
     node_list = [[0,1],[1], [1,2]]
-    clique, _vars = bp.get_clique(tree, node_list, 2)
+    clique, _vars = cons.get_clique(tree, node_list, 2)
     assert clique == 2
 
 def test_convert_factor_graph_to_undirected_graph():
@@ -99,7 +100,7 @@ def test_convert_factor_graph_to_undirected_graph():
                 ["A", "D"]
             ]
 
-    factor_edges = bp.factors_to_undirected_graph(factors)
+    factor_edges = cons.factors_to_undirected_graph(factors)
     assert frozenset(("A","C")) in factor_edges
     assert frozenset(("A","D")) in factor_edges
     assert frozenset(("B","C")) in factor_edges
@@ -146,8 +147,8 @@ def test_node_heap_construction():
                 ["B", "C", "D"], # weight: 60
                 ["A", "D"] # weight: 10
             ]
-    factor_edges = bp.factors_to_undirected_graph(factors)
-    hp, ef = bp.initialize_triangulation_heap(
+    factor_edges = cons.factors_to_undirected_graph(factors)
+    hp, ef = cons.initialize_triangulation_heap(
                                             _vars,
                                             factor_edges
     )
@@ -182,13 +183,13 @@ def test_heap_update_after_node_removal():
                 ["A", "D"]
             ]
 
-    factor_edges = bp.factors_to_undirected_graph(factors)
-    heap, entry_finder = bp.initialize_triangulation_heap(
+    factor_edges = cons.factors_to_undirected_graph(factors)
+    heap, entry_finder = cons.initialize_triangulation_heap(
                                                     _vars,
                                                     factor_edges
     )
 
-    item, heap, entry_finder, rem_vars = bp.remove_next(
+    item, heap, entry_finder, rem_vars = cons.remove_next(
                                                     heap,
                                                     entry_finder,
                                                     list(_vars.keys()),
@@ -211,7 +212,7 @@ def test_heap_update_after_node_removal():
     assert chk_heap[1] == [0, 60, "C"]
     assert chk_heap[2] == [0, 60, "D"]
 
-    item, heap, entry_finder, rem_vars = bp.remove_next(
+    item, heap, entry_finder, rem_vars = cons.remove_next(
                                                     heap,
                                                     entry_finder,
                                                     rem_vars,
@@ -232,7 +233,7 @@ def test_heap_update_after_node_removal():
     assert chk_heap[0] == [0, 15, "C"]
     assert chk_heap[1] == [0, 15, "D"]
 
-    item, heap, entry_finder, rem_vars = bp.remove_next(
+    item, heap, entry_finder, rem_vars = cons.remove_next(
                                                     heap,
                                                     entry_finder,
                                                     rem_vars,
@@ -251,7 +252,7 @@ def test_heap_update_after_node_removal():
     assert len(chk_heap) == 1
     assert chk_heap[0] == [0, 5, "D"]
 
-    item, heap, entry_finder, factors = bp.remove_next(
+    item, heap, entry_finder, factors = cons.remove_next(
                                                     heap,
                                                     entry_finder,
                                                     rem_vars,
@@ -347,7 +348,7 @@ def test_triangulate_factor_graph1():
             ]
     fg = [_vars, factors, values]
 
-    tri, max_cliques, factor_to_maxclique = bp.find_triangulation(fg[1], fg[0])
+    tri, max_cliques, factor_to_maxclique = cons.find_triangulation(fg[1], fg[0])
 
     # triangulation should consist of 1 edge
     assert len(tri) == 1
@@ -382,7 +383,7 @@ def test_triangulate_factor_graph2():
                 ["D", "E", "F"]  #6
     ]
 
-    tri, max_cliques, _ = bp.find_triangulation(factors, _vars)
+    tri, max_cliques, _ = cons.find_triangulation(factors, _vars)
     assert_triangulated(factors, tri)
 
     assert len(max_cliques) == 6
@@ -415,7 +416,7 @@ def test_triangulate_factor_graph3():
                 ["S","L","J"], #5
     ]
 
-    tri, max_cliques, _ = bp.find_triangulation(factors, _vars)
+    tri, max_cliques, _ = cons.find_triangulation(factors, _vars)
     assert_triangulated(factors, tri)
 
     assert len(max_cliques) == 5
@@ -428,7 +429,7 @@ def test_triangulate_factor_graph3():
 
 
 def test_triangulate_factor_graph_with_duplicate_factors():
-    tri, max_cliques, factor_to_maxclique = bp.find_triangulation([ ["x", "y"], ["x", "y"] ], {"x":2, "y":3})
+    tri, max_cliques, factor_to_maxclique = cons.find_triangulation([ ["x", "y"], ["x", "y"] ], {"x":2, "y":3})
     assert None not in factor_to_maxclique
 
 def test_can_use_integer_keys():
@@ -442,7 +443,7 @@ def test_join_trees_with_single_cliques():
     sepset = [2,]
     tree2 = [1,]
 
-    output = bp.merge_trees(
+    output = cons.merge_trees(
                         tree1,
                         tree1[0],
                         tree2,
@@ -468,7 +469,7 @@ def test_join_tree_with_single_clique_to_multiclique_tree():
     sepset = [3,]
     tree2 = [4, (5, [6, ])]
 
-    output = bp.merge_trees(
+    output = cons.merge_trees(
                         tree1,
                         tree1[0],
                         tree2,
@@ -499,7 +500,7 @@ def test_join_tree_with_multiple_cliques_to_tree_with_multiple_cliques():
     sepset = [3, ]
     tree2 = [4, (5, [6, ])]
 
-    output = bp.merge_trees(
+    output = cons.merge_trees(
                         tree1,
                         tree1[0],
                         tree2,
@@ -547,13 +548,13 @@ def test_change_root():
                 )
             ]
 
-    assert bp.change_root(tree1, 3) == []
+    assert cons.change_root(tree1, 3) == []
 
-    output = bp.change_root(tree1, 4)
+    output = cons.change_root(tree1, 4)
 
     assert output == tree1
 
-    output = bp.change_root(copy.deepcopy(tree1), 0)
+    output = cons.change_root(copy.deepcopy(tree1), 0)
 
     tree2 = [
                 0,
@@ -575,7 +576,7 @@ def test_change_root():
     assert_junction_trees_equal(tree1, output)
 
 
-    output = bp.change_root(copy.deepcopy(tree1), 2)
+    output = cons.change_root(copy.deepcopy(tree1), 2)
 
     tree3 = [
                 2,
@@ -626,7 +627,7 @@ def test_change_root():
             ]
 
 
-    output = bp.change_root(tree4, 2)
+    output = cons.change_root(tree4, 2)
 
 
 
@@ -667,7 +668,7 @@ def test_join_trees_with_multiple_cliques_with_first_nested():
     sepset = [3,]
     tree2 = [8, (9, [10, ])]
 
-    output = bp.merge_trees(
+    output = cons.merge_trees(
                         tree1,
                         0,
                         tree2,
@@ -710,7 +711,7 @@ def test_join_trees_with_multiple_cliques_with_second_nested():
     sepset = [3, ]
     tree2 = [6,  (7,  [8,  (9,  [10, ])])]
 
-    output = bp.merge_trees(
+    output = cons.merge_trees(
                         tree1,
                         0,
                         tree2,
@@ -752,7 +753,7 @@ def test_join_trees_with_multiple_cliques_with_both_nested():
     sepset = [3, ]
     tree2 = [6, (7, [8, (9, [10, ])])]
 
-    output = bp.merge_trees(
+    output = cons.merge_trees(
                         tree1,
                         0,
                         tree2,

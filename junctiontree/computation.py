@@ -233,4 +233,5 @@ def compute_beliefs(tree, potentials, clique_vars):
     return __run(tree, beliefs, clique_vars)
 
 
+
 sum_product = SumProduct(np.einsum)
