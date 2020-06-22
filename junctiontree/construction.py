@@ -536,3 +536,124 @@ def df_traverse(tree, clique_ix=None, func=yield_id):
         if tree[0] == clique_ix:
             raise StopIteration
         stack.extend([child for child in reversed(tree[1:])])
+
+
+def construct_junction_tree(cliques, key_sizes):
+    '''Construct junction tree from input cliques
+
+    :param cliques: a list of maximal cliques where each maximal clique is a list of key indices it contains
+    :param key_sizes: a dictionary of (key label, key size) pairs
+    :return tree: a junction tree structure from the input cliques
+    :return separators: a list of separators in the order in which they appear in the tree.
+
+    Note: Empty separator sets indicate the presence of distinct unconnected trees in the structure
+    '''
+
+    trees = [[c_ix] for c_ix, clique in enumerate(cliques)]
+    # set of candidate sepsets
+    sepsets = list()
+    for i, X in enumerate(cliques):
+        for j, Y in enumerate(cliques[i+1:]):
+            sepset = tuple(set(X).intersection(Y))
+            sepsets.append((sepset, (i,j+i+1)))
+
+    separator_dict = {}
+
+    heap = build_sepset_heap(sepsets, cliques, key_sizes)
+    num_selected = 0
+
+    while num_selected < len(cliques) - 1:
+        entry = heapq.heappop(heap)
+        ss_ix = entry[2]
+        (cliq1_ix, cliq2_ix) = sepsets[ss_ix][1]
+
+        tree1, tree2 = None, None
+        for tree in trees:
+            # find tree (tree1) containing cliq1_ix
+            tree1 = tree1 if tree1 else (tree if find_subtree(tree,cliq1_ix) else None)
+            # find tree (tree2) containing cliq2_ix
+            tree2 = tree2 if tree2 else (tree if find_subtree(tree,cliq2_ix) else None)
+
+        if tree1 != tree2:
+            ss_tree_ix = len(cliques) + num_selected
+            # merge tree1 and tree2 into new_tree
+            new_tree = merge_trees(
+                                tree1,
+                                cliq1_ix,
+                                tree2,
+                                cliq2_ix,
+                                ss_tree_ix
+            )
+            separator_dict[ss_tree_ix] = sepsets[ss_ix][0]
+            # insert new_tree into forest
+            trees.append(new_tree)
+
+            # remove tree1 and tree2 from forest
+            trees.remove(tree1)
+            trees.remove(tree2)
+            num_selected += 1
+
+    # trees list contains one tree which is the fully constructed tree
+    return trees[0], [list(separator_dict[ix]) for ix in sorted(separator_dict.keys())]
+
+
+def build_sepset_heap(sepsets, cliques, key_sizes):
+    '''Build sepset heap to be used for building junction tree from cliques
+
+    :param sepsets: set of candidate sepsets consisting of sets of factor ids and tuple
+                    of clique ids which produce sepset
+    :param cliques: list of cliques (represented by list of keys)
+    :param key_sizes: dictionary of key label as key and key size as value
+    :return sepset_heap: heap of sepset entries
+    '''
+
+    heap = []
+
+    for i, (ss, (cliq1_ix, cliq2_ix)) in enumerate(sepsets):
+        mass = len(ss) + 0.001 # avoids division by zero if sepset empty
+        weight1 = np.prod([key_sizes[key] for key in cliques[cliq1_ix]])
+        weight2 = np.prod([key_sizes[key] for key in cliques[cliq2_ix]])
+        # invert mass to use minheap
+        entry = [1.0/mass, weight1 + weight2, i]
+        heapq.heappush(heap, entry)
+
+    return heap
+
+
+def find_subtree(tree, clique_ix):
+    '''Evaluates if subtree rooted by clique exists in tree
+
+    :param tree: tree structure (a list) to search
+    :param clique_ix: id of the clique serving as root of subtree
+    :return tree_found: True if subtree rooted by clique_ix, False otherwise
+    '''
+
+    if tree[0] == clique_ix:
+        return True
+    elif len(tree) == 1:
+        return False
+    else:
+        for child_tree in tree[1:]:
+            if find_subtree(child_tree, clique_ix):
+                return True
+
+    return False
+
+
+def generate_potential_pairs(tree):
+    '''Returns a list of tuples consisting of clique id and child separator ids
+
+    :param tree: tree structure in list format
+    :return: list of clique id/child sep id tuples
+
+    [
+        (clique_id0, child0_sep_id0),
+        (clique_id0, child1_sep_id0),
+        (clique_id1, child0_sep_id1),
+        ...
+        (clique_idN, child(M-1)_sep_idN),
+        (clique_idN, childM_sep_idN)
+    ]
+    '''
+
+    return list(bf_traverse(tree, func=yield_clique_pairs))

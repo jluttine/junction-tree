@@ -4,7 +4,8 @@ Simple user interface for the Junction tree algorithm library
 
 import numpy as np
 
-from . import beliefpropagation as bp
+from . import computation as comp
+from . import construction as cons
 import attr
 
 
@@ -103,7 +104,7 @@ class FactorGraph():
 
         # Let's use the triangulation methods of undirected graphs.
 
-        (_, maxcliques, factor_to_maxclique) = bp.find_triangulation(
+        (_, maxcliques, factor_to_maxclique) = cons.find_triangulation(
             self.factors,
             self.sizes
         )
@@ -187,7 +188,7 @@ class CliqueGraph():
         #
         # So, what we need is the above tree structure and separators list.
 
-        (tree, separators) = bp.construct_junction_tree(
+        (tree, separators) = cons.construct_junction_tree(
             self.maxcliques,
             self.factor_graph.sizes
         )
@@ -301,7 +302,7 @@ class JunctionTree():
         # laws will require some changes in other places that we haven't
         # thought about yet, that is, some code may implicitly assume
         # sum-product distributive law.
-        distributive_law = bp.sum_product
+        distributive_law = comp.sum_product
 
         # Evaluate maximum cliques based on factor values
         maxclique_values = self.clique_tree.evaluate(xs)
@@ -316,13 +317,11 @@ class JunctionTree():
         # Node list is a concatenation of maxcliques and separators
         values = maxclique_values + separator_values
 
-        # FIXME: There is some argument missing and not sure if these arguments
-        # match what the function expects.
-        ys = bp.hugin(
-            self.tree,
-            self.clique_tree.maxcliques + self.separators,
-            values,
-            distributive_law
+        ys = comp.compute_beliefs(
+                self.tree,
+                values,
+                self.clique_tree.maxcliques + self.separators,
+                distributive_law
         )
 
         # The return result should be marginalized to the factors. That is, the

@@ -2,7 +2,8 @@ import math
 import numpy as np
 from scipy.sparse.csgraph import minimum_spanning_tree, depth_first_order
 import itertools
-from junctiontree import beliefpropagation as bp
+from junctiontree import computation as comp
+from junctiontree import construction as cons
 
 def compute_num_combinations(n, r=2):
     '''Compute n choose r. (Function available in Python 3.8 but not requiring this version)
@@ -240,8 +241,8 @@ def assert_junction_trees_equal(t1, t2):
     :param t2: a second junction tree
     '''
 
-    pairs1 = set([tuple(sorted(p)) for p in bp.generate_potential_pairs(t1)])
-    pairs2 = set([tuple(sorted(p)) for p in bp.generate_potential_pairs(t2)])
+    pairs1 = set([tuple(sorted(p)) for p in cons.generate_potential_pairs(t1)])
+    pairs2 = set([tuple(sorted(p)) for p in cons.generate_potential_pairs(t2)])
     assert pairs1 == pairs2
 
 
@@ -293,7 +294,7 @@ def brute_force_sum_product(tree, node_list, potentials):
 
     # Function to compute the sum-product with brute force einsum
     arrays_keys = get_arrays_and_keys(tree, node_list, potentials)
-    f = lambda output_keys: bp.sum_product.einsum(*(arrays_keys + [output_keys]))
+    f = lambda output_keys: comp.sum_product.einsum(*(arrays_keys + [output_keys]))
 
     def __run(tree, node_list, p, f, res=[]):
         res.append(f(node_list[tree[0]]))
@@ -326,7 +327,7 @@ def assert_junction_tree_consistent(tree, potentials):
                                             potentials[c_ix2],
                                             node_list[c_ix2]
                         )
-                        for c_ix1, c_ix2 in bp.generate_potential_pairs(tree.get_struct())
+                        for c_ix1, c_ix2 in cons.generate_potential_pairs(tree.get_struct())
                 ]
             )
 
@@ -356,7 +357,7 @@ def potentials_consistent(pot1, keys1, pot2, keys2):
     )
 
     return np.allclose(
-                bp.sum_product.einsum(
+                comp.sum_product.einsum(
                     c_pot,
                     c_keys,
                     np.intersect1d(c_keys, s_keys).tolist()
@@ -365,28 +366,4 @@ def potentials_consistent(pot1, keys1, pot2, keys2):
             )
 
 
-def assert_sum_product(junction_tree, node_order, potentials):
-    '''Asserts that potentials computed by HUGIN and brute force sum-product are equal
 
-    NOTE: node_order represents the order nodes are traversed in get_arrays_and_keys function
-
-    :param junction_tree: JunctionTree object storing tree structure
-    :param node_order: an ordering for matching nodes (keys) and potentials for brute force computation
-    :param potentials: list of potentials
-    '''
-
-    tree = junction_tree.tree
-    node_list = junction_tree.clique_tree.maxcliques + junction_tree.separators
-    assert_potentials_equal(
-        brute_force_sum_product(
-                            tree,
-                            [node_list[idx] for idx in node_order],
-                            [potentials[idx] for idx in node_order]
-        ),
-        bp.hugin(
-                tree,
-                node_list,
-                potentials,
-                bp.sum_product
-        )
-    )

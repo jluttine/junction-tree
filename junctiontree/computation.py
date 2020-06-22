@@ -1,6 +1,13 @@
 from junctiontree.sum_product import SumProduct
 import numpy as np
 
+# setting optimize to true allows einsum to benefit from speed up due to
+# contraction order optimization but at the cost of memory usage
+# need to evaulate tradeoff within library
+#sum_product = SumProduct(np.einsum,optimize=True)
+
+sum_product = SumProduct(np.einsum)
+
 def apply_evidence(potentials, variables, evidence):
     ''' Shrink potentials based on given evidence
 
@@ -27,7 +34,7 @@ def apply_evidence(potentials, variables, evidence):
     ]
 
 
-def compute_beliefs(tree, potentials, clique_vars):
+def compute_beliefs(tree, potentials, clique_vars, dl=sum_product):
     '''Computes beliefs for clique potentials in a junction tree
     using Shafer-Shenoy updates.
 
@@ -69,7 +76,7 @@ def compute_beliefs(tree, potentials, clique_vars):
         # multiply neighbor messages
         messages = messages if len(messages) else [1]
 
-        msg_prod = sum_product.einsum(
+        msg_prod = dl.einsum(
                                 *messages,
                                 neighbor_vars
         )
@@ -78,7 +85,7 @@ def compute_beliefs(tree, potentials, clique_vars):
 
         # compute message as marginalization over non-sepset values
         # multiplied by product of messages with output being vars in input sepset
-        message = sum_product.einsum(*args)
+        message = dl.einsum(*args)
 
         try:
             # attempt to update belief
@@ -121,7 +128,13 @@ def compute_beliefs(tree, potentials, clique_vars):
 
         # create dummy dimensions for performing division (with exp_ix)
         # slice out dimensions of sepset variables from division result (with slice_ixs)
-        return np.divide( msg_prod, msg[ tuple(exp_ixs) ] )[ tuple(slice_ixs) ]
+        return np.divide(
+                    msg_prod,
+                    msg[ tuple(exp_ixs) ],
+                    out = np.zeros_like(msg_prod),
+                    where = msg[ tuple(exp_ixs) ] != 0
+        )[ tuple(slice_ixs) ]
+
 
 
     def send_message(message, sepset_ix, tree, beliefs, clique_vars):
@@ -153,7 +166,7 @@ def compute_beliefs(tree, potentials, clique_vars):
         neighbor_vars = list(set(all_neighbor_vars))
 
         # multiply neighbor messages
-        msg_prod = sum_product.einsum(
+        msg_prod = dl.einsum(
                                 *messages,
                                 neighbor_vars
         )
@@ -191,7 +204,7 @@ def compute_beliefs(tree, potentials, clique_vars):
 
             args = [mod_msg_prod, mod_neighbor_vars] + [beliefs[tree[0]], clique_vars[tree[0]], clique_vars[ss_ix]]
             # calculate message to be sent
-            message = sum_product.einsum( *args )
+            message = dl.einsum( *args )
 
             # update sepset belief
             beliefs[ss_ix] *= message
@@ -208,7 +221,7 @@ def compute_beliefs(tree, potentials, clique_vars):
             clique_vars[tree[0]]
         ]
 
-        beliefs[tree[0]] = sum_product.einsum(*args)
+        beliefs[tree[0]] = dl.einsum(*args)
 
 
     def __run(tree, beliefs, clique_vars):
@@ -233,5 +246,3 @@ def compute_beliefs(tree, potentials, clique_vars):
     return __run(tree, beliefs, clique_vars)
 
 
-
-sum_product = SumProduct(np.einsum)

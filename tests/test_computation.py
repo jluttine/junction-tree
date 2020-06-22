@@ -1,6 +1,7 @@
 from junctiontree import computation as comp
 import numpy as np
 import numbers
+from .util import assert_potentials_equal
 
 def assert_junction_tree_equal(t1, t2):
     """Test equality of two junction trees
@@ -80,20 +81,6 @@ def brute_force_sum_product(tree, node_list, potentials):
         return res
 
     return __run(tree, node_list, potentials, f)
-
-
-def assert_potentials_equal(p1, p2):
-    """Test equality of two potentials
-    """
-
-    # Same number of potentials
-    assert len(p1) == len(p2)
-
-    if len(p1):
-        # Check equality of arrays
-        np.testing.assert_allclose(p1[0], p2[0])
-        # recursively check remaining potentials
-        assert_potentials_equal(p1[1:], p2[1:])
 
 
 def assert_sum_product(tree, node_order, potentials, variables):
