@@ -1,4 +1,3 @@
-from junctiontree import beliefpropagation as bp
 from junctiontree import construction as cons
 from .util import assert_triangulated, gibbs_elem_cycles, assert_junction_trees_equal
 from junctiontree import junctiontree as jt
