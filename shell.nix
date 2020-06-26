@@ -32,6 +32,7 @@ pythonPackages.buildPythonPackage rec {
     # Core
     python
     numpy
+    scipy
     attrs
 
     # Tests
