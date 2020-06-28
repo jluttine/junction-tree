@@ -12,7 +12,7 @@ def apply_evidence(potentials, variables, evidence):
     ''' Shrink potentials based on given evidence
 
     :param potentials: list of numpy arrays subject to evidence
-    :param variables: list of varialables corresponding to potentials
+    :param variables: list of variables in corresponding to potentials
     :param evidence: dictionary with variables as keys and assigned value as value
     :return: a new list of potentials after evidence applied
     '''

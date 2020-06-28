@@ -3,64 +3,14 @@ import numpy as np
 import numbers
 from .util import assert_potentials_equal
 
-def assert_junction_tree_equal(t1, t2):
-    """Test equality of two junction trees
-    Junction tree syntax:
-    [array, keys, child_tree1, ..., child_treeN]
-    Note this syntax supports separators in the trees because the separators
-    just add levels.
-    """
 
-    # Equality of arrays
-    np.testing.assert_allclose(t1[0], t2[0])
-    # Equality of keys
-    assert t1[1] == t2[1]
-
-    # Same number of child trees
-    assert len(t1) == len(t2)
-    # Equality of child trees (recursively)
-    for (child_t1, child_t2) in zip(t1[2:], t2[2:]):
-        assert_junction_tree_equal(child_t1, child_t2)
-
-
-def get_factors_and_vars(factors, variables, evidence):
-    '''Creates a flat list of all factor arrays and lists of their variables
-    Output: [factor1, vars1, ..., factorN, varsN]
-
-    :param factors: list of factors
-    :param variables: list of variables included in each factor in factors list
-    :param evidence: dictionary specifying (possible) observations for variables
-    :param factors_and_vars: list of interleaved factors and corresponding variable lists
-    '''
-
-
-    return sum(
-                [
-                    [
-                        # index array based on evidence value when evidence provided otherwise use full array
-                        fac[
-                            tuple(
-                                    [
-                                        slice(evidence.get(var, 0), evidence.get(var, fac.shape[i]) + 1)
-                                        for i, var in enumerate(vars)
-                                    ]
-                            )
-                        # workaround for scalar factors
-                        ] if not (isinstance(fac, numbers.Number)) else fac,
-                        vars
-                    ]
-                    for fac, vars in zip(factors, variables)
-                ],
-                []
-    )
-
-def get_arrays_and_keys(tree, node_list, potentials):
-    """Get all arrays and their keys as a flat list
-    Output: [array1, keys1, ..., arrayN, keysN]
+def get_arrays_and_vars(tree, node_list, potentials):
+    """Get all arrays and their variables as a flat list
+    Output: [array1, vars1, ..., arrayN, varsN]
     """
     return list([potentials[tree[0]],node_list[tree[0]]]) + sum(
         [
-            get_arrays_and_keys(child_tree, node_list, potentials)
+            get_arrays_and_vars(child_tree, node_list, potentials)
             for child_tree in tree[1:]
         ],
         []
@@ -71,7 +21,7 @@ def brute_force_sum_product(tree, node_list, potentials):
     """Compute brute force sum-product with einsum """
 
     # Function to compute the sum-product with brute force einsum
-    arrays_keys = get_arrays_and_keys(tree, node_list, potentials)
+    arrays_keys = get_arrays_and_vars(tree, node_list, potentials)
     f = lambda output_vars: np.einsum(*(arrays_keys + [output_vars]))
 
     def __run(tree, node_list, p, f, res=[]):
@@ -87,7 +37,7 @@ def assert_sum_product(tree, node_order, potentials, variables):
     """ Test shafer-shenoy vs brute force sum-product """
 
     # node_order represents the order nodes are traversed
-    # in get_factors_and_vars function
+    # in get_arrays_and_vars function
 
     assert_potentials_equal(
         brute_force_sum_product(
