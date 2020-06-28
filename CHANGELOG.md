@@ -1,5 +1,8 @@
 # Changelog
 
+## Dev
+- FIXME
+
 ## 0.1.2 (2018-09-15)
 - Fix support for duplicate factors (#2).
 - Assert that factors are given as a list of lists.
