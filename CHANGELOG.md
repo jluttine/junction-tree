@@ -3,6 +3,13 @@
 ## Dev
 - FIXME
 
+## 0.1.3 (2020-06-29)
+- Unified language for keys and variables to use the term "variable".
+- Re-factored beliefpropogation code into a computation and construction module.
+- Using Shafer-Shenoy updates for belief propogation in junction tree.
+- Removed usage of networkx library in triangulation tests.
+- Removed usage of list concatenation via sum() function.
+
 ## 0.1.2 (2018-09-15)
 - Fix support for duplicate factors (#2).
 - Assert that factors are given as a list of lists.

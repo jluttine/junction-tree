@@ -82,17 +82,17 @@ def einsum(xs, xs_keys, y_keys):
 
 @attr.s(frozen=True)
 class FactorGraph():
-    """A graph containing a set of nodes that each contain a set of keys.
+    """A graph containing a set of nodes that each contain a set of variables.
 
-    Each key has a corresponding size associated to it.
+    Each variable has a corresponding size associated to it.
 
     """
 
-    # Axis keys in each factor
+    # Axis variables in each factor
     #
-    # TODO: Check that factors don't contain duplicate keys.
+    # TODO: Check that factors don't contain duplicate variables.
     #
-    # TODO: Check that all keys in factors are in sizes dictionary.
+    # TODO: Check that all variables in factors are in sizes dictionary.
     factors = attr.ib()
 
     # Size of each axis
@@ -123,7 +123,7 @@ class CliqueGraph():
     Clique graph for an underlying factor graph.
     """
 
-    # Axis keys in each maximal clique
+    # Axis variables in each maximal clique
     maxcliques = attr.ib()
 
     # Maximal clique for each factor (multiple factors can belong to the same
@@ -142,7 +142,7 @@ class CliqueGraph():
         # indices in the tree data structure. These indices correspond to
         # elements in the clique graph `maxcliques` list. That is, each node in
         # the tree is a maxclique. This `maxclique` already has the information
-        # about the keys it contains, so there's no need to include that
+        # about the variables it contains, so there's no need to include that
         # information in the tree. So, a tree is defined recursively as:
         #
         #   tree = (node_index, subtree1, ..., subtreeN)
@@ -251,10 +251,10 @@ class CliqueGraph():
         # This tells which maxclique to use for each factor
         self.factor_to_maxclique
 
-        # This tells the keys in each factor
+        # This tells the variables in each factor
         self.factor_graph.factors
 
-        # This tells the keys in each maxclique
+        # This tells the variables in each maxclique
         self.maxcliques
 
         # Now, use my custom einsum to marginalize, something like (didn't test
@@ -265,9 +265,9 @@ class CliqueGraph():
             einsum(
                 [ys[maxclique]],
                 [self.maxcliques[maxclique]],
-                factor_keys
+                factor_vars
             )
-            for (factor_keys, maxclique) in zip(
+            for (factor_vars, maxclique) in zip(
                     self.factor_graph.factors,
                     self.factor_to_maxclique
             )
@@ -285,9 +285,9 @@ class JunctionTree():
     # (cliqueID, (separatorID, subtree), (separatorID, subtree), ...)
     tree = attr.ib()
 
-    # Tuple of axis keys in each separator
+    # Tuple of axis vars in each separator
     #
-    # ( (key3, key1), (key2, key1), (key2) )
+    # ( (var3, var1), (var2, var1), (var2) )
     separators = attr.ib()
 
     # The underlying triangulated clique graph
@@ -310,7 +310,7 @@ class JunctionTree():
         # Initialize separator values
         sizes = self.clique_tree.factor_graph.sizes
         separator_values= [
-            np.ones(tuple(sizes[key] for key in separator))
+            np.ones(tuple(sizes[var] for var in separator))
             for separator in self.separators
         ]
 

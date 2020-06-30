@@ -1,6 +1,5 @@
 from junctiontree import computation as comp
 import numpy as np
-import numbers
 from .util import assert_potentials_equal
 
 
@@ -21,8 +20,8 @@ def brute_force_sum_product(tree, node_list, potentials):
     """Compute brute force sum-product with einsum """
 
     # Function to compute the sum-product with brute force einsum
-    arrays_keys = get_arrays_and_vars(tree, node_list, potentials)
-    f = lambda output_vars: np.einsum(*(arrays_keys + [output_vars]))
+    arrays_vars = get_arrays_and_vars(tree, node_list, potentials)
+    f = lambda output_vars: np.einsum(*(arrays_vars + [output_vars]))
 
     def __run(tree, node_list, p, f, res=[]):
         res.append(f(node_list[tree[0]]))

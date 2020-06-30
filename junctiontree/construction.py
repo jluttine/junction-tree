@@ -3,31 +3,32 @@ import heapq
 from itertools import chain, combinations
 import copy
 
-def get_clique(tree, key_list, key_label):
-    '''Finds a single clique containing key with label key_label
+def get_clique(tree, node_list, var_label):
+    '''Finds a single clique containing variable
 
     :param tree: the tree structure (a list) of the junction tree
-    :param key_list: contains the keys indexed by clique id for all cliques in tree
-    :param key_label: label used for key
-    :return: a clique containing the key or None if no such clique exists in tree
+    :param key_list: contains the node indexed by clique id for all cliques in tree
+    :param var_label: the variable label of variable being searched for
+    :return: a clique containing the variable or None if no such clique exists in tree
     '''
 
     ix = tree[0]
-    keys = key_list[ix]
+    node = node_list[ix]
     separators = tree[1:]
-    if key_label in keys:
-        return ix, keys
+    if var_label in node:
+        return ix, node
+
     if separators == (): # base case reached (leaf)
         return None
 
     for separator in separators:
         separator_ix, c_tree = separator
-        separator_keys = key_list[separator_ix]
+        separator_vars = node_list[separator_ix]
 
-        if key_label in separator_keys:
-            return separator_ix, separator_keys
+        if var_label in separator_vars:
+            return separator_ix, separator_vars
 
-        clique_info = get_clique(c_tree, key_list, key_label)
+        clique_info = get_clique(c_tree, node_list, var_label)
 
         if clique_info:
             return clique_info
@@ -54,33 +55,33 @@ def factors_to_undirected_graph(factors):
     return factor_edges
 
 
-def initialize_triangulation_heap(key_sizes, edges):
+def initialize_triangulation_heap(var_sizes, edges):
     '''Create heap used for graph triangulation
 
-    :param key_sizes: dictionary with key (node) label as keys and variable size as values
-    :param edges: list of pairs of keys (nodes) representing factor graph edges
+    :param key_sizes: dictionary with variable label as keys and variable size as values
+    :param edges: list of pairs of variables representing factor graph edges
     :return heap: heap with entry structure:
 
             [
-                num edges added to triangulated graph by removal of key,
+                num edges added to triangulated graph by removal of variable,
                 induced cluster weight,
-                tuple (key associated with first two elements, factor key added to
+                variable associated with first two elements
             ]
-    :return entry_finder: dictionary with key label as key and reference to heap entry for key
+    :return entry_finder: dictionary with variable label as key and reference to heap entry for variable
 
     '''
 
-    heap, entry_finder = update_heap(key_sizes.keys(), edges, key_sizes)
+    heap, entry_finder = update_heap(var_sizes.keys(), edges, var_sizes)
 
     return heap, entry_finder
 
 
-def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
+def update_heap(remaining_vars, edges, var_sizes, heap=None, entry_finder=None):
     '''Update heap entries
 
-    :param remaining_keys: list of keys (nodes) remaining in the heap
-    :param edges: list of edges (pairs of keys (nodes) )
-    :param key_sizes: dictionary of keys (key label is key, size is value)
+    :param remaining_vars: list of variables remaining in the heap
+    :param edges: list of edges (pairs of variables )
+    :param var_sizes: dictionary of variables (variable label is key, size is value)
     :param heap: heap to be updated (None if new heap is to be created)
     :param entry_finder: entry_finder dictionary with references to heap elements
     :return h: updated (or newly created) heap
@@ -89,11 +90,11 @@ def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
 
     h = heap if heap else []
     entry_finder = entry_finder if entry_finder else {}
-    for key in remaining_keys:
-        rem_neighbors = [(set(edge) - set([key])).pop()
-                            for edge in edges if key in edge and len(set(remaining_keys).intersection(edge)) == 2]
+    for var in remaining_vars:
+        rem_neighbors = [(set(edge) - set([var])).pop()
+                            for edge in edges if var in edge and len(set(remaining_vars).intersection(edge)) == 2]
 
-        # determine how many of key's remaining neighbors need to be connected
+        # determine how many of var's remaining neighbors need to be connected
         num_new_edges = sum(
                             [
                                 frozenset((n1,n2)) not in edges
@@ -103,15 +104,16 @@ def update_heap(remaining_keys, edges, key_sizes, heap=None, entry_finder=None):
                             ]
         )
         # weight of a cluster is the product of all key lengths in cluster
-        weight = key_sizes[key] * np.prod([key_sizes[n] for n in rem_neighbors])
-        entry = [num_new_edges, weight, key]
+        weight = var_sizes[var] * np.prod([var_sizes[n] for n in rem_neighbors])
+        entry = [num_new_edges, weight, var]
         heapq.heappush(h, entry)
         # invalidate previous entry if it exists
-        prev = entry_finder.get(key, None)
+        prev = entry_finder.get(var, None)
         if prev:
             # set entry to be removed
             prev[2] = ""
-        entry_finder[key] = entry
+
+        entry_finder[var] = entry
 
     return h, entry_finder
 
@@ -135,39 +137,18 @@ def factors_to_undirected_graph(factors):
     return factor_edges
 
 
-def initialize_triangulation_heap(key_sizes, edges):
-    '''Create heap used for graph triangulation
-
-    :param key_sizes: dictionary with key (node) label as keys and variable size as values
-    :param edges: list of pairs of keys (nodes) representing factor graph edges
-    :return heap: heap with entry structure:
-
-            [
-                num edges added to triangulated graph by removal of key,
-                induced cluster weight,
-                tuple (key associated with first two elements, factor key added to
-            ]
-    :return entry_finder: dictionary with key label as key and reference to heap entry for key
-
-    '''
-
-    heap, entry_finder = update_heap(key_sizes.keys(), edges, key_sizes)
-
-    return heap, entry_finder
-
-
-def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
+def remove_next(heap, entry_finder, remaining_vars, var_sizes, edges):
     '''Removes next entry from heap
 
     :param heap: heap structure containing remaining factors and weights
     :param entry_finder: dictionary with updated references to heap elements
-    :param remaining_keys: list of keys (nodes) remaining in G'
-    :param key_sizes: key (node) sizes
+    :param remaining_vars: list of variables remaining in G'
+    :param var_sizes: dictionary of variables (variable label is key, size is value)
     :param edges: list of edge pairs in original graph G
     :return entry: the entry removed from the heap
-    :return heap: heap structure with updated keys after factor removal
+    :return heap: heap structure with updated entries after variable removal
     :return entry_finder: dictionary with updated references to heap elements
-    :return remaining_keys: list of keys without most recently removed key
+    :return remaining_vars: list of variables without most recently removed variable
     '''
 
     entry = (None, None, "")
@@ -179,29 +160,29 @@ def remove_next(heap, entry_finder, remaining_keys, key_sizes, edges):
     del entry_finder[entry[2]]
 
     # remove key from remaining keys list
-    remaining_keys.remove(entry[2])
+    remaining_vars.remove(entry[2])
 
 
     heap, entry_finder = update_heap(
-                                remaining_keys,
+                                remaining_vars,
                                 edges,
-                                key_sizes,
+                                var_sizes,
                                 heap,
                                 entry_finder
     )
 
-    return entry, heap, entry_finder, remaining_keys
+    return entry, heap, entry_finder, remaining_vars
 
-def find_triangulation(factors, key_sizes):
+def find_triangulation(factors, var_sizes):
     '''Triangulate given factor graph.
 
     TODO: Provide different algorithms.
 
-    :param factors: list of factors where each factor is given as a list of keys the factor contains:
+    :param factors: list of factors where each factor is given as a list of variables the factor contains:
 
-            [keys1, ..., keysN]
+            [vars1, ..., varsN]
 
-    :param key_sizes: dictionary of variables consisting of ( key (node), size (num states) ) pairs
+    :param var_sizes: dictionary of variables (variable label is key, size is value)
 
             {
                 key1: size1,
@@ -210,7 +191,7 @@ def find_triangulation(factors, key_sizes):
             }
 
     :return tri: list of edges added to triangulate the undirected graph
-    :return induced_clusters: list of key (node) lists representing induced clusters from triangulation
+    :return induced_clusters: list of variable lists representing induced clusters from triangulation
     :return max_cliques: list of maximal cliques generated during triangulation process
     :return factor_to_maxclique: dictionary mapping each factor to the max_clique which contains the factor
     '''
@@ -218,7 +199,7 @@ def find_triangulation(factors, key_sizes):
     def generate_subsets(factors):
         '''For each factor, identify all factors that are subset of that factor
 
-        :param factors: list of factors (list of keys) representing the factor graph
+        :param factors: list of factors (list of variables) representing the factor graph
         :return: a dictionary with factor index as key and a list of the factor indices for which the factor
             is a superset as value
         '''
@@ -265,8 +246,8 @@ def find_triangulation(factors, key_sizes):
     def find_unconnected_neighbors(neighbors, edges):
         '''Create a list of tuples representing edges between unconnected neighbors
 
-        :param neighbors: list of keys representing neighbors in a factor
-        :param edges: view of keys (frozensets representing a graph edge)
+        :param neighbors: list of variables representing neighbors in a factor
+        :param edges: view of variables (frozensets representing a graph edge)
         :return:
         '''
 
@@ -277,10 +258,10 @@ def find_triangulation(factors, key_sizes):
         ]
 
     def find_maxclique(cluster, max_cliques):
-        '''Identifies the index of max clique which contains cluster of keys
+        '''Identifies the index of max clique which contains cluster of variables
 
-        :param cluster: a list of keys
-        :param max_cliques: list of list of keys (representing a max clique)
+        :param cluster: a list of variables
+        :param max_cliques: list of variable lists (representing a max clique)
         :return: the id of the clique for which the cluster is a subset, -1 otherwise
         '''
         search_results = [
@@ -291,18 +272,18 @@ def find_triangulation(factors, key_sizes):
         return -1 if len(search_results) == 0 else search_results[0]
 
 
-    # NOTE: Only keys that have been used at least in one factor should be
-    # used. Ignore those key sizes that are not in any factor. Perhaps this
-    # could be fixed elsewhere. Just added a quick fix here to filter key
+    # NOTE: Only variables that have been used at least in one factor should be
+    # used. Ignore those variable sizes that are not in any factor. Perhaps this
+    # could be fixed elsewhere. Just added a quick fix here to filter variable
     # sizes.
 
-    used_keys = list(
-        set(key for factor in factors for key in factor)
+    used_vars = list(
+        set(var for factor in factors for var in factor)
     )
-    key_sizes = {
-        key: size
-        for (key, size) in key_sizes.items()
-        if key in used_keys
+    var_sizes = {
+        var: size
+        for (var, size) in var_sizes.items()
+        if var in used_vars
     }
 
     factor_edges = factors_to_undirected_graph(factors)
@@ -318,31 +299,31 @@ def find_triangulation(factors, key_sizes):
 
     subsets = generate_subsets(factors)
 
-    heap, entry_finder = initialize_triangulation_heap(key_sizes, factor_edges)
+    heap, entry_finder = initialize_triangulation_heap(var_sizes, factor_edges)
 
-    rem_keys = used_keys
+    rem_vars = used_vars
 
-    while len(rem_keys) > 0:
-        entry, heap, entry_finder, rem_keys = remove_next(
+    while len(rem_vars) > 0:
+        entry, heap, entry_finder, rem_vars = remove_next(
                                                         heap,
                                                         entry_finder,
-                                                        rem_keys,
-                                                        key_sizes,
+                                                        rem_vars,
+                                                        var_sizes,
                                                         factor_edges
         )
 
-        # key is the 3rd element in entry list
-        key = entry[2]
+        # var is the 3rd element in entry list
+        var = entry[2]
 
         rem_neighbors = []
         origin_factors = []
 
         # find neighbors that are in remaining keys
-        for r_key in rem_keys:
-            edge_set = frozenset([key, r_key])
+        for r_var in rem_vars:
+            edge_set = frozenset([var, r_var])
 
             if edge_set in factor_edges:
-                rem_neighbors.append(r_key)
+                rem_neighbors.append(r_var)
                 origin_factors.extend(find_origin_factors(factor_edges[edge_set], subsets, factor_to_maxclique))
 
         if len(origin_factors) > 0:
@@ -357,7 +338,7 @@ def find_triangulation(factors, key_sizes):
             # if possible, assign factor to maxclique which is either
             # the factor itself or a factor which it is a subset of
 
-            new_cluster = rem_neighbors + [key]
+            new_cluster = rem_neighbors + [var]
 
             maxclique_ix = find_maxclique(new_cluster, max_cliques)
 
@@ -538,11 +519,11 @@ def df_traverse(tree, clique_ix=None, func=yield_id):
         stack.extend([child for child in reversed(tree[1:])])
 
 
-def construct_junction_tree(cliques, key_sizes):
+def construct_junction_tree(cliques, var_sizes):
     '''Construct junction tree from input cliques
 
-    :param cliques: a list of maximal cliques where each maximal clique is a list of key indices it contains
-    :param key_sizes: a dictionary of (key label, key size) pairs
+    :param cliques: a list of maximal cliques where each maximal clique is a list of variables it contains
+    :param var_sizes: a dictionary of (var label, var size) pairs
     :return tree: a junction tree structure from the input cliques
     :return separators: a list of separators in the order in which they appear in the tree.
 
@@ -559,7 +540,7 @@ def construct_junction_tree(cliques, key_sizes):
 
     separator_dict = {}
 
-    heap = build_sepset_heap(sepsets, cliques, key_sizes)
+    heap = build_sepset_heap(sepsets, cliques, var_sizes)
     num_selected = 0
 
     while num_selected < len(cliques) - 1:
@@ -597,13 +578,13 @@ def construct_junction_tree(cliques, key_sizes):
     return trees[0], [list(separator_dict[ix]) for ix in sorted(separator_dict.keys())]
 
 
-def build_sepset_heap(sepsets, cliques, key_sizes):
+def build_sepset_heap(sepsets, cliques, var_sizes):
     '''Build sepset heap to be used for building junction tree from cliques
 
     :param sepsets: set of candidate sepsets consisting of sets of factor ids and tuple
                     of clique ids which produce sepset
-    :param cliques: list of cliques (represented by list of keys)
-    :param key_sizes: dictionary of key label as key and key size as value
+    :param cliques: list of cliques (represented by variable list)
+    :param key_sizes: dictionary of variable label as key and variable size as value
     :return sepset_heap: heap of sepset entries
     '''
 
@@ -611,8 +592,8 @@ def build_sepset_heap(sepsets, cliques, key_sizes):
 
     for i, (ss, (cliq1_ix, cliq2_ix)) in enumerate(sepsets):
         mass = len(ss) + 0.001 # avoids division by zero if sepset empty
-        weight1 = np.prod([key_sizes[key] for key in cliques[cliq1_ix]])
-        weight2 = np.prod([key_sizes[key] for key in cliques[cliq2_ix]])
+        weight1 = np.prod([var_sizes[var] for var in cliques[cliq1_ix]])
+        weight2 = np.prod([var_sizes[var] for var in cliques[cliq2_ix]])
         # invert mass to use minheap
         entry = [1.0/mass, weight1 + weight2, i]
         heapq.heappush(heap, entry)

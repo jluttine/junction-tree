@@ -9,10 +9,10 @@ Requirements:
 Factor graphs:
 --------------
 
-A factor graph is given as a list of keys that tell which variables are in the
-factor. (A key corresponds to a variable.)
+A factor graph is given as a list of variables that indicate which variables are in the
+factor.
 
-```[keys1, ..., keysN]  # a list of N factors```
+```[vars1, ..., varsN]  # a list of N factors```
 
 The index in the list can be used as an ID for the factor, that is, the first
 factor in the list has ID 0 and the last factor has ID N-1.
@@ -26,9 +26,9 @@ Also, the size of each of the M variables is given as a dictionary:
 
 ```
 {
-    key1: size1,
+    var1: size1,
     ...
-    keyM: sizeM
+    varM: sizeM
 }
 ```
 
@@ -40,7 +40,7 @@ Generic trees (recursive definition):
 -------------------------------------
 
 ```
-[index, keys, child_tree1, ..., child_treeN]
+[index, vars, child_tree1, ..., child_treeN]
 ```
 
 
@@ -61,8 +61,8 @@ tree structure (composed of node indices found in node list):
         child_treeN
     )
 ]
-node list (elements are list of keys which define node):
-[node0_keys, node1_keys,...,nodeN_keys]
+node list (elements are list of variables which define node):
+[node0_vars, node1_vars,...,nodeN_vars]
 
 maxcliques and separators are both types of nodes
 ```
@@ -90,7 +90,7 @@ import junctiontree.beliefpropagation as bp
 import junctiontree.junctiontree as jt
 import numpy as np
 
-key_sizes = {
+var_sizes = {
                     "cloudy": 2,
                     "sprinkler": 2,
                     "rain": 2,
@@ -132,7 +132,7 @@ values = [
             )
 ]
 
-tree = jt.create_junction_tree(factors, key_sizes)
+tree = jt.create_junction_tree(factors, var_sizes)
 
 ```
 
@@ -151,7 +151,7 @@ Alternatively, clique potentials can be made consistent after observing data for
 
 ```
 # Update the size of observed variable
-cond_sizes = key_sizes.copy()
+cond_sizes = var_sizes.copy()
 cond_sizes["wet_grass"] = 1
 cond_tree = jt.create_junction_tree(factors, cond_sizes)
 

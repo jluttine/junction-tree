@@ -20,7 +20,7 @@ def test_clique_graph():
 
         xs = [
             np.random.randn(
-                *[sizes[key] for key in factor]
+                *[sizes[var] for var in factor]
             )
             for factor in factors
         ]
@@ -85,7 +85,7 @@ def test_clique_graph():
         ]
     )
 
-    # Test a clique with a key that doesn't exist in its factors
+    # Test a clique with a variable that doesn't exist in its factors
     _run(
         factors=[ ['a', 'b'], ['b', 'c'], ['c', 'd'], ['a', 'e'] ],
         sizes={
@@ -160,7 +160,7 @@ node_list = [
             ["E","G"],
 ]
 
-key_sizes = {
+var_sizes = {
             "A": 2,
             "B": 2,
             "C": 2,
@@ -243,7 +243,7 @@ values = [
 
 
 def test_transformation():
-    _tree = jt.create_junction_tree(factors, key_sizes)
+    _tree = jt.create_junction_tree(factors, var_sizes)
     prop_values = _tree.propagate(values)
 
     # check that marginal values are correct
@@ -301,7 +301,7 @@ def test_initialize_potentials():
                     factor_to_maxclique=[0, 1, 3, 1, 3, 4, 2, 5],
                     factor_graph=jt.FactorGraph(
                         factors=factors,
-                        sizes=key_sizes
+                        sizes=var_sizes
                     )
                 )
     )
@@ -326,7 +326,7 @@ def test_initialize_potentials():
 
 
 def test_global_propagation():
-    _tree = jt.create_junction_tree(factors, key_sizes)
+    _tree = jt.create_junction_tree(factors, var_sizes)
 
     prop_values = _tree.propagate(values)
     # P(A)
@@ -346,7 +346,7 @@ def test_global_propagation_with_observations():
 
     # Example from: http://mensxmachina.org/files/software/demos/jtreedemo.html
 
-    _key_sizes = {
+    _var_sizes = {
                     "cloudy": 2,
                     "sprinkler": 2,
                     "rain": 2,
@@ -388,7 +388,7 @@ def test_global_propagation_with_observations():
                 )
     ]
 
-    tree = jt.create_junction_tree(_factors, _key_sizes)
+    tree = jt.create_junction_tree(_factors, _var_sizes)
 
     # grass is wet
     tree.clique_tree.factor_graph.sizes["wet_grass"] = 1
@@ -423,7 +423,7 @@ def test_inference():
 
     # Example from http://pages.cs.wisc.edu/~dpage/cs731/lecture5.ppt
 
-    _key_sizes = {
+    _var_sizes = {
                     "A": 2,
                     "B": 2,
                     "C": 2,
@@ -480,7 +480,7 @@ def test_inference():
                 )
     ]
 
-    tree = jt.create_junction_tree(_factors, _key_sizes)
+    tree = jt.create_junction_tree(_factors, _var_sizes)
 
     prop_values = tree.propagate(_values)
 

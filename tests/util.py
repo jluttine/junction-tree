@@ -102,16 +102,16 @@ def create_cycle_basis(adj_matrix):
 def find_cycles(factors, num):
     '''Generate a list of all cycles from a factor graph with edge count greater than or equal to num.
 
-    :param factors: a list of factors (a list of nodes) representing node connections
+    :param factors: a list of factors (variable lists) representing node connections
     :param num: the minimum number of edges in each cycle
     :return: a list of cycles meeting minimum edge requirement
     '''
 
-    key_list, adj_mat = build_graph(factors)
+    node_list, adj_mat = build_graph(factors)
 
     cb = create_cycle_basis(adj_mat)
 
-    cb_edges = [zip(keys,(keys[1:] + keys[:1])) for keys in cb]
+    cb_edges = [zip(vars,(vars[1:] + vars[:1])) for vars in cb]
 
     graph_edges = [set(edge) for edge in np.transpose(np.nonzero(adj_mat))]
 
@@ -129,12 +129,12 @@ def find_cycles(factors, num):
                 for cycle in gibbs_elem_cycles(bit_seqs) if sum(cycle) >= num]
 
 
-    # replace indices with keys for edges and cycles representation
+    # replace indices with variables for edges and cycles representation
     graph_edges = [
                     set(
                         [
-                            key_list[tuple(edge)[0]],
-                            key_list[tuple(edge)[1]]
+                            node_list[tuple(edge)[0]],
+                            node_list[tuple(edge)[1]]
                         ]
                     )
                     for edge in graph_edges
@@ -144,8 +144,8 @@ def find_cycles(factors, num):
                 [
                     set(
                         [
-                            key_list[tuple(edge)[0]],
-                            key_list[tuple(edge)[1]]
+                            node_list[tuple(edge)[0]],
+                            node_list[tuple(edge)[1]]
                         ]
                     )
                     for edge in cycle
@@ -221,7 +221,7 @@ def assert_triangulated(factors, triangulation):
     graph_edges, cycles = find_cycles(factors, 4)
 
     for cycle in cycles:
-        cycle_keys = set([var for edge in cycle for var in edge])
+        cycle_vars = set([var for edge in cycle for var in edge])
 
         # at least one chord of cycle should be in triangulation or part of
         # original graph
@@ -229,7 +229,7 @@ def assert_triangulated(factors, triangulation):
         assert sum(
                     [
                         1 for edge in triangulation + graph_edges
-                        if set(edge) not in cycle and set(edge).issubset(cycle_keys)
+                        if set(edge) not in cycle and set(edge).issubset(cycle_vars)
                     ]
         ) > 0
 
@@ -262,108 +262,3 @@ def assert_potentials_equal(p1, p2):
         np.testing.assert_allclose(p1[0], p2[0])
         # recursively check remaining potentials
         assert_potentials_equal(p1[1:], p2[1:])
-
-
-def get_arrays_and_keys(tree, node_list, potentials):
-    '''Get all potential arrays and their keys as a flat list
-    Output: [array1, keys1, ..., arrayN, keysN]
-
-    :param tree: list of lists representing junction tree
-    :param node_list: list of nodes (keys) present in tree
-    :param potentials: list of potentials corresponding to nodes
-    :return: a list of arrays (storing potentials) and corresponding keys in a flat list
-    '''
-
-    return list([potentials[tree[0]],node_list[tree[0]]]) + sum(
-        [
-            get_arrays_and_keys(child_tree, node_list, potentials)
-            for child_tree in tree[1:]
-        ],
-        []
-    )
-
-
-def brute_force_sum_product(tree, node_list, potentials):
-    '''Compute brute force sum-product with einsum
-
-    :param tree: list of lists representing junction tree
-    :param node_list: list of nodes (keys) present in tree
-    :param potentials: list of potentials corresponding to nodes
-    :return: a list of potentials after applying sum-product
-    '''
-
-    # Function to compute the sum-product with brute force einsum
-    arrays_keys = get_arrays_and_keys(tree, node_list, potentials)
-    f = lambda output_keys: comp.sum_product.einsum(*(arrays_keys + [output_keys]))
-
-    def __run(tree, node_list, p, f, res=[]):
-        res.append(f(node_list[tree[0]]))
-        for child_tree in tree[1:]:
-            __run(child_tree, node_list, p, f, res)
-        return res
-
-    return __run(tree, node_list, potentials, f)
-
-
-def assert_junction_tree_consistent(tree, potentials):
-    r'''Asserts that a junction tree is globally consistent meaning that each clique and
-    neighboring sepset are locally consistent. Local consistency is achieved when
-    the sum over the potentials in a max_clique (excluding the nodes in a neighboring sepset)
-    is equal to the potential of the neighboring sepset:
-
-    \sum_{X\S} \phi_X = \phi_S
-
-
-    :param tree: a JunctionTree object
-    :param potentials: list of potential arrays corresponding to nodes in tree
-    '''
-
-    node_list = tree.get_node_list()
-    assert np.all(
-                    [
-                        potentials_consistent(
-                                            potentials[c_ix1],
-                                            node_list[c_ix1],
-                                            potentials[c_ix2],
-                                            node_list[c_ix2]
-                        )
-                        for c_ix1, c_ix2 in cons.generate_potential_pairs(tree.get_struct())
-                ]
-            )
-
-
-def potentials_consistent(pot1, keys1, pot2, keys2):
-    '''Ensure that summing over clique potentials for variables not present in
-    sepset generates a potential equal to sepset potential (definition of
-    consistent)
-
-    :param pot1: a clique potential
-    :param keys1: a list of keys in first potential
-    :param pot2: another clique potential
-    :param keys2: a list of keys in second potential
-    :return:
-    '''
-
-    c_pot, c_keys, s_pot, s_keys = (
-                        pot1,
-                        keys1,
-                        pot2,
-                        keys2
-    ) if len(keys1) > len(keys2) else (
-                        pot2,
-                        keys2,
-                        pot1,
-                        keys1
-    )
-
-    return np.allclose(
-                comp.sum_product.einsum(
-                    c_pot,
-                    c_keys,
-                    np.intersect1d(c_keys, s_keys).tolist()
-                ),
-                s_pot
-            )
-
-
-

@@ -356,7 +356,7 @@ def test_triangulate_factor_graph1():
     assert set(tri[0]) in [set(("A","C")),set(("A","D")),set(("B","D")),set(("B","E"))]
     # ensure factors to cliques mapping is correct
     for factor_ix, clique_ix in enumerate(factor_to_maxclique):
-        assert np.all([factor_key in max_cliques[clique_ix] for factor_key in factors[factor_ix]])
+        assert np.all([factor_var in max_cliques[clique_ix] for factor_var in factors[factor_ix]])
     assert_triangulated(fg[1], tri)
 
 
@@ -431,7 +431,7 @@ def test_triangulate_factor_graph_with_duplicate_factors():
     tri, max_cliques, factor_to_maxclique = cons.find_triangulation([ ["x", "y"], ["x", "y"] ], {"x":2, "y":3})
     assert None not in factor_to_maxclique
 
-def test_can_use_integer_keys():
+def test_can_use_integer_vars():
     x = 0
     y = 1
     assert type(jt.create_junction_tree([ [x], [x, y] ], {x: 10, y: 20})) == jt.JunctionTree
