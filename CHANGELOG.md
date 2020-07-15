@@ -1,6 +1,6 @@
 # Changelog
 
-## Dev
+## 0.2.0 (2020-07-15)
 - Unify language for keys and variables to use the term "variable".
 - Re-factor beliefpropogation code into a computation and construction module.
 - Use Shafer-Shenoy updates for belief propogation in junction tree.
