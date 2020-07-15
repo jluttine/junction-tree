@@ -1,5 +1,8 @@
 # Changelog
 
+## Dev
+- Fix README format.
+
 ## 0.2.1 (2020-07-15)
 - Fix long description content type for PyPI.
 

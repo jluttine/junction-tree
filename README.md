@@ -1,18 +1,18 @@
 # junction-tree
 Implementation of discrete factor graph inference utilizing the Junction Tree algorithm
 
-Requirements:
--------------
+## Requirements
 
 * Python3 (>= 3.5.5), NumPy (>= 1.13.3), SciPy (>= 1.1), attrs (>=17.4)
 
-Factor graphs:
---------------
+## Factor graphs:
 
 A factor graph is given as a list of variables that indicate which variables are in the
 factor.
 
-```[vars1, ..., varsN]  # a list of N factors```
+```
+[vars1, ..., varsN]  # a list of N factors
+```
 
 The index in the list can be used as an ID for the factor, that is, the first
 factor in the list has ID 0 and the last factor has ID N-1.
@@ -20,7 +20,9 @@ factor in the list has ID 0 and the last factor has ID N-1.
 A companion list (of numpy arrays) of the same length as the factor list is
 provided as a representation for the factor values
 
-```[values1, ..., valuesN]```
+```
+[values1, ..., valuesN]
+```
 
 Also, the size of each of the M variables is given as a dictionary:
 
@@ -36,16 +38,14 @@ Here, size is an integer representing the size of the variable. It is the same a
 the length of the corresponding axis in the numeric array.
 
 
-Generic trees (recursive definition):
--------------------------------------
+## Generic trees (recursive definition)
 
 ```
 [index, vars, child_tree1, ..., child_treeN]
 ```
 
 
-Junction trees:
----------------
+## Junction trees
 
 ```
 tree structure (composed of node indices found in node list):
@@ -67,18 +67,14 @@ node list (elements are list of variables which define node):
 maxcliques and separators are both types of nodes
 ```
 
-Potentials in (junction) trees:
--------------------------------
+## Potentials in (junction) trees
 
-A list of arrays. The node IDs in the tree graphs map
-to the arrays in this data structure in order to get the numeric
-arrays in the execution phase. The numeric arrays are not needed
-in the compilation phase.
+A list of arrays. The node IDs in the tree graphs map to the arrays in this data
+structure in order to get the numeric arrays in the execution phase. The numeric
+arrays are not needed in the compilation phase.
 
 
-
-
-## Usage:
+## Usage
 
 ### Junction Tree construction
 
@@ -177,7 +173,7 @@ norm_marginal = marginal/np.sum(marginal)
 ```
 
 
-References:
+## References
 
 S. M. Aji and R. J. McEliece, "The generalized distributive law," in IEEE Transactions on Information Theory, vol. 46, no. 2, pp. 325-343, Mar 2000. doi: 10.1109/18.825794
 
@@ -187,7 +183,7 @@ F. R. Kschischang, B. J. Frey and H. A. Loeliger, "Factor graphs and the sum-pro
 
 Kjærulff, Uffe. 1997. Nested junction trees. In Proceedings of the Thirteenth conference on Uncertainty in artificial intelligence (UAI’97). Morgan Kaufmann Publishers Inc., San Francisco, CA, USA, 294–301.
 
-### Other Python Junction Tree Implementations
+## Other Python Junction Tree Implementations
 
-[symfer](https://mbsd.cs.ru.nl/symfer/index.html) - a tool suite, written mostly in Python, for performing probabilistic inference  
+[symfer](https://mbsd.cs.ru.nl/symfer/index.html) - a tool suite, written mostly in Python, for performing probabilistic inference
 [bayesian-belief-networks](https://github.com/eBay/bayesian-belief-networks) - a library for the creation of and exact inference on Bayesian Belief Networks specified as pure Python functions
