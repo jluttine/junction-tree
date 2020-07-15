@@ -53,6 +53,7 @@ if __name__ == "__main__":
         description      = DESCRIPTION,
         url              = URL,
         long_description = read('README.md'),
+        long_description_content_type = "text/markdown",
         cmdclass         = versioneer.get_cmdclass(),
         keywords         = [
             'probabilistic programming',
