@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.2.1 (2020-07-15)
+- Fix long description content type for PyPI.
+
 ## 0.2.0 (2020-07-15)
 - Unify language for keys and variables to use the term "variable".
 - Re-factor beliefpropogation code into a computation and construction module.
