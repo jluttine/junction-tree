@@ -1,6 +1,6 @@
 # Changelog
 
-## Dev
+## 0.2.2 (2020-07-15)
 - Fix README format.
 
 ## 0.2.1 (2020-07-15)
