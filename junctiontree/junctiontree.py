@@ -4,7 +4,8 @@ Simple user interface for the Junction tree algorithm library
 
 import numpy as np
 
-from . import beliefpropagation as bp
+from . import computation as comp
+from . import construction as cons
 import attr
 
 
@@ -81,17 +82,17 @@ def einsum(xs, xs_keys, y_keys):
 
 @attr.s(frozen=True)
 class FactorGraph():
-    """A graph containing a set of nodes that each contain a set of keys.
+    """A graph containing a set of nodes that each contain a set of variables.
 
-    Each key has a corresponding size associated to it.
+    Each variable has a corresponding size associated to it.
 
     """
 
-    # Axis keys in each factor
+    # Axis variables in each factor
     #
-    # TODO: Check that factors don't contain duplicate keys.
+    # TODO: Check that factors don't contain duplicate variables.
     #
-    # TODO: Check that all keys in factors are in sizes dictionary.
+    # TODO: Check that all variables in factors are in sizes dictionary.
     factors = attr.ib()
 
     # Size of each axis
@@ -103,7 +104,7 @@ class FactorGraph():
 
         # Let's use the triangulation methods of undirected graphs.
 
-        (_, _, maxcliques, factor_to_maxclique) = bp.find_triangulation(
+        (_, maxcliques, factor_to_maxclique) = cons.find_triangulation(
             self.factors,
             self.sizes
         )
@@ -122,7 +123,7 @@ class CliqueGraph():
     Clique graph for an underlying factor graph.
     """
 
-    # Axis keys in each maximal clique
+    # Axis variables in each maximal clique
     maxcliques = attr.ib()
 
     # Maximal clique for each factor (multiple factors can belong to the same
@@ -141,7 +142,7 @@ class CliqueGraph():
         # indices in the tree data structure. These indices correspond to
         # elements in the clique graph `maxcliques` list. That is, each node in
         # the tree is a maxclique. This `maxclique` already has the information
-        # about the keys it contains, so there's no need to include that
+        # about the variables it contains, so there's no need to include that
         # information in the tree. So, a tree is defined recursively as:
         #
         #   tree = (node_index, subtree1, ..., subtreeN)
@@ -187,7 +188,7 @@ class CliqueGraph():
         #
         # So, what we need is the above tree structure and separators list.
 
-        (tree, separators) = bp.construct_junction_tree(
+        (tree, separators) = cons.construct_junction_tree(
             self.maxcliques,
             self.factor_graph.sizes
         )
@@ -250,10 +251,10 @@ class CliqueGraph():
         # This tells which maxclique to use for each factor
         self.factor_to_maxclique
 
-        # This tells the keys in each factor
+        # This tells the variables in each factor
         self.factor_graph.factors
 
-        # This tells the keys in each maxclique
+        # This tells the variables in each maxclique
         self.maxcliques
 
         # Now, use my custom einsum to marginalize, something like (didn't test
@@ -264,9 +265,9 @@ class CliqueGraph():
             einsum(
                 [ys[maxclique]],
                 [self.maxcliques[maxclique]],
-                factor_keys
+                factor_vars
             )
-            for (factor_keys, maxclique) in zip(
+            for (factor_vars, maxclique) in zip(
                     self.factor_graph.factors,
                     self.factor_to_maxclique
             )
@@ -284,9 +285,9 @@ class JunctionTree():
     # (cliqueID, (separatorID, subtree), (separatorID, subtree), ...)
     tree = attr.ib()
 
-    # Tuple of axis keys in each separator
+    # Tuple of axis vars in each separator
     #
-    # ( (key3, key1), (key2, key1), (key2) )
+    # ( (var3, var1), (var2, var1), (var2) )
     separators = attr.ib()
 
     # The underlying triangulated clique graph
@@ -301,7 +302,7 @@ class JunctionTree():
         # laws will require some changes in other places that we haven't
         # thought about yet, that is, some code may implicitly assume
         # sum-product distributive law.
-        distributive_law = bp.sum_product
+        distributive_law = comp.sum_product
 
         # Evaluate maximum cliques based on factor values
         maxclique_values = self.clique_tree.evaluate(xs)
@@ -309,20 +310,18 @@ class JunctionTree():
         # Initialize separator values
         sizes = self.clique_tree.factor_graph.sizes
         separator_values= [
-            np.ones(tuple(sizes[key] for key in separator))
+            np.ones(tuple(sizes[var] for var in separator))
             for separator in self.separators
         ]
 
         # Node list is a concatenation of maxcliques and separators
         values = maxclique_values + separator_values
 
-        # FIXME: There is some argument missing and not sure if these arguments
-        # match what the function expects.
-        ys = bp.hugin(
-            self.tree,
-            self.clique_tree.maxcliques + self.separators,
-            values,
-            distributive_law
+        ys = comp.compute_beliefs(
+                self.tree,
+                values,
+                self.clique_tree.maxcliques + self.separators,
+                distributive_law
         )
 
         # The return result should be marginalized to the factors. That is, the

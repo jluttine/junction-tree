@@ -4,15 +4,15 @@ Implementation of discrete factor graph inference utilizing the Junction Tree al
 Requirements:
 -------------
 
-* NumPy (>= 1.12)
+* Python3 (>= 3.5.5), NumPy (>= 1.13.3), SciPy (>= 1.1), attrs (>=17.4)
 
 Factor graphs:
 --------------
 
-A factor graph is given as a list of keys that tell which variables are in the
-factor. (A key corresponds to a variable.)
+A factor graph is given as a list of variables that indicate which variables are in the
+factor.
 
-```[keys1, ..., keysN]  # a list of N factors```
+```[vars1, ..., varsN]  # a list of N factors```
 
 The index in the list can be used as an ID for the factor, that is, the first
 factor in the list has ID 0 and the last factor has ID N-1.
@@ -26,9 +26,9 @@ Also, the size of each of the M variables is given as a dictionary:
 
 ```
 {
-    key1: size1,
+    var1: size1,
     ...
-    keyM: sizeM
+    varM: sizeM
 }
 ```
 
@@ -40,7 +40,7 @@ Generic trees (recursive definition):
 -------------------------------------
 
 ```
-[index, keys, child_tree1, ..., child_treeN]
+[index, vars, child_tree1, ..., child_treeN]
 ```
 
 
@@ -61,8 +61,8 @@ tree structure (composed of node indices found in node list):
         child_treeN
     )
 ]
-node list (elements are list of keys which define node):
-[node0_keys, node1_keys,...,nodeN_keys]
+node list (elements are list of variables which define node):
+[node0_vars, node1_vars,...,nodeN_vars]
 
 maxcliques and separators are both types of nodes
 ```
@@ -90,7 +90,7 @@ import junctiontree.beliefpropagation as bp
 import junctiontree.junctiontree as jt
 import numpy as np
 
-key_sizes = {
+var_sizes = {
                     "cloudy": 2,
                     "sprinkler": 2,
                     "rain": 2,
@@ -132,7 +132,7 @@ values = [
             )
 ]
 
-tree = jt.create_junction_tree(factors, key_sizes)
+tree = jt.create_junction_tree(factors, var_sizes)
 
 ```
 
@@ -151,7 +151,7 @@ Alternatively, clique potentials can be made consistent after observing data for
 
 ```
 # Update the size of observed variable
-cond_sizes = key_sizes.copy()
+cond_sizes = var_sizes.copy()
 cond_sizes["wet_grass"] = 1
 cond_tree = jt.create_junction_tree(factors, cond_sizes)
 
@@ -184,3 +184,10 @@ S. M. Aji and R. J. McEliece, "The generalized distributive law," in IEEE Transa
 Cecil Huang, Adnan Darwiche, Inference in belief networks: A procedural guide, International Journal of Approximate Reasoning, Volume 15, Issue 3, 1996, Pages 225-263, ISSN 0888-613X, http://dx.doi.org/10.1016/S0888-613X(96)00069-2.
 
 F. R. Kschischang, B. J. Frey and H. A. Loeliger, "Factor graphs and the sum-product algorithm," in IEEE Transactions on Information Theory, vol. 47, no. 2, pp. 498-519, Feb 2001. doi: 10.1109/18.910572
+
+Kjærulff, Uffe. 1997. Nested junction trees. In Proceedings of the Thirteenth conference on Uncertainty in artificial intelligence (UAI’97). Morgan Kaufmann Publishers Inc., San Francisco, CA, USA, 294–301.
+
+### Other Python Junction Tree Implementations
+
+[symfer](https://mbsd.cs.ru.nl/symfer/index.html) - a tool suite, written mostly in Python, for performing probabilistic inference  
+[bayesian-belief-networks](https://github.com/eBay/bayesian-belief-networks) - a library for the creation of and exact inference on Bayesian Belief Networks specified as pure Python functions
