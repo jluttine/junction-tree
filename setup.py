@@ -44,6 +44,7 @@ if __name__ == "__main__":
     setup(
         install_requires = [
             "numpy",
+            "scipy",
             "attrs",
         ],
         packages         = find_packages(),
