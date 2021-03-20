@@ -607,3 +607,6 @@ def test_junction_tree():
     return
 
 
+def test_no_edges():
+    jt.create_junction_tree([['x']], {'x': 42})
+    return

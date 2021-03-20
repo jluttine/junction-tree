@@ -1,5 +1,8 @@
 # Changelog
 
+## Dev
+- Fix crashing of factor graphs without edges.
+
 ## 0.2.3 (2020-07-15)
 - Format README.
 

@@ -290,7 +290,7 @@ def find_triangulation(factors, var_sizes):
 
     if len(factor_edges) == 0:
         # no edges present in factor graph
-        return ([], factors, factors, {i:i for i in range(len(factors))})
+        return ([], factors, {i:i for i in range(len(factors))})
 
     tri = []
     max_cliques = []
