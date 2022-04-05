@@ -73,14 +73,8 @@ def compute_beliefs(tree, potentials, clique_vars, dl=sum_product):
 
         neighbor_vars = np.unique(neighbor_vars)
 
-        # multiply neighbor messages
-
-        msg_prod = 1 if len(messages) == 0 else dl.einsum(
-                                                    *messages,
-                                                    neighbor_vars
-        )
-
-
+        # multiply neighbor messages        
+        msg_prod = dl.einsum(*messages, neighbor_vars)
 
         args = [msg_prod, neighbor_vars] + [beliefs[tree[0]], clique_vars[tree[0]], clique_vars[sepset_ix]]
 
