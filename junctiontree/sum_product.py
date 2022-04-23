@@ -19,6 +19,14 @@ class SumProduct():
         :return: the resulting calculation based on the summation performed
         '''
 
+        try:
+            if len(args[0]) == 0:
+                # represents identity element (empty list/array) for distributive law
+                return 1
+        except TypeError:
+            # __len__ not defined for type (e.g. scalar)
+            pass
+
         args_list = list(args)
 
         var_indices = args_list[1::2] + [args_list[-1]] if len(args_list) % 2 == 1 else []
